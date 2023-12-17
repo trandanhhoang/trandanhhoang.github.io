@@ -11,7 +11,7 @@ const config = {
   title: 'My Site',
   tagline: 'Dinosaurs are cool',
   favicon: 'img/favicon.ico',
-  deploymentBranch:"main",
+  deploymentBranch:'main',
 
   // Set the production url of your site here
   url: 'https://trandanhhoang.github.io',
