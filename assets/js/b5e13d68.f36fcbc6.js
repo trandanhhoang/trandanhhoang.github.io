@@ -1,1 +1,0 @@
-"use strict";(self.webpackChunkmy_website=self.webpackChunkmy_website||[]).push([[911],{287:a=>{a.exports=JSON.parse('{"title":"Java","description":"Java - Springboot basic","slug":"/category/java","permalink":"/docs/category/java","navigation":{"next":{"title":"Create a Page","permalink":"/docs/java/create-a-page"}}}')}}]);
