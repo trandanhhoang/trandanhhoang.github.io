@@ -1,1 +1,6 @@
-- Blog java- springboot example cơ bản: Bao gồm các source code chạy các example
+---
+sidebar_position: 1
+---
+# Getting Started
+- Blog java - Springboot
+  - Bao gồm các example với source-code cơ bản
