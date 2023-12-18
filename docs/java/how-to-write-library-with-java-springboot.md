@@ -410,6 +410,15 @@ public class Tester {
 - Bạn có thể debug line by line để hiểu rõ hơn, trong method createEngineMap, chúng ta sẽ lấy ra các method có annotation @Idempotent, sau đó tạo ra 1 IdempotentEngine tương ứng với mỗi method, và bỏ vào `Map<String, IdempotentEngine>`.
   - Hầu hết code chỉ là lấy ra các field từ annotation, chỉ có 1 điểm đáng chú ý là dùng BeanFactory để getBean hoặc createBean, để tạo ra các bean cần thiết.
 
+## Demo
+- Với lần chạy đầu tiên, bạn sẽ thấy dòng log "Successfully acquired idempotent key"
+  - check database, sẽ có 1 key "hoang", value: "hoang"
+- Lần chạy thứ 2, bạn sẽ thấy 2 dòng log
+```
+Idempotence detected
+You can throw here an exception if you want to.
+```
+
 ## Improve thư viện trên
 - IdempotentKeyResolver dùng SpEL để có thể lấy field từ request params dễ dàng hơn dùng reflection.
   - https://docs.spring.io/spring-framework/docs/3.0.x/reference/expressions.html
