@@ -406,7 +406,7 @@ public class Tester {
 - Chúng ta dùng ClassPathScanningCandidateComponentProvider để scan các bean có trong package của project chính.
   - ở đây đang hardcode dùng discoverEngines("com.example.idempotentlibrary.using");
   - bạn có thể config trong file application.yml để tuỳ chỉnh package của các bạn, ví dụ
-    - `@Value("${idempotence.spring.package-to-scan:com.finx}") String packageToScan`.
+    - `@Value("${idempotence.spring.package-to-scan:com.example}") String packageToScan`.
 - Bạn có thể debug line by line để hiểu rõ hơn, trong method createEngineMap, chúng ta sẽ lấy ra các method có annotation @Idempotent, sau đó tạo ra 1 IdempotentEngine tương ứng với mỗi method, và bỏ vào `Map<String, IdempotentEngine>`.
   - Hầu hết code chỉ là lấy ra các field từ annotation, chỉ có 1 điểm đáng chú ý là dùng BeanFactory để getBean hoặc createBean, để tạo ra các bean cần thiết.
 
