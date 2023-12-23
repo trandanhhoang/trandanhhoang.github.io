@@ -1,0 +1,44 @@
+https://codegym.cc/quests/lectures/en.questsyntaxpro.level18.lecture05
+class Optional<Type>
+{
+   private final Type value;
+   private Optional() { this.value = null;}
+   private Optional(value) { this.value = value;}
+   public static <Type> Optional<Type> of(Type value)
+   {
+      return new Optional<Type>(value);
+   }
+
+   public boolean isPresent()
+   {
+      return value != null;
+   }
+
+   public boolean isEmpty()
+   {
+      return value == null;
+   }
+
+   public Type get()
+   {
+      if (value == null)
+      {
+         throw new NoSuchElementException();
+      }
+      return value;
+   }
+
+   public Type orElse(Type other)
+   {
+      return value != null ? value : other;
+   }
+
+   public Type orElseThrow()
+   {
+      if (value == null)
+      {
+         throw new NoSuchElementException();
+      }
+      return value;
+   }
+}
