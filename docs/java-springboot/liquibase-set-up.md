@@ -75,7 +75,7 @@ spring:
 
 ## Câu hỏi tự trả lời
 1. Thêm 1 changSet mới và chạy thử.
-2. Hoặc Thay đổi changeSet cũ và chạy thử, có gì xảy ra ?
+2. Thay đổi changeSet cũ và chạy thử, có gì xảy ra ?
   
 ## References
 - https://docs.liquibase.com/home.html
