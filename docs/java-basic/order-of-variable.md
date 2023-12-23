@@ -1,1 +1,0 @@
-https://codegym.cc/quests/lectures/questcore.level05.lecture08

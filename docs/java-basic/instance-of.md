@@ -1,1 +1,0 @@
-https://codegym.cc/groups/posts/105-how-the-instanceof-operator-works
