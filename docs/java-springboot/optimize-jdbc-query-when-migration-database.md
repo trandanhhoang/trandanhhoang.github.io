@@ -7,7 +7,7 @@ sidebar_position: 5
 ## Tóm tắt
 - Chúng ta sẽ học cách thêm log vào jdbc (log chi tiết về query gọi sang database) 
 - Tối ưu query jdbc, từ 10000 call thành 5001 call bằng batch insert
-- ignore check key khi lưu data mới. từ 5001 call thành 2 call.
+- ignore check key khi lưu data mới. từ 5001 call thành 1 call.
 
 ## Code example
 ### Thêm log vào jdbc dùng **proxy datasource**
@@ -95,7 +95,7 @@ public class HoangEntity implements Persistable<String> {
   }
 }
 ```
-
+- Lúc này sẽ chỉ còn duy nhất 1 request insert batch. 
 - Bạn hãy thử insert trùng và xem log.
 
 ## References
