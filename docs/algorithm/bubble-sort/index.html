@@ -5,7 +5,7 @@
 <meta name="generator" content="Docusaurus v3.0.1">
 <title data-rh="true">Bubble sort | My Site</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://trandanhhoang.github.io/img/docusaurus-social-card.jpg"><meta data-rh="true" name="twitter:image" content="https://trandanhhoang.github.io/img/docusaurus-social-card.jpg"><meta data-rh="true" property="og:url" content="https://trandanhhoang.github.io/docs/algorithm/bubble-sort"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Bubble sort | My Site"><meta data-rh="true" name="description" content="- We will learn some keyword, notation, statement in english."><meta data-rh="true" property="og:description" content="- We will learn some keyword, notation, statement in english."><link data-rh="true" rel="icon" href="/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://trandanhhoang.github.io/docs/algorithm/bubble-sort"><link data-rh="true" rel="alternate" href="https://trandanhhoang.github.io/docs/algorithm/bubble-sort" hreflang="en"><link data-rh="true" rel="alternate" href="https://trandanhhoang.github.io/docs/algorithm/bubble-sort" hreflang="x-default"><link rel="alternate" type="application/rss+xml" href="/blog/rss.xml" title="My Site RSS Feed">
 <link rel="alternate" type="application/atom+xml" href="/blog/atom.xml" title="My Site Atom Feed"><link rel="stylesheet" href="/assets/css/styles.1c022e41.css">
-<script src="/assets/js/runtime~main.6f7faf5a.js" defer="defer"></script>
+<script src="/assets/js/runtime~main.87103435.js" defer="defer"></script>
 <script src="/assets/js/main.2980367d.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -18,7 +18,7 @@
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="analysis-the-algorithm">Analysis the algorithm<a href="#analysis-the-algorithm" class="hash-link" aria-label="Direct link to Analysis the algorithm" title="Direct link to Analysis the algorithm">​</a></h2>
 <ul>
 <li>The outer loop is start at the end of the array, index I.</li>
-<li>The inner loop is start at the start of the array, index J.</li>
+<li>The inner loop is start at the front of the array, index J.</li>
 <li>The purpose is moving the largest element into the last index I after each inner loop. In the inner loop,  we will compare the element at J with the right element of it, J plus 1. If the left is larger, we swap it. J will finish when J equal I.</li>
 </ul>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="complexity">Complexity<a href="#complexity" class="hash-link" aria-label="Direct link to Complexity" title="Direct link to Complexity">​</a></h2>
@@ -60,9 +60,9 @@
 <ul>
 <li>with: Expected value = sum of possibilities times chance per possibilities</li>
 <li>possibilities = <code>[0,1]</code> is we do the swap or not.</li>
-<li>chance per possibilities = 1/2 (example, 1/6 with dice)<!-- -->
+<li>chance per possibilities = 1/2 (example, 1/6 with dice) (we call 1/2 = one over two)<!-- -->
 <ul>
-<li>Now we have <code>E[x]</code> = 1 * (1/2) = 1/2</li>
+<li>Now we have <code>E[x]</code> = 1 * (1/2) = 1/2 = (one times one over two)</li>
 </ul>
 </li>
 </ul>
