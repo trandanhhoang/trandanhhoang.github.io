@@ -6,7 +6,8 @@
   - Có thể nhận vào nhiều loại data khác nhau.
   - Nhưng cùng thực hiện 1 flow công việc.
 
-## Code example
+## Code example 1
+- Dùng interface và abstract class để tái sử dụng code.
 ```java
 public class SinhVien{
 	private String name;
@@ -26,7 +27,7 @@ public interface GenericSinhVienProvider<T>{
 - BaseSinhVienRegister sẽ hoạt động dựa vào 2 method trên.
 ```java
 public abstract class BaseSinhVienRegister<T> implements GenericSinhVienProvider<T>{
-		public void do(T data){
+		public void doApply(T data){
             SinhVien sinhVien = getData(data);
 			apply(sinhVien);
 		}
@@ -44,6 +45,20 @@ public class SinhVienFromInputStream extends BaseSinhVienRegister<InputStream>{
     @Transactional
     public void apply(LosRegisterInfo losRegisterInfo) {
 			// do Something, save database.
+    }
+}
+```
+
+## Code example 2
+- Chỉ dùng interface
+```java
+public interface SinhVienProvider <T> {
+    SinhVien getData(T data);
+    void apply(SinhVien info);
+
+    default void doApply(T data){
+        SinhVien sinhVien = getData(data);
+        apply(sinhVien);
     }
 }
 ```

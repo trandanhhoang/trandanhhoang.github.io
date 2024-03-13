@@ -206,4 +206,195 @@ public final class PhoneNumber{
   consider making the top-level class a private static nested class of the sole class
   that uses it 
 
-### 
+## Chapter 5:
+### ENUM
+- https://github.com/marhan/effective-java-examples/blob/master/src/main/java/org/effectivejava/examples/chapter05/item27/GenericSingletonFactory.java
+```java
+public enum Operation {
+    PLUS("+") {
+        public double apply(double x, double y) {
+            return x + y;
+        }
+    };
+    private final String value;
+
+    Operation(String value) {
+        this.value = value;
+    }
+
+    public abstract double apply(double x, double y);
+
+    public String getValue() {
+        return value;
+    }
+}
+```
+```java
+public static void main(String[] args) {
+
+  for(Operation op: Operation.values()) {
+    System.out.printf("%d %s %d =%f",1,op,2,op.apply(1, 2));
+  }
+}
+```
+- Old way
+```java
+// Enum that switches on its value to share code - questionable
+enum PayrollDay {
+  MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY,
+  SATURDAY, SUNDAY;
+  private static final int MINS_PER_SHIFT = 8 * 60;
+  int pay(int minutesWorked, int payRate) {
+    int basePay = minutesWorked * payRate;
+    int overtimePay;
+    switch(this) {
+      case SATURDAY: case SUNDAY: // Weekend
+        overtimePay = basePay / 2;
+        break;
+      default: // Weekday
+        overtimePay = minutesWorked <= MINS_PER_SHIFT ?
+                0 : (minutesWorked - MINS_PER_SHIFT) * payRate / 2;
+    }
+    return basePay + overtimePay;
+  }
+}
+```
+- new way
+```java
+// The strategy enum pattern
+enum PayrollDay {
+  MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY,
+  SATURDAY(PayType.WEEKEND), SUNDAY(PayType.WEEKEND);
+  private final PayType payType;
+  PayrollDay(PayType payType) { this.payType = payType; }
+  PayrollDay() { this(PayType.WEEKDAY); } // Default
+  int pay(int minutesWorked, int payRate) {
+    return payType.pay(minutesWorked, payRate);
+  }
+  // The strategy enum type
+  private enum PayType {
+    WEEKDAY {
+      int overtimePay(int minsWorked, int payRate) {
+        return minsWorked <= MINS_PER_SHIFT ? 0 :
+                (minsWorked - MINS_PER_SHIFT) * payRate / 2;
+      }
+    },
+    WEEKEND {
+      int overtimePay(int minsWorked, int payRate) {
+        return minsWorked * payRate / 2;
+      }
+    };
+    abstract int overtimePay(int mins, int payRate);
+    private static final int MINS_PER_SHIFT = 8 * 60;
+    int pay(int minsWorked, int payRate) {
+      int basePay = minsWorked * payRate;
+      return basePay + overtimePay(minsWorked, payRate);
+    }
+  }
+}
+```
+- switch on an enum to simulate a missing method
+```java
+// Switch on an enum to simulate a missing method
+public static Operation inverse(Operation op) {
+  switch(op) {
+    case PLUS: return Operation.MINUS;
+    case MINUS: return Operation.PLUS;
+    case TIMES: return Operation.DIVIDE;
+    case DIVIDE: return Operation.TIMES;
+    default: throw new AssertionError("Unknown op: " + op);
+  }
+}
+```
+### Enum instead of bit field
+```java
+// EnumSet - a modern replacement for bit fields
+public class Text {
+  public enum Style { BOLD, ITALIC, UNDERLINE, STRIKETHROUGH }
+  // Any Set could be passed in, but EnumSet is clearly best
+  public void applyStyles(Set<Style> styles) {  }
+}
+```
+- using
+```
+text.applyStyles(EnumSet.of(Style.BOLD, Style.ITALIC));
+```
+### EnumMap
+- fraught with danger and complexity
+```
+// Using ordinal() to index into an array - DON'T DO THIS!
+Set<Plant>[] plantsByLifeCycle =
+        (Set<Plant>[]) new Set[Plant.LifeCycle.values().length];
+for (int i = 0; i < plantsByLifeCycle.length; i++)
+plantsByLifeCycle[i] = new HashSet<>();
+        for (Plant p : garden)
+plantsByLifeCycle[p.lifeCycle.ordinal()].add(p);
+// Print the results
+for (int i = 0; i < plantsByLifeCycle.length; i++) {
+        System.out.printf("%s: %s%n",
+                          Plant.LifeCycle.values()[i], plantsByLifeCycle[i]);
+        }
+```
+
+```
+// Using an EnumMap to associate data with an enum
+Map<Plant.LifeCycle, Set<Plant>> plantsByLifeCycle =
+        new EnumMap<>(Plant.LifeCycle.class);
+for (Plant.LifeCycle lc : Plant.LifeCycle.values())
+        plantsByLifeCycle.put(lc, new HashSet<>());
+        for (Plant p : garden)
+        plantsByLifeCycle.get(p.lifeCycle).add(p);
+System.out.println(plantsByLifeCycle);
+```
+
+```
+// Using a stream and an EnumMap to associate data with an enum
+System.out.println(Arrays.stream(garden)
+.collect(groupingBy(p -> p.lifeCycle,
+() -> new EnumMap<>(LifeCycle.class), toSet())));
+```
+
+- Using a nested EnumMap to associate data with enum pairs
+```java
+public enum Phase {
+  SOLID, LIQUID, GAS;
+  public enum Transition {
+    MELT(SOLID, LIQUID), FREEZE(LIQUID, SOLID),
+    BOIL(LIQUID, GAS), CONDENSE(GAS, LIQUID),
+    SUBLIME(SOLID, GAS), DEPOSIT(GAS, SOLID);
+    private final Phase from;
+    private final Phase to;
+    Transition(Phase from, Phase to) {
+      this.from = from;
+      this.to = to;
+    }
+    // Initialize the phase transition map
+    private static final Map<Phase, Map<Phase, Transition>>
+            m = Stream.of(values()).collect(groupingBy(t -> t.from,
+            () -> new EnumMap<>(Phase.class),
+            toMap(t -> t.to, t -> t,
+                    (x, y) -> y, () -> new EnumMap<>(Phase.class))));
+    public static Transition from(Phase from, Phase to) {
+      return m.get(from).get(to);
+    }
+  }
+}
+```
+- Adding new type
+```java
+// Adding a new phase using the nested EnumMap implementation
+public enum Phase {
+  SOLID, LIQUID, GAS, PLASMA;
+  public enum Transition {
+    MELT(SOLID, LIQUID), FREEZE(LIQUID, SOLID),
+    BOIL(LIQUID, GAS), CONDENSE(GAS, LIQUID),
+    SUBLIME(SOLID, GAS), DEPOSIT(GAS, SOLID),
+    IONIZE(GAS, PLASMA), DEIONIZE(PLASMA, GAS);
+     // Remainder unchanged
+  }
+}
+```
+
+
+### Optional
+- https://blogs.oracle.com/javamagazine/post/12-recipes-for-using-the-optional-class-as-its-meant-to-be-used
