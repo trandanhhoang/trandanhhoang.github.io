@@ -1,5 +1,5 @@
 ---
-sidebar_position: 1
+sidebar_position: 4
 ---
 
 # DynamicProxy
@@ -70,9 +70,6 @@ hoang is doing test
 hoang proxy test
 hoang get 10 mark
 ```
-
-## Ứng dụng.
-- 
 
 ## References
 - https://docs.oracle.com/javase/8/docs/api/java/lang/reflect/Proxy.html

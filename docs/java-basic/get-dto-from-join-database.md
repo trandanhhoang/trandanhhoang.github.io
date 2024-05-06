@@ -12,7 +12,6 @@
 ```java
 public interface LeadWithSessionDto {
     Long getId();
-
     String getCifNumber();
 }
 ```

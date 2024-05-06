@@ -1,11 +1,8 @@
-
-
 # Max Sum Distinct Sub Array
 
 ## Code in java
 ```java
 public static void main(String[] args) {
-
         System.out.println(maximumSubarraySum(new int[]{1, 5, 4, 2, 9, 9, 9}, 3) == 15);
         System.out.println(maximumSubarraySum(new int[]{9, 9, 9, 2, 9, 9, 9}, 3) == 0);
         System.out.println(maximumSubarraySum(new int[]{1, 2, 2}, 2) == 3);

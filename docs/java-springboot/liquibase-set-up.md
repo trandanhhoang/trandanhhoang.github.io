@@ -5,12 +5,33 @@ sidebar_position: 4
 # Ví dụ liquibase - database version control 
 
 ## Tóm tắt
-- Chúng ta sẽ tạo 1 project springboot với database postgresql, sử dụng liquibase để quản lý version của database.
+- project springboot với database postgresql, sử dụng liquibase để quản lý version của database.
 
 ## Prerequisites
-- Đọc references
+- https://docs.liquibase.com/home.html
+- Docker, Docker compose
 
 ## Code example
+- file Dockercompose.yaml
+```yaml
+version: '3.8'
+name: liquibase-self-learn
+services:
+  postgres:
+    image: postgres:15.5-alpine
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - local-postgres-v15:/var/lib/postgresql/data
+volumes:
+  local-postgres-v15:
+    external: true
+```
+
 - file build.gradle
 ```
 dependencies {

@@ -229,6 +229,27 @@ public enum Operation {
     }
 }
 ```
+- Use lambda
+```java
+// Enum with function object fields & constant-specific behavior
+public enum Operation {
+  PLUS ("+", (x, y) -> x + y),
+  MINUS ("-", (x, y) -> x - y),
+  TIMES ("*", (x, y) -> x * y),
+  DIVIDE("/", (x, y) -> x / y);
+  private final String symbol;
+  private final DoubleBinaryOperator op;
+  Operation(String symbol, DoubleBinaryOperator op) {
+    this.symbol = symbol;
+    this.op = op;
+  }
+  @Override public String toString() { return symbol; }
+  public double apply(double x, double y) {
+    return op.applyAsDouble(x, y);
+  }
+}
+```
+- test
 ```java
 public static void main(String[] args) {
 
@@ -395,6 +416,207 @@ public enum Phase {
 }
 ```
 
+### Annotations
+- https://github.com/marhan/effective-java-examples/blob/master/src/main/java/org/effectivejava/examples/chapter06/item35/RunTests.java
 
-### Optional
+## Chapter 7: Lambdas and Streams
+### Prefer lambdas to anonymous classes
+- Obsolate
+```
+// Anonymous class instance as a function object - obsolete!
+Collections.sort(words, new Comparator<String>() {
+  public int compare(String s1, String s2) {
+    return Integer.compare(s1.length(), s2.length());
+  }
+});
+```
+- become
+```
+// Lambda expression as function object (replaces anonymous class)
+Collections.sort(words,(s1, s2) -> Integer.compare(s1.length(), s2.length()));
+```
+
+### Favor the use of standard functional interfaces
+```
+UnaryOperator<T> T apply(T t) String::toLowerCase
+BinaryOperator<T> T apply(T t1, T t2) BigInteger::add
+Predicate<T> boolean test(T t) Collection::isEmpty
+Function<T,R> R apply(T t) Arrays::asList
+Supplier<T> T get() Instant::now
+Consumer<T> void accept(T t) System.out::println
+```
+
+### Use caution when making stream parallel
+- Don't parallelize stream when stream has Stream.iterate(), limit().
+  - stream need to care about race condition.
+
+- terminal operation
+  - count, collect, forEach.
+
+- Stateless operation
+  - map, filter
+- Bounded operation (keep constant varialbe)
+  - sum, max, reduce, skip, limit.
+- statefull operation (Unbounded operation, is it ?)
+  - sort (because it need to keep all element in memory), distinct.
+    - example, reverse prime number need know the largest prime number, in mathematic, we don't know.
+
+## CHapter 8 : Methods
+### Use overloading judiciously
+```java
+// Broken! - What does this program print?
+public class CollectionClassifier {
+    public static String classify(Set<?> s) {
+        return "Set";
+    }
+
+    public static String classify(List<?> lst) {
+        return "List";
+    }
+
+    public static String classify(Collection<?> c) {
+        return "Unknown Collection";
+    }
+
+    public static void main(String[] args) {
+        Collection<?>[] collections = {
+                new HashSet<String>(),
+                new ArrayList<BigInteger>(),
+                new HashMap<String, String>().values()
+        };
+        for (Collection<?> c : collections)
+            System.out.println(classify(c));
+    }
+}
+```
+- Override
+```java
+public class overLoading {
+  static class Wine {
+    String name() { return "wine"; }
+  }
+  static class SparklingWine extends Wine {
+    @Override String name() { return "sparkling wine"; }
+  }
+  static class Champagne extends SparklingWine {
+    @Override String name() { return "champagne"; }
+  }
+  public static void main(String[] args) {
+    List<Wine> wineList = List.of(
+            new Wine(), new SparklingWine(), new Champagne());
+    for (Wine wine : wineList)
+      System.out.println(wine.name());
+  }
+}
+```
+### use optional judiciously
 - https://blogs.oracle.com/javamagazine/post/12-recipes-for-using-the-optional-class-as-its-meant-to-be-used
+- bad
+```
+Optional<ProcessHandle> parentProcess = ph.parent();
+System.out.println("Parent PID: " + (parentProcess.isPresent() ?
+ String.valueOf(parentProcess.get().pid()) : "N/A"));
+```
+- good
+```
+System.out.println("Parent PID: " +
+ph.parent().map(h -> String.valueOf(h.pid())).orElse("N/A"));
+```
+- bad
+```java
+public Insurance findCheapestInsurance(Person person, Car car) {
+  // queries services provided by the different insurance companies
+  // compare all those data
+  return cheapestCompany;
+}
+public Optional<Insurance> nullSafeFindCheapestInsurance(
+        Optional<Person> person, Optional<Car> car) {
+  if (person.isPresent() && car.isPresent()) {
+    return Optional.of(findCheapestInsurance(person.get(), car.get()));
+  } else {
+    return Optional.empty();
+  }
+}
+```
+- good
+```java
+public Optional<Insurance> nullSafeFindCheapestInsurance(
+                              Optional<Person> person, Optional<Car> car) {
+    return person.flatMap(p -> car.map(c -> findCheapestInsurance(p, c)));
+}
+```
+- Bad
+```
+Insurance insurance = ...;
+        if(insurance != null && "CambridgeInsurance".equals(insurance.getName())){
+        System.out.println("ok");
+}
+```
+- good
+```
+Optional<Insurance> optInsurance = ...;
+optInsurance.filter(insurance -> "CambridgeInsurance".equals(insurance.getName()))
+    .ifPresent(x -> System.out.println("ok"));
+```
+- Example 1: a chain of Optional, instead of check null.
+```java
+public String getCarInsuranceName(Optional<Person> person, int minAge) {
+  return person.filter(p -> p.getAge() >= minAge)
+          .flatMap(Person::getCar)
+          .flatMap(Car::getInsurance)
+          .map(Insurance::getName)
+          .orElse("Unknown");
+}
+```
+- Example 2: Should write a utility class to hold in thing like below
+```java
+public static Optional<Integer> stringToInt(String s){
+    try{
+        return Optional.of(Integer.parseInt(s));
+    }catch(NumberFormatException e){
+        return Optional.empty();
+    }
+}
+```
+- Example 3: 
+- bad
+```java
+public int readDuration(Properties props, String name) {
+  String value = props.getProperty(name);
+  if (value != null) {
+    try {
+      int i = Integer.parseInt(value);
+      if (i > 0) {
+        return i;
+      }
+    } catch (NumberFormatException nfe) { }
+  }
+  return 0;
+}
+```
+- good 
+```java
+public int readDuration(Properties props, String name) {
+  return Optional.ofNullable(props.getProperty(name))
+          .flatMap(Utility::stringToInt)
+          .filter(i->i>0)
+          .orElse(0);
+}
+```
+### Write documents 
+```java
+/**
+* Returns the element at the specified position in this list.
+*
+* <p>This method is <i>not</i> guaranteed to run in constant
+* time. In some implementations it may run in time proportional
+* to the element position.
+*
+* @param index index of element to return; must be
+* non-negative and less than the size of this list
+* @return the element at the specified position in this list
+* @throws IndexOutOfBoundsException if the index is out of range
+* ({@code index < 0 || index >= this.size()})
+*/
+E get(int index);
+```

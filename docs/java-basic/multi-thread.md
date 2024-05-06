@@ -1,7 +1,12 @@
-# Multi-thread
+---
+sidebar_position: 3
+---
+
+# Semaphore & Multi-thread
 
 ## Tóm tắt
-- 
+- Dùng Semaphore để giới hạn số lượng thread được chạy cùng 1 lúc.
+  - task sẽ không được tạo cho tới khi thread rảnh.
 
 ## Code example 1
 

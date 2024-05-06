@@ -1,16 +1,51 @@
 ---
-sidebar_position: 2
+sidebar_position: 1
 ---
 
-# Viết library với annotation, reflection, aop, springboot
+# Tự viết 1 library với annotation, reflection, aop, springboot
+## Prerequisites
+- Annotation
+- Reflection
+- Aop (Aspect Oriented Programming)
 
 ## Tóm tắt
 - Hướng dẫn viết 1 thư viện cơ bản dùng annotation, reflection, aop, springboot.
-  - Mục đích: check idempotent của 1 api controller dựa trên request param
-  - Cách hoạt động: Từ request đầu tiên, chúng ta sẽ lưu key vào redis, từ những field cần thiết, request tiếp theo sẽ được kiềm tra, nếu key đã tồn tại thì trả về lỗi.
-  - Cách dùng: đánh annotation trên các method của Controller, ứng với mỗi method sẽ có 1 bean riêng biệt (gọi là IdempotantEngine- được tạo ra từ lúc khởi chạy project), để lấy key, lưu key, handle exception (chúng ta có thể tuỳ biến 3 task này dựa vào annotation).
+  - Mục đích: check idempotent của 1 api controller dựa trên request param (tránh bị duplicate request trong 1 khoảng thời gian)
+  - Cách hoạt động: Khi request tới, từ param chúng ta sẽ tạo được key để kiềm tra liệu có bị duplicate request không, nếu key đã tồn tại thì trả về lỗi, nếu chưa thì lưu key và tiếp tục xử lý request.
 
-- Ví dụ:
+- Thành phần quan trọng:
+  - Class IdempotantEngine: 
+    - Đây là 1 SPI (System Programming Interface) chỉ chứa các interface, chứa các logic cơ bản để lưu key, check idempotent, trả lỗi.
+  - Annotation Idempotent: 
+    - Đánh dấu trên method của Controller, chứa các thông tin cần thiết để tạo ra IdempotentEngine tương ứng.
+    - Được gọi thông qua AOP, mỗi khi method của Controller được gọi, chúng ta sẽ kiếm 1 IdempotentEngine để check idempotent.
+    
+- Ví dụ IdempotentEngine:
+- Interface IdempotentEngine sẽ có method execute cần được implement với các interface khác như IdempotentKeyResolver, IdempotentPersistant, IdempotentHandler. 
+```
+public class SimpleIdempotentEngine implements IdempotentEngine {
+  private final IdempotentKeyResolver idempotentKeyResolver;
+  private final IdempotentPersistant idempotentPersistant;
+  private final IdempotentHandler idempotentHandler;
+
+  @Override
+  public Object execute(Object[] args) {
+    // get key 
+    String key = idempotentKeyResolver.resolve(args);
+    boolean successfullyPersisted = idempotentPersistant.save(key);
+    // save key
+    if (successfullyPersisted) {
+      System.out.println("Successfully acquired idempotent key");
+      return null;
+    }
+    System.out.println("Idempotence detected");
+    // handle exception
+    return idempotentHandler.handle(args);
+  }
+}
+```
+
+-  Ví dụ cách dùng Annotation
 ```
     @Idempotent(id = "id1",
             expression = @Expression(
@@ -26,7 +61,7 @@ sidebar_position: 2
     }
 ```
 - Ý nghĩa của Annotation trên:
-  - id: vì mỗi method sẽ có 1 IdempotantEngine khác nhau, chúng ta sẽ tạo ra 1 `Map<String,IdempotantEngine>`với key là id để lấy ra engine cần thiết.
+  - id: chúng ta sẽ tạo ra 1 `Map<String,IdempotantEngine>`với key là id để lấy ra engine cần thiết.
   - expression: để xác định key từ request sẽ lấy từ index = 1, clazz = Request.class, field = "name"
     - Trong request có 2 field, index = 1 nghĩa là lấy field thứ 2, clazz = Request.class + field="name" để lấy field bằng reflection. 
   - handle: @Handle(handlerClass = CustomIdempotentHandler.class))
@@ -49,11 +84,6 @@ public class CustomIdempotentHandler implements IdempotentHandler {
     }
 }
 ```
-## Prequisites
-- Annotation
-- Reflection
-- Bean trong Springboot
-- Aspect Oriented Programming
 
 ## Project structure
 ![Project structure](./img/idempotent2.png)
@@ -120,7 +150,7 @@ public interface idempotentPersistant {
 }
 ```
 ### Tạo annotation
-- Từ mỗi annotation trên method Controller, chúng ta sẽ tạo ra 1 IdempotentEngine tương ứng.
+- Annotation Idempotent: sẽ là annotation chính.
 ```java
 @Target(java.lang.annotation.ElementType.METHOD)
 @Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
@@ -136,6 +166,7 @@ public @interface Idempotent {
 - persistent: sẽ được dùng để lưu key vào redis, hoặc database, mặc định sẽ là IdempotentPersistantImpl (xem annotation bên dưới)
 - handle: sẽ được dùng để thay đổi logic handle exception, mặc định sẽ là IdempotentHandlerImpl (xem annotation bên dưới)
 
+- Các annotation hỗ trợ.
 ```java
 @Target(ElementType.ANNOTATION_TYPE)
 @Retention(RetentionPolicy.RUNTIME)
@@ -155,7 +186,6 @@ public @interface Handle {
   Class<? extends IdempotentHandler> handler() default IdempotentHandlerImpl.class;
 
   enum IdempotentStrategy {
-
     THROWING,
     RETURNING,
   }
@@ -366,7 +396,6 @@ dependencies {
 ```
 
 ## How to run
-- Tạo 1 bean class dùng @Import
 ```java
 @Component
 @Import(IdempotentConfiguration.class)
@@ -401,7 +430,6 @@ public class Tester {
 ```
 
 ## Giải thích chi tiết
-
 ### IdempotentEngineRegistry
 - Chúng ta dùng ClassPathScanningCandidateComponentProvider để scan các bean có trong package của project chính.
   - ở đây đang hardcode dùng discoverEngines("com.example.idempotentlibrary.using");

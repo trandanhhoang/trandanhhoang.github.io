@@ -1,16 +1,16 @@
 ---
-sidebar_position: 1
+sidebar_position: 3
 ---
 
 # Ví dụ kafka + java springboot
 
-## Tóm tắt
-- ví dụ kafka producer, consumer cơ bản để hiểu rõ hơn về partition, ack trong consumer.
+## Tóm tắt 
+- project kafka producer, consumer cơ bản để hiểu rõ hơn về partition, ack trong consumer.
 
 ## Prequisites
-- Khái niệm cơ bản của kafka [kafka-cơ-bản](https://trandanhhoang.github.io/docs/kafka/kafka-basic)
-- Xem qua visualization để hiểu rõ hơn:
+- visualization kafka để hiểu rõ hơn:
   - https://softwaremill.com/kafka-visualisation/
+- Docker, Docker compose
 
 ## Set up
 - file docker-compose.yaml
@@ -55,15 +55,12 @@ services:
     depends_on:
       - kafka
 ```
-- Bạn có thể dùng file docker-compose trên, dùng kafka-ui để check status của kafka-broker.
+- Bạn có thể dùng file docker-compose trên, dùng kafka-ui tại localhost:9090 để check status của kafka-broker.
 
 ## Example code
-- Bao gồm 2 project là consumer và producer, producer được code riêng để quản lý việc bắn message lên topic.
 
 ### Producer project
 ```java
-package com.example.producerkafkatest;
-
 import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
@@ -99,8 +96,6 @@ public class ProducerReactor {
 
 ### Consumer project
 ```java
-package com.example.kafkaselflearn.kafka.producer;
-
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
@@ -118,7 +113,6 @@ public class Consumer {
 
 ```
 ### build.gradle
-
 ```
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter'
@@ -130,22 +124,23 @@ dependencies {
 ```
 
 ## Run and learn
-
 ### Consumer + partition hoạt động với nhau như thế nào ?
 - Chúng ta đã tạo được topic với 10 partition
-- Với Consumer có concurrency = 2, nghĩa là sẽ có 2 consumer được tạo ra để consume message từ topic1
-  - Check log chúng ta sẽ thấy consume 1 sẽ consume partition từ 0 -> 4, consume 2 sẽ consume partition từ 5 -> 9
+  - Với Consumer có concurrency = 2, nghĩa là sẽ có 2 consumer được tạo ra để consume message từ topic1
+    - Check log chúng ta sẽ thấy consume 1 sẽ consume partition từ 0 -> 4, consume 2 sẽ consume partition từ 5 -> 9
 ```
 o.s.k.l.KafkaMessageListenerContainer    : myId: partitions assigned: [topic1-5, topic1-6, topic1-7, topic1-8, topic1-9]
 o.s.k.l.KafkaMessageListenerContainer    : myId: partitions assigned: [topic1-0, topic1-1, topic1-2, topic1-3, topic1-4]
 ```
 - Với Consumer có concurrency = 1, nghĩa là chỉ có 1 consumer duy nhất consume message từ topic1, trên cả 10 partition
+  - Có thể kiểm tra trên kafka-ui.
 
 ### Consumer, ack trên từng partition hoạt động như thế nào ?
 - Config producer bắn 10 messages trên 1 partition
 - Config consumer có concurrency = 1
 - Chúng ta sẽ thấy consumer sẽ không consume message tiếp theo cho đến khi message trước đó được ack
   - Có thể tự config mode manual ack, và không ack message, bạn sẽ thấy message đó được consume mãi mãi.
+  - Với auto ack, message sẽ được ack dù có xảy ra exception trong method listen (sau 10 lần retry mà vẫn thất bại).
 
 - Mục đích: 
   - đảm bảo tính thứ tự trên từng partition (producer có thể truyền thêm key để đảm bảo với cùng 1 key, data sẽ vào cùng 1 partition)

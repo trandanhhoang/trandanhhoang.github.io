@@ -1,7 +1,12 @@
+---
+sidebar_position: 5
+---
+
 # Đọc file csv
 
 ## Tóm tắt:
-- Nhận data từ file csv, call thông qua postman
+- Nhận data từ file csv (có thể call thông qua postman)
+- Code example xử lý blocking hoặc non blocking
 
 ## Code example
 - blocking world

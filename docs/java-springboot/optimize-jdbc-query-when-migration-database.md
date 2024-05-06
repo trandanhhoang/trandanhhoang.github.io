@@ -5,9 +5,9 @@ sidebar_position: 5
 # Tối ưu query jdbc khi migration database
 
 ## Tóm tắt
-- Chúng ta sẽ học cách thêm log vào jdbc (log chi tiết về query gọi sang database) 
-- Tối ưu query jdbc, từ 10000 call thành 5001 call bằng batch insert
-- ignore check key khi lưu data mới. từ 5001 call thành 1 call.
+- Chúng ta sẽ học cách thêm log vào datasource (log chi tiết về query gọi sang database) 
+- Tối ưu query jdbc, từ 10000 call (5000 call check id + 5000 call insert) thành 5001 call bằng batch insert.
+- Ignore check key khi lưu data mới. từ 5001 call thành 1 call.
 
 ## Code example
 ### Thêm log vào jdbc dùng **proxy datasource**
@@ -19,7 +19,7 @@ sidebar_position: 5
       <version>1.9</version>
 </dependency>
 ```
-- Hoac gradle
+- Hoặc gradle
 ```
 // https://mvnrepository.com/artifact/net.ttddyy/datasource-proxy
 implementation 'net.ttddyy:datasource-proxy:1.4.1'
@@ -71,6 +71,7 @@ Name:hoangDatasource, Connection:3, Time:9, Success:True, Type:Prepared, Batch:F
 - Bạn hãy thử test với 5000 records, để ứng dụng vào các ví dụ tiếp theo.
 
 ### Proxy Bean
+- Nếu database config ở yaml.
 ```java
 import net.ttddyy.dsproxy.listener.logging.SLF4JLogLevel;
 import net.ttddyy.dsproxy.support.ProxyDataSource;
