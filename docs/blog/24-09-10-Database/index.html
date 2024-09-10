@@ -5,7 +5,7 @@
 <meta name="generator" content="Docusaurus v3.0.1">
 <title data-rh="true">Tìm hiểu database management system cơ bản (part 1) | My Site</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://trandanhhoang.github.io/img/docusaurus-social-card.jpg"><meta data-rh="true" name="twitter:image" content="https://trandanhhoang.github.io/img/docusaurus-social-card.jpg"><meta data-rh="true" property="og:url" content="https://trandanhhoang.github.io/docs/blog/24-09-10-Database"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Tìm hiểu database management system cơ bản (part 1) | My Site"><meta data-rh="true" name="description" content="Giới thiệu"><meta data-rh="true" property="og:description" content="Giới thiệu"><link data-rh="true" rel="icon" href="/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://trandanhhoang.github.io/docs/blog/24-09-10-Database"><link data-rh="true" rel="alternate" href="https://trandanhhoang.github.io/docs/blog/24-09-10-Database" hreflang="en"><link data-rh="true" rel="alternate" href="https://trandanhhoang.github.io/docs/blog/24-09-10-Database" hreflang="x-default"><link rel="alternate" type="application/rss+xml" href="/blog/rss.xml" title="My Site RSS Feed">
 <link rel="alternate" type="application/atom+xml" href="/blog/atom.xml" title="My Site Atom Feed"><link rel="stylesheet" href="/assets/css/styles.8dd38299.css">
-<script src="/assets/js/runtime~main.1f4db5fd.js" defer="defer"></script>
+<script src="/assets/js/runtime~main.ae441fff.js" defer="defer"></script>
 <script src="/assets/js/main.01ac2c48.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -70,7 +70,9 @@ hiện.</li>
 <li>Các <code>TUPLE</code>( hàng dữ liệu, record, row) là nơi lưu giá trị, tương ứng với kiểu dữ liệu (string,
 int, ...) được định nghĩa trong schema.<!-- -->
 <ul>
-<li>giả sử kiểu int 8B, string 32B, thì hàng trên sẽ có size = 8 + 32 = 40 Byte (Tất nhiên là DB sẽ hỗ trợ dynamic size cho các kiểu dữ liệu, nhưng mình sẽ bỏ qua để đơn giản cho các tính toán sau này).</li>
+<li>giả sử kiểu int 8B, string 32B, thì hàng trên sẽ có size = 8 + 32 = 40 Byte (Tất nhiên là DB
+sẽ hỗ trợ dynamic size cho các kiểu dữ liệu, nhưng mình sẽ bỏ qua để đơn giản cho các tính
+toán sau này).</li>
 </ul>
 </li>
 <li><code>PAGE</code> thường có size = 4096B. Tuỳ thuộc vào cấu trúc dữ liệu của AccessMethod (heapfile hoặc
@@ -97,9 +99,11 @@ cho metadata.</li>
 <li>HeapFile: Lưu trữ dữ liệu liên tiếp nhau, đơn giản.</li>
 <li>Btree: Hỗ trợ range query.<!-- -->
 <ul>
-<li>Bạn có thể đặt câu hỏi tại sao ko dùng Binary search tree, mà phải dùng Btree, thì mình có thể giải thích ngắn gọn, trọng tâm là:<!-- -->
+<li>Bạn có thể đặt câu hỏi tại sao ko dùng Binary search tree, mà phải dùng Btree, thì mình có
+thể giải thích ngắn gọn, trọng tâm là:<!-- -->
 <ul>
-<li>Cây BST thì cao hơn cây BTree, dẫn tới Btree giúp chúng ta giảm số lần truy cập disk, vì mỗi lần truy cập disk là rất tốn kém.</li>
+<li>Cây BST thì cao hơn cây BTree, dẫn tới Btree giúp chúng ta giảm số lần truy cập disk,
+vì mỗi lần truy cập disk là rất tốn kém.</li>
 </ul>
 </li>
 </ul>
@@ -143,7 +147,7 @@ tiên xoá trước.</li>
 <li>“Iterator” model được sử dụng trên operators để hoạt động cùng với SQL.</li>
 <li>Ý tưởng ở đây là, chúng ta sẽ soạn 1 query bằng cách đưa Operator con vào Operator cha, ví dụ:</li>
 </ul>
-<div class="language-sql codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_biex"><pre tabindex="0" class="prism-code language-sql codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#393A34"><span class="token keyword" style="color:#00009f">SELECT</span><span class="token plain"> </span><span class="token function" style="color:#d73a49">COUNT</span><span class="token punctuation" style="color:#393A34">(</span><span class="token plain">name</span><span class="token punctuation" style="color:#393A34">)</span><span class="token plain"> </span><span class="token keyword" style="color:#00009f">FROM</span><span class="token plain"> t1</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"> t2 </span><span class="token keyword" style="color:#00009f">WHERE</span><span class="token plain"> t</span><span class="token punctuation" style="color:#393A34">.</span><span class="token plain">name </span><span class="token operator" style="color:#393A34">=</span><span class="token plain"> t2</span><span class="token punctuation" style="color:#393A34">.</span><span class="token plain">name </span><span class="token operator" style="color:#393A34">AND</span><span class="token plain"> t</span><span class="token punctuation" style="color:#393A34">.</span><span class="token plain">age </span><span class="token operator" style="color:#393A34">&gt;</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">30.</span><br></span></code></pre><div class="buttonGroup__atx"><button type="button" aria-label="Copy code to clipboard" title="Copy" class="clean-btn"><span class="copyButtonIcons_eSgA" aria-hidden="true"><svg viewBox="0 0 24 24" class="copyButtonIcon_y97N"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"></path></svg><svg viewBox="0 0 24 24" class="copyButtonSuccessIcon_LjdS"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"></path></svg></span></button></div></div></div>
+<div class="language-sql codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_biex"><pre tabindex="0" class="prism-code language-sql codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#393A34"><span class="token keyword" style="color:#00009f">SELECT</span><span class="token plain"> </span><span class="token function" style="color:#d73a49">COUNT</span><span class="token punctuation" style="color:#393A34">(</span><span class="token plain">name</span><span class="token punctuation" style="color:#393A34">)</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token keyword" style="color:#00009f">FROM</span><span class="token plain"> t1</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">     t2</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token keyword" style="color:#00009f">WHERE</span><span class="token plain"> t</span><span class="token punctuation" style="color:#393A34">.</span><span class="token plain">name </span><span class="token operator" style="color:#393A34">=</span><span class="token plain"> t2</span><span class="token punctuation" style="color:#393A34">.</span><span class="token plain">name</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  </span><span class="token operator" style="color:#393A34">AND</span><span class="token plain"> t</span><span class="token punctuation" style="color:#393A34">.</span><span class="token plain">age </span><span class="token operator" style="color:#393A34">&gt;</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">30.</span><br></span></code></pre><div class="buttonGroup__atx"><button type="button" aria-label="Copy code to clipboard" title="Copy" class="clean-btn"><span class="copyButtonIcons_eSgA" aria-hidden="true"><svg viewBox="0 0 24 24" class="copyButtonIcon_y97N"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"></path></svg><svg viewBox="0 0 24 24" class="copyButtonSuccessIcon_LjdS"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"></path></svg></span></button></div></div></div>
 <ul>
 <li>
 <p>(1) fileT1 = NewFile(t)</p>
@@ -164,10 +168,12 @@ tiên xoá trước.</li>
 <p>(6) project = NewProject(count, t.name)</p>
 </li>
 <li>
-<p>Bạn có thể tưởng tượng, 2 file đầu tiên, ví dụ file 1 có 100 records, file 2 có 50 records, sau khi đi qua operator join</p>
+<p>Bạn có thể tưởng tượng, 2 file đầu tiên, ví dụ file 1 có 100 records, file 2 có 50 records, sau
+khi đi qua operator join</p>
 </li>
 <li>
-<p>tại bước (3), sẽ có 5000 records được join với điều kiện t.name = t2.name, ví dụ còn lại 2500 records.</p>
+<p>tại bước (3), sẽ có 5000 records được join với điều kiện t.name = t2.name, ví dụ còn lại 2500
+records.</p>
 </li>
 <li>
 <p>tại bước (4), sau khi qua filter1, có thể còn 1000 records</p>
@@ -176,12 +182,14 @@ tiên xoá trước.</li>
 <p>tại bước (5), Bước Aggregate sẽ duyệt qua toàn bộ record còn lại (500 record ở bước 5)</p>
 <ul>
 <li>Nếu là count thì tạo 1 biến đếm, mỗi lần đi qua 1 record th cộng 1 vào biến đếm</li>
-<li>Nếu là sum thì tạo 1 biến sum, mỗi lần đi qua 1 record thì cộng thêm giá trị của record đó vào biến sum</li>
+<li>Nếu là sum thì tạo 1 biến sum, mỗi lần đi qua 1 record thì cộng thêm giá trị của record đó vào
+biến sum</li>
 <li>Nếu là max thì luôn giữ giá trị lớn nhất, ...</li>
 </ul>
 </li>
 <li>
-<p>Tại bước 6, Operator Aggregate sẽ cho chúng ta thêm 1 column vào record, ví dụ: count(name) = 500, và chúng ta sẽ lấy được giá trị đó ra.</p>
+<p>Tại bước 6, Operator Aggregate sẽ cho chúng ta thêm 1 column vào record, ví dụ: count(name) = 500,
+và chúng ta sẽ lấy được giá trị đó ra.</p>
 </li>
 <li>
 <p>Các bước trên nảy sinh ra 2 bài toán mới</p>
@@ -192,6 +200,134 @@ tiên xoá trước.</li>
 </li>
 </ul>
 <h3 class="anchor anchorWithStickyNavbar_LWe7" id="optimize-query">OPTIMIZE QUERY<a href="#optimize-query" class="hash-link" aria-label="Direct link to OPTIMIZE QUERY" title="Direct link to OPTIMIZE QUERY">​</a></h3>
-<h3 class="anchor anchorWithStickyNavbar_LWe7" id="phép-join-ở-trên-được-thực-hiện-như-thế-nào-">Phép Join ở trên được thực hiện như thế nào ?<a href="#phép-join-ở-trên-được-thực-hiện-như-thế-nào-" class="hash-link" aria-label="Direct link to Phép Join ở trên được thực hiện như thế nào ?" title="Direct link to Phép Join ở trên được thực hiện như thế nào ?">​</a></h3></div></article><nav class="pagination-nav docusaurus-mt-lg" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docs/category/blog"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Blog</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docs/intro"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Getting Started</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#giới-thiệu" class="table-of-contents__link toc-highlight">Giới thiệu</a></li><li><a href="#chúng-ta-sẽ-cố-gắng-học-theo-hướng-bottom-up" class="table-of-contents__link toc-highlight">Chúng ta sẽ cố gắng học theo hướng bottom-up.</a></li><li><a href="#nhưng-ban-ban-đầu-hãy-có-1-cái-nhìn-tổng-quan-khi-trả-lời-các-câu-hỏi-chúng-ta-có-thể-tham-chiếu-lại-hình-này" class="table-of-contents__link toc-highlight">Nhưng ban ban đầu hãy có 1 cái nhìn tổng quan, khi trả lời các câu hỏi, chúng ta có thể tham chiếu lại hình này.</a></li><li><a href="#chúng-ta-sẽ-bắt-đầu-các-câu-hỏi-để-xây-dựng-kiến-thức" class="table-of-contents__link toc-highlight">Chúng ta sẽ bắt đầu các câu hỏi để xây dựng kiến thức.</a><ul><li><a href="#tại-sao-chúng-ta-không-lưu-dữ-liệu-dưới-file-txt-hay-excel-mà-phải-dùng-database-" class="table-of-contents__link toc-highlight">Tại sao chúng ta không lưu dữ liệu dưới file txt, hay excel, mà phải dùng database ?</a></li><li><a href="#dữ-liệu-bên-dưới-thực-sự-được-lưu-trữ-như-thế-nào-" class="table-of-contents__link toc-highlight">Dữ liệu bên dưới thực sự được lưu trữ như thế nào ?</a></li><li><a href="#access-method-là-gì-" class="table-of-contents__link toc-highlight">Access Method là gì ?</a></li><li><a href="#vậy-khi-1-file-lên-tới-hàng-terabyte-chúng-ta-có-load-toàn-bộ-file-từ-disk-vào-memory-không-" class="table-of-contents__link toc-highlight">Vậy khi 1 File lên tới hàng terabyte, chúng ta có load toàn bộ file từ disk vào memory không ?</a></li><li><a href="#vậy-nếu-client-yêu-cầu-1-lệnh-order-by-trên-toàn-bộ-record-sau-đó-lấy-ra-100-record-đầu-tiên-thì-chúng-ta-xử-lý-như-thế-nào-" class="table-of-contents__link toc-highlight">Vậy nếu client yêu cầu 1 lệnh order by trên toàn bộ record, sau đó lấy ra 100 record đầu tiên thì chúng ta xử lý như thế nào ?</a></li><li><a href="#nghiên-cứu-sâu-hơn-về-sql-sql-hỗ-trợ-các-operator-nào-" class="table-of-contents__link toc-highlight">Nghiên cứu sâu hơn về SQL, SQL hỗ trợ các Operator nào ?</a></li><li><a href="#optimize-query" class="table-of-contents__link toc-highlight">OPTIMIZE QUERY</a></li><li><a href="#phép-join-ở-trên-được-thực-hiện-như-thế-nào-" class="table-of-contents__link toc-highlight">Phép Join ở trên được thực hiện như thế nào ?</a></li></ul></li></ul></div></div></div></div></main></div></div></div><footer class="footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2024 My Project, Inc. Built with Docusaurus.</div></div></div></footer></div>
+<ul>
+<li>Bạn có thể đọc từ slide này (chi tiết hơn tóm tắt của mình): - <a href="https://dsg.csail.mit.edu/6.5830/2023/lectures/lec10.pdf" target="_blank" rel="noopener noreferrer">https://dsg.csail.mit.edu/6.5830/2023/lectures/lec10.pdf</a></li>
+<li>QUERY, là 1 LOGICAL PLAN, nó có thể viết lại dưới hàng trăm PHYSICAL PLAN khác nhau, ví dụ:</li>
+<li>Ví dụ, bạn có 1 câu query như sau,</li>
+</ul>
+<div class="language-sql codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_biex"><pre tabindex="0" class="prism-code language-sql codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#393A34"><span class="token keyword" style="color:#00009f">SELECT</span><span class="token plain"> Average</span><span class="token punctuation" style="color:#393A34">(</span><span class="token plain">Rating</span><span class="token punctuation" style="color:#393A34">)</span><span class="token plain"> </span><span class="token keyword" style="color:#00009f">FROM</span><span class="token plain"> reviews </span><span class="token keyword" style="color:#00009f">WHERE</span><span class="token plain"> mid </span><span class="token operator" style="color:#393A34">=</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">932</span><span class="token plain"> </span><span class="token operator" style="color:#393A34">and</span><span class="token plain"> Rating </span><span class="token operator" style="color:#393A34">&gt;</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">9</span><span class="token punctuation" style="color:#393A34">;</span><br></span></code></pre><div class="buttonGroup__atx"><button type="button" aria-label="Copy code to clipboard" title="Copy" class="clean-btn"><span class="copyButtonIcons_eSgA" aria-hidden="true"><svg viewBox="0 0 24 24" class="copyButtonIcon_y97N"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"></path></svg><svg viewBox="0 0 24 24" class="copyButtonSuccessIcon_LjdS"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"></path></svg></span></button></div></div></div>
+<ul>
+<li>Ở đây chúng ta có 2 <code>LOGICAL PLAN</code>
+<ul>
+<li>scan + filter. SCAN + FILTER qua tất cả các record</li>
+<li>index mid | index rating. DÙng index ở column.</li>
+</ul>
+</li>
+<li>Từ <code>LOGICAL PLAN</code> ở trên, hoán vị thứ tự select, join, filter có thể tạo ra các <code>PHYSICAL PLAN</code> khác nhau.</li>
+<li>Chúng ta sẽ estimate cost của các PHYSICAL PLAN, và chọn ra PHYSICAL PLAN có cost thấp nhất.</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="estimate-cost">ESTIMATE COST<a href="#estimate-cost" class="hash-link" aria-label="Direct link to ESTIMATE COST" title="Direct link to ESTIMATE COST">​</a></h3>
+<ul>
+<li>
+<p>Chúng ta có 2 chi phí cần quan tâm</p>
+<ul>
+<li>I/O times: chi phí đọc PAGE từ disk.</li>
+<li>CPU time: chi phí CPU xử lý operators (filter, join, ...), khi duyệt qua các records.</li>
+</ul>
+</li>
+<li>
+<p>Mình sẽ đưa ra 1 ví dụ chi tiết sau,  câu query ở mục <code>OPTIMIZE QUERY</code> trên</p>
+<ul>
+<li>Tiền điều kiện:<!-- -->
+<ul>
+<li>Table <code>REVIEW</code> have field mid, date (order by date)</li>
+<li>Scan 100MB/second</li>
+<li>CPU time = 0.1 μs (10^-6s)/row for <code>FILTER predicate</code></li>
+<li>CPU time = 0.1 μs (10^-6s)/row for <code>AVG predicate</code></li>
+<li>time Random disk I/O = 0.003 second per diskI/O</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p>Cách 1: scan + filter</p>
+<ul>
+<li>100k pages. each pages have 100 records =&gt; 8 second</li>
+<li>filter is applied to 10M rows<!-- -->
+<ul>
+<li>100 rows matched =&gt; 1 second</li>
+</ul>
+</li>
+<li>AVG apply for 100 rows -&gt; ignore</li>
+<li>=&gt; 9 seconds</li>
+</ul>
+</li>
+<li>
+<p>Cách 2: dùng index cột MID</p>
+<ul>
+<li>100 rows are retrieved using <code>MID index</code> =&gt; .3 seconds</li>
+<li>Why: Khi dữ liệu không được sắp xếp theo MID, các bản ghi có mid = 932 có thể nằm rải rác ở nhiều nơi khác nhau trên đĩa.</li>
+<li>giả sử chúng ta cần đọc tối đa 100 page, vậy thì cần 0.3s (c4 - condition 4)</li>
+</ul>
+</li>
+<li>
+<p>Nếu index không phải là 100 row, mà là 10.000 rows thì sao ?</p>
+<ul>
+<li>index có thể cần tới 30 second.</li>
+</ul>
+</li>
+<li>
+<ul>
+<li><img loading="lazy" alt="query-predicates" src="/assets/images/query-predicate-573ec02dc2a682f9ce165691a149abe8.png" width="1246" height="960" class="img_ev3q"></li>
+</ul>
+</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="phép-join-ở-trên-được-thực-hiện-như-thế-nào-">Phép Join ở trên được thực hiện như thế nào ?<a href="#phép-join-ở-trên-được-thực-hiện-như-thế-nào-" class="hash-link" aria-label="Direct link to Phép Join ở trên được thực hiện như thế nào ?" title="Direct link to Phép Join ở trên được thực hiện như thế nào ?">​</a></h3>
+<ul>
+<li>
+<p><code>NESTED LOOP JOIN</code></p>
+<ul>
+<li>Cơ bản là vòng lặp loop, với mỗi tuple của t1, chúng ta sẽ duyệt qua toàn bộ tuple t2, và lấy
+tất cả các tuple thoả điều của phép join.<!-- -->
+<ul>
+<li>ví dụ:<!-- -->
+<ul>
+<li>t1 có <code>tuple1 = hoang, 5</code>.</li>
+<li>t2 có <code>tuple1 = hoang, 4</code>; <code>tuple2 = hoang, 5</code>; tuple3 = huy, 6; tuple4 = ngoc, 7</li>
+<li>thì chúng ta sẽ có 2 tuple thoả điều kiện của phép join</li>
+</ul>
+</li>
+<li>Độ phức tạp giải thuật, t1 có N tuple, t2 có M tuple<!-- -->
+<ul>
+<li>thì độ phức tạp là O(N*M)</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>INDEX NESTED LOOP JOIN</code></p>
+<ul>
+<li>Độ phức tạp giải thuật, t1 có N tuple, t2 có M tuple (được đánh index)<!-- -->
+<ul>
+<li>thì độ phức tạp là O(N*logM)</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>HASH JOIN</code></p>
+<ul>
+<li>Độ phức tạp giải thuật, t1 có N tuple, t2 có M tuple. Cả 2 đều không được đánh index.<!-- -->
+<ul>
+<li>Chúng ta hash trên điều kiện đầu vào, của bảng có size nhỏ hơn. Sau đó duyệt trên bảng lớn
+hơn, và kiểm tra xem có trong hash table không.</li>
+<li>thì độ phức tạp là O(N + M)</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>MERGE JOIN</code></p>
+<ul>
+<li>Được sử dụng khi cả 2 bảng quá lớn</li>
+<li>Độ phức tạp là O(N + M) hoặc O(N<em>logN + M</em>logM) tuỳ theo cột đã được sắp xếp hay chưa.</li>
+</ul>
+</li>
+<li>
+<p>Ngoài ra còn rất nhiều cách khác, nhưng mình không muốn biến đây thành 1 bài học DSA.</p>
+</li>
+</ul></div></article><nav class="pagination-nav docusaurus-mt-lg" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docs/category/blog"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Blog</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docs/intro"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Getting Started</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#giới-thiệu" class="table-of-contents__link toc-highlight">Giới thiệu</a></li><li><a href="#chúng-ta-sẽ-cố-gắng-học-theo-hướng-bottom-up" class="table-of-contents__link toc-highlight">Chúng ta sẽ cố gắng học theo hướng bottom-up.</a></li><li><a href="#nhưng-ban-ban-đầu-hãy-có-1-cái-nhìn-tổng-quan-khi-trả-lời-các-câu-hỏi-chúng-ta-có-thể-tham-chi ếu-lại-hình-này" class="table-of-contents__link toc-highlight">Nhưng ban ban đầu hãy có 1 cái nhìn tổng quan, khi trả lời các câu hỏi, chúng ta có thể tham chiếu lại hình này.</a></li><li><a href="#chúng-ta-sẽ-bắt-đầu-các-câu-hỏi-để-xây-dựng-kiến-thức" class="table-of-contents__link toc-highlight">Chúng ta sẽ bắt đầu các câu hỏi để xây dựng kiến thức.</a><ul><li><a href="#tại-sao-chúng-ta-không-lưu-dữ-liệu-dưới-file-txt-hay-excel-mà-phải-dùng-database-" class="table-of-contents__link toc-highlight">Tại sao chúng ta không lưu dữ liệu dưới file txt, hay excel, mà phải dùng database ?</a></li><li><a href="#dữ-liệu-bên-dưới-thực-sự-được-lưu-trữ-như-thế-nào-" class="table-of-contents__link toc-highlight">Dữ liệu bên dưới thực sự được lưu trữ như thế nào ?</a></li><li><a href="#access-method-là-gì-" class="table-of-contents__link toc-highlight">Access Method là gì ?</a></li><li><a href="#vậy-khi-1-file-lên-tới-hàng-terabyte-chúng-ta-có-load-toàn-bộ-file-từ-disk-vào-memory-không-" class="table-of-contents__link toc-highlight">Vậy khi 1 File lên tới hàng terabyte, chúng ta có load toàn bộ file từ disk vào memory không ?</a></li><li><a href="#vậy-nếu-client-yêu-cầu-1-lệnh-order-by-trên-toàn-bộ-record-sau-đó-lấy-ra-100-record-đầu-tiên-thì-chúng-ta-xử-lý-như-thế-nào-" class="table-of-contents__link toc-highlight">Vậy nếu client yêu cầu 1 lệnh order by trên toàn bộ record, sau đó lấy ra 100 record đầu tiên thì chúng ta xử lý như thế nào ?</a></li><li><a href="#nghiên-cứu-sâu-hơn-về-sql-sql-hỗ-trợ-các-operator-nào-" class="table-of-contents__link toc-highlight">Nghiên cứu sâu hơn về SQL, SQL hỗ trợ các Operator nào ?</a></li><li><a href="#optimize-query" class="table-of-contents__link toc-highlight">OPTIMIZE QUERY</a></li><li><a href="#estimate-cost" class="table-of-contents__link toc-highlight">ESTIMATE COST</a></li><li><a href="#phép-join-ở-trên-được-thực-hiện-như-thế-nào-" class="table-of-contents__link toc-highlight">Phép Join ở trên được thực hiện như thế nào ?</a></li></ul></li></ul></div></div></div></div></main></div></div></div><footer class="footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2024 My Project, Inc. Built with Docusaurus.</div></div></div></footer></div>
 </body>
 </html>
