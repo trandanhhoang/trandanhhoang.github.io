@@ -5,7 +5,7 @@
 <meta name="generator" content="Docusaurus v3.0.1">
 <title data-rh="true">Tìm hiểu database management system cơ bản (part 1) | My Site</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://trandanhhoang.github.io/img/docusaurus-social-card.jpg"><meta data-rh="true" name="twitter:image" content="https://trandanhhoang.github.io/img/docusaurus-social-card.jpg"><meta data-rh="true" property="og:url" content="https://trandanhhoang.github.io/docs/blog/24-09-10-Database"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Tìm hiểu database management system cơ bản (part 1) | My Site"><meta data-rh="true" name="description" content="Giới thiệu"><meta data-rh="true" property="og:description" content="Giới thiệu"><link data-rh="true" rel="icon" href="/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://trandanhhoang.github.io/docs/blog/24-09-10-Database"><link data-rh="true" rel="alternate" href="https://trandanhhoang.github.io/docs/blog/24-09-10-Database" hreflang="en"><link data-rh="true" rel="alternate" href="https://trandanhhoang.github.io/docs/blog/24-09-10-Database" hreflang="x-default"><link rel="alternate" type="application/rss+xml" href="/blog/rss.xml" title="My Site RSS Feed">
 <link rel="alternate" type="application/atom+xml" href="/blog/atom.xml" title="My Site Atom Feed"><link rel="stylesheet" href="/assets/css/styles.8dd38299.css">
-<script src="/assets/js/runtime~main.46bed571.js" defer="defer"></script>
+<script src="/assets/js/runtime~main.cea096e2.js" defer="defer"></script>
 <script src="/assets/js/main.01ac2c48.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -203,15 +203,20 @@ và chúng ta sẽ lấy được giá trị đó ra.</p>
 </ul>
 <h3 class="anchor anchorWithStickyNavbar_LWe7" id="optimize-query">OPTIMIZE QUERY<a href="#optimize-query" class="hash-link" aria-label="Direct link to OPTIMIZE QUERY" title="Direct link to OPTIMIZE QUERY">​</a></h3>
 <ul>
-<li>Bạn có thể đọc từ slide này (chi tiết hơn tóm tắt của
-mình): - <a href="https://dsg.csail.mit.edu/6.5830/2023/lectures/lec10.pdf" target="_blank" rel="noopener noreferrer">https://dsg.csail.mit.edu/6.5830/2023/lectures/lec10.pdf</a></li>
-<li>QUERY, là 1 LOGICAL PLAN, nó có thể viết lại dưới hàng trăm PHYSICAL PLAN khác nhau<!-- -->
+<li>Bạn có thể đọc từ slide này (chi tiết hơn tóm tắt của mình): - <a href="https://dsg.csail.mit.edu/6.5830/2023/lectures/lec10.pdf" target="_blank" rel="noopener noreferrer">https://dsg.csail.mit.edu/6.5830/2023/lectures/lec10.pdf</a></li>
+<li>Từ các LOGICAL PLAN, có thể viết thành các PHYSICAL PLAN khác nhau.<!-- -->
 <ul>
 <li>LOGICAL PLAN là &quot;WHAT THEY DO&quot;: bạn có thể JOIN, GROUP, FILTER, ...</li>
-<li>PHYSICAL PLAN là &quot;HOW THEY DO&quot;: JOIN thì có NESTED LOOP, INDEX NESTED JOIN, HASH JOIN, MERGE JOIN, .... Bạn sẽ dùng gì ?</li>
+<li>PHYSICAL PLAN là &quot;HOW THEY DO&quot;: JOIN thì có NESTED LOOP, INDEX NESTED JOIN, HASH JOIN, MERGE
+JOIN, .... Bạn sẽ dùng gì ?</li>
 </ul>
 </li>
-<li>Ví dụ, bạn có 1 câu query như sau,</li>
+<li>Ví dụ đếm số plan:<!-- -->
+<ul>
+<li>bạn có 9 logical plan, và 10 physical plan, chúng ta sẽ có 90 plan khác nhau.</li>
+</ul>
+</li>
+<li>Để có cái nhìn rõ hơn về LOGICAL PLAN, PHYSICAL PLAN, mình ví dụ với câu query như sau,</li>
 </ul>
 <div class="language-sql codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_biex"><pre tabindex="0" class="prism-code language-sql codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#393A34"><span class="token keyword" style="color:#00009f">SELECT</span><span class="token plain"> Average</span><span class="token punctuation" style="color:#393A34">(</span><span class="token plain">Rating</span><span class="token punctuation" style="color:#393A34">)</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token keyword" style="color:#00009f">FROM</span><span class="token plain"> reviews</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain"></span><span class="token keyword" style="color:#00009f">WHERE</span><span class="token plain"> mid </span><span class="token operator" style="color:#393A34">=</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">932</span><span class="token punctuation" style="color:#393A34">;</span><br></span></code></pre><div class="buttonGroup__atx"><button type="button" aria-label="Copy code to clipboard" title="Copy" class="clean-btn"><span class="copyButtonIcons_eSgA" aria-hidden="true"><svg viewBox="0 0 24 24" class="copyButtonIcon_y97N"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"></path></svg><svg viewBox="0 0 24 24" class="copyButtonSuccessIcon_LjdS"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"></path></svg></span></button></div></div></div>
 <ul>
@@ -256,7 +261,8 @@ mình): - <a href="https://dsg.csail.mit.edu/6.5830/2023/lectures/lec10.pdf" tar
 <li>
 <p>Với tiền điều kiện:</p>
 <ul>
-<li>(1) Table reviews có 100k page, mỗi page có 100 records -&gt; 10 triệu records. Size file = 800 MB.</li>
+<li>(1) Table reviews có 100k page, mỗi page có 100 records -&gt; 10 triệu records. Size file = 800
+MB.</li>
 <li>(2) CPU time = 0.1 μs (10^-6s)/row cho <code>FILTER predicate</code></li>
 <li>(3) CPU time = 0.1 μs (10^-6s)/row cho <code>AVG predicate</code></li>
 <li>(4) Random disk I/O = 0.003 second per disk I/O.</li>
@@ -270,7 +276,8 @@ mình): - <a href="https://dsg.csail.mit.edu/6.5830/2023/lectures/lec10.pdf" tar
 <ul>
 <li>SCAN: Từ điều kiện 1 + 7, ta tính được: 800/100 = 8 seconds.</li>
 <li>filter được apply cho 10M rows. dùng điều kiện (2) để tính = 1 seconds.</li>
-<li>AVG dược apply trên 100 rows (điều kiện 6). tiếp tục dùng điều kiện (3) để tính cost, bé quá bỏ qua.</li>
+<li>AVG dược apply trên 100 rows (điều kiện 6). tiếp tục dùng điều kiện (3) để tính cost, bé quá
+bỏ qua.</li>
 <li>Chúng ta sẽ có tổng thời gian là 8 (SCAN) + 1 (FILTER) = 9 seconds.</li>
 </ul>
 </li>
@@ -279,7 +286,8 @@ mình): - <a href="https://dsg.csail.mit.edu/6.5830/2023/lectures/lec10.pdf" tar
 <ul>
 <li>Chúng ta biết 100 rows thoả điều kiện, <code>MID index</code>
 <ul>
-<li>Với điều kiện (5), chúng ta giả sử các records thoả mãn nằm rải rác ở 100 page khác nhau (Khi dữ liệu không được sắp xếp theo MID, các bản ghi có mid = 932 có thể nằm rải rác ở
+<li>Với điều kiện (5), chúng ta giả sử các records thoả mãn nằm rải rác ở 100 page khác nhau (
+Khi dữ liệu không được sắp xếp theo MID, các bản ghi có mid = 932 có thể nằm rải rác ở
 nhiều nơi khác nhau trên đĩa.)</li>
 <li>Kết hợp với điệu kiện 4, chúng ta đọc 100 page, 100*0.003 = 0.3s</li>
 <li>Vậy tổng thời gian chúng ta cần chỉ có 0.3s (cho seek disk trên 100 page).</li>
@@ -341,7 +349,7 @@ tất cả các tuple thoả điều của phép join.<!-- -->
 <ul>
 <li>Chúng ta hash trên điều kiện đầu vào, của bảng có size nhỏ hơn. Sau đó duyệt trên bảng lớn
 hơn, và kiểm tra xem có trong hash table không.</li>
-<li>thì độ phức tạp là O(N + M)</li>
+<li>th ì độ phức tạp là O(N + M)</li>
 </ul>
 </li>
 </ul>
