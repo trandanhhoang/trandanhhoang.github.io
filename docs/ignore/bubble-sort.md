@@ -50,7 +50,7 @@ public static void main(String[] args) {
 - The space complexity is Big O of one 'O(1)', because we do not require any additional memory space.
 
 ## Analysis the time complexity of average case
-- ![bubble sort time complexity](./img/bubble.jpeg)
+- ![bubble sort time complexity](img/bubble.jpeg)
 - Sigma i from 1 to n, Sigma j from 0 to i-1 of Expected value
   - with: Expected value = sum of possibilities times chance per possibilities
   - possibilities = `[0,1]` is we do the swap or not.

@@ -151,7 +151,7 @@ If you’ve already installed Zookeeper, Kafka, and Kafka Connect, then using De
 ![Kafka nhận 2 message mới](./img/kafkalive.png)
 
 - So sánh thử message insert và message delete
-  ![so snh message](./img/dbzujson.png)
+  ![so sanh message](./img/dbzujson.png)
 - Chúng ta có thể thấy ở trên, dù có 2 message nhưng chỉ có 1 message có giá trị, message còn lại là empty.
   - Vậy nên khi bạn đọc message từ kafka, dùng value bên trong message để detect sự thay đổi của DB
   - Như trên hình, chúng ta sẽ nhìn vào before và after để biết data thay đổi như thế nào.

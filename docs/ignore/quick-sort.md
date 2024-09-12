@@ -61,10 +61,10 @@ private static void swap(List<Integer> integers, int left, int right) {
   - N-1 is a number of comparison to divide array into 2 array that the left array always less than the pivot and the right array larger than pivot.
 - We will have formula below for the best case
   - C(N) = N - 1 + 2*C(N/2) , C(0) = C(1) = 0
-  - ![quick sort best case](./img/quicksort-bestcase.jpeg)
+  - ![quick sort best case](img/quicksort-bestcase.jpeg)
 - Worst case
   - C(N) = N - 1 + C(N-1) + C(1), C(0) = C(1) = 0
-  - ![quick sort worst case](./img/quicksort-worstcase.jpeg)
+  - ![quick sort worst case](img/quicksort-worstcase.jpeg)
 - Average case
   - C(N) = N - 1 + C(k) + C(N-k), C(0) = C(1) = 0
 

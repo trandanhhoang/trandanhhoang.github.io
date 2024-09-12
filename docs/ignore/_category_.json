@@ -1,0 +1,8 @@
+{
+  "label": "Ignore",
+  "position": 999,
+  "link": {
+    "type": "generated-index",
+    "description": "You can ignore this"
+  }
+}
