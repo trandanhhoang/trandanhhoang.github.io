@@ -322,3 +322,16 @@ SELECT name, age, salary
 - INL(0,0001 trở xuống)
 - NL (0,0001 - 0.001)
 - SM (từ 0.001 trở lên)
+
+--
+## Review later
+Let’s imagine, for example, that you’re building a banking application that must
+support a variety of overdraft policies. Each policy defines limits on the balance of an
+account and the fees charged for an overdrawn account. You can solve this problem
+using the Strategy pattern, which is a well-known pattern from the classic Design Patterns book. The solution defined by the Strategy pattern consists of three parts:
+
+A strategy interface called Overdraft that encapsulates the overdraft algorithm
+
+One or more concrete strategy classes, one for each particular context
+
+The Account class that uses the algorithm

@@ -12,6 +12,10 @@ const config = {
   tagline: 'Dinosaurs are cool',
   favicon: 'img/favicon.ico',
   deploymentBranch:'main',
+  markdown: {
+    mermaid: true,
+  },
+  themes: ['@docusaurus/theme-mermaid'],
 
   // Set the production url of your site here
   url: 'https://trandanhhoang.github.io',
@@ -43,6 +47,12 @@ const config = {
         docs: {
           // routeBasePath: '/',
           sidebarPath: './sidebars.js',
+          exclude: [
+            '**/ignore/**',   // Exclude the "private" folder under any sub-folder
+            '**/java-basic/**',   // Exclude the "private" folder under any sub-folder
+            '**/tech/**',   // Exclude the "private" folder under any sub-folder
+            '**/*.draft.md',   // Exclude files ending in ".draft.md"
+          ],
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
           // editUrl:

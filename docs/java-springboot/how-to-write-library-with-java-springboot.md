@@ -8,6 +8,9 @@ sidebar_position: 1
 - Reflection
 - Aop (Aspect Oriented Programming)
 
+## Github
+https://github.com/trandanhhoang/check-duplicate
+
 ## Tóm tắt
 - Hướng dẫn viết 1 thư viện cơ bản dùng annotation, reflection, aop, springboot.
   - Mục đích: check idempotent của 1 api controller dựa trên request param (tránh bị duplicate request trong 1 khoảng thời gian)

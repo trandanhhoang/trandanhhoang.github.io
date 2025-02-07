@@ -10,7 +10,7 @@
 
 ## Giới thiệu bài hôm nay
 - Thời gian đọc: 30-60 phút đọc.
-- Chúng ta sẽ học về cách database tổ chức dữ liệu ở trên disk, cách chúng ta load lên mem.
+- Chúng ta sẽ học cách mà database tổ chức dữ liệu ở trên disk, cách DB load dữ liệu lên mem.
 - Cách DB optimize query, và các cách thực hiện phép join.
 
 ## Chúng ta sẽ cố gắng học theo hướng bottom-up.
@@ -26,12 +26,14 @@
       hiện.
     - Relational Query Processor: parse câu query, optimize query.
     - Transactional Storage Manager:
-        - Access Methods: Nơi tổ chức, truy cập dữ liệu trên disk (ví dụ: heap_file, Btree)
-        - Buffer Manager: Quyết định dữ liệu khi nào được lưu trên memory, disk.
+        - Access Methods (File Organization): cách mà db tổ chức, truy cập dữ liệu trên disk (ví dụ: heap_file, Btree)
+        - BufferPool: Quyết định dữ liệu khi nào được lưu trên memory, disk.
         - Lock Manager, Log Manager: Đảm bảo ACID
     - Share component & Utilities:
 
-- Chúng ta sẽ tập trung vào Transaction Storage Manager.
+- Chúng ta sẽ tập trung vào
+  - Một phần của **Relational Query Processor**, về optimize query
+  - Toàn bộ **Transaction Storage Manager**
 
 ## Chúng ta sẽ bắt đầu các câu hỏi để xây dựng kiến thức.
 
@@ -51,26 +53,32 @@ CREATE TABLE student
 );
 ```
 
-- Các `TUPLE`( hàng dữ liệu, record, row) là nơi lưu giá trị, tương ứng với kiểu dữ liệu (string,
+- Các `TUPLE`( hay hàng dữ liệu, record, row) là nơi lưu giá trị, tương ứng với kiểu dữ liệu (string,
   int, ...) được định nghĩa trong schema.
     - giả sử kiểu int 8B, string 32B, thì hàng trên sẽ có size = 8 + 32 = 40 Byte (Tất nhiên là DB
       sẽ hỗ trợ dynamic size cho các kiểu dữ liệu, nhưng mình sẽ bỏ qua để đơn giản cho các tính
       toán sau này).
-- `PAGE` thường có size = 4096B. Tuỳ thuộc vào cấu trúc dữ liệu của AccessMethod (heapfile hoặc
-  Btree), mà cách chúng ta lưu trữ dữ liệu cũng khác nhau. Ví dụ với heap-file
-    - Mỗi PAGE sẽ để dành 8 Byte để lưu trữ `metadata`, ví dụ: số tuples hiện tại, và số tuples tối
+- `PAGE`: thường có size = 4096B. Chứa các thông tin về tuple, cũng như các tuple trên, tuỳ thuộc vào cấu trúc dữ liệu của AccessMethod (heapfile hoặc
+  Btree). Ví dụ với heap-file
+    - Mỗi PAGE có thể dành 8 Byte để lưu trữ `metadata`, ví dụ: 4B cho số tuples hiện tại, và 4B cho số tuples tối
       đa có thể lưu trữ.
     - Các tuple được lưu liên tiếp với nhau.
     - Với TUPLE có size là 40 Byte, thì 1 PAGE sẽ lưu được (4096 - 8) / 40 = 102 tuple. với 8 Byte
       cho metadata.
-- `FILE` thì bao gồm nhiều PAGE.
+- `FILE`: bao gồm nhiều PAGE.
 - hình ảnh vẽ file nếu sử dụng `HEAPFILE`
     - ![heapfile](./img/heapfile.png)
 
-### Access Method là gì ?
+### Access Method (File organization) là gì ?
 
-- Là cách mà chúng ta read, write dữ liệu từ disk lên memory.
-    - HeapFile: Lưu trữ dữ liệu liên tiếp nhau, đơn giản.
+- Access Method (File organization) là 1 phần của Transactional Storage Manager, bạn có thể xem lại phần tổng quan ở trên.
+  - Access method ảnh hưởng tới cách truy cập dữ liệu, ví dụ: heap scan, hay index scan.
+
+- Access Method: Là cách mà chúng ta read, write dữ liệu từ disk lên memory. Có nhiều loại Access, ví dụ:
+    - HeapFile: Lưu trữ dữ liệu liên tiếp nhau (Unorder records), đơn giản (đã có ví dụ ở trên).
+      - File organization: Mình sẽ nhắc lại lần nữa
+        - Pages: fixed length records
+        - Records
     - Btree: Hỗ trợ range query.
         - Bạn có thể đặt câu hỏi tại sao ko dùng Binary search tree, mà phải dùng Btree, thì mình có
           thể giải thích ngắn gọn, trọng tâm là:
@@ -78,6 +86,30 @@ CREATE TABLE student
               vì mỗi lần truy cập disk là rất tốn kém.
     - HashIndex: Hỗ trợ equal query, không hỗ trợ range query.
 - TODO: hình ảnh vẽ file nếu sử dụng BTREE, B+TREE
+
+
+### So sánh các Access Method.
+- Unordered records (HEAP file)
+  - Insert: O(1) vì được insert ở cuối file.
+  - Searching: O(N), tìm kiếm toàn bộ (linear search)
+  - Delete: O(N), tìm kiếm trên từng Page, load lên memory, xóa, ghi lại.
+    - có thể dùng kĩ thuật mark delete, sau này xoá 1 thể để tối ưu.
+- Order records (sequential): tưởng tượng như dùng Array.
+  - Insert: O(LogN), rất là tệ khi phải move toàn bộ data sau khi thêm hoặc xoá.
+  - Delete: dùng kĩ thuật mark delete, đỡ tệ hơn insert.
+  - Searching: O(LogN)
+    - searching hỗ trợ range query.
+    - searching record tiếp theo trong O(1).
+- Internal hashing
+  - Chúng ta dùng 1 field để làm hash key
+  - File được chia ra thành M bucket.
+  - record với giá trị K được lưu ở Page i với i = K mod M
+  - Searching: O(1)
+  - Collision: có 2 cách xủ lý phổ biến
+    - Open addressing: tìm vị trí trống gần nhất, sau này kiểm tra có thể dùng công thức `i_new = (i + 1) mod M`
+    - Lưu record bị đụng độ ở 1 linked list (1 page khác để lưu mấy giá trị bị đụng độ)
+- B-Tree:
+  - 
 
 ### Vậy khi 1 File lên tới hàng terabyte, chúng ta có load toàn bộ file từ disk vào memory không ?
 
