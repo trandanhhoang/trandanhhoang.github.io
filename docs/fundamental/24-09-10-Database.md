@@ -283,3 +283,5 @@ WHERE mid = 932;
   factor. Bạn có thể tự đào sâu nếu muốn.
 
 ### Bài hôm nay cũng đã dài, hẹn gặp lại các bạn ở bài tiếp theo.
+
+_Victory is celebrated in the light, but it is won in the darkness_

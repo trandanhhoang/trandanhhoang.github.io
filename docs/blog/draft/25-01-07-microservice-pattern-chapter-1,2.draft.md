@@ -1,4 +1,6 @@
-# Microservice Pattern with example in Java
+# Microservice Pattern with example in Java part 1
+
+_To see the future, you must know the past_
 
 This page talks about lessons learned from the book <span className="layered-style">"Microservice Patterns with example in Java"</span> by Chris Richardson, so sentences are my own thoughts, not from the book.
 <!--   style="color: #FF6F61;" -->
@@ -128,3 +130,46 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {}
 **How hexagonal architecture solve problem:** By using interface instead of putting "implement class" directly in code
 
 ![img.png](img/hexagonal.png)
+
+### Obstacles to decomposing an application into services
+
+<span className="layered-style"> SYNCHRONOUS INTERPROCESS COMMUNICATION REDUCES AVAILABILITY </span>
+
+The drawback of using a protocol like REST is that it
+reduces the availability of the Order Service. It won’t be able to create an order if any
+of those other services are unavailable. Sometimes this is a worthwhile trade-off, but in
+chapter 3 you’ll learn that using asynchronous messaging, which eliminates tight coupling and improves availability, is often a better choice.
+
+<span className="layered-style"> MAINTAINING DATA CONSISTENCY ACROSS SERVICES </span>
+
+The traditional solution is to use a two-phase, commit-based, distributed transaction management mechanism. But as you’ll see in chapter 4, this is not a good
+choice for modern applications, and you must use a very different approach to transaction management, a saga
+
+A saga is a sequence of local transactions that are coordinated using messaging. Sagas are more complex than traditional ACID transactions
+but they work well in many situations. One limitation of sagas is that they are eventually consistent. If you need to update some data atomically, then it must reside within
+a single service, which can be an obstacle to decomposition.
+
+
+<span className="layered-style"> OBTAINING A CONSISTENT VIEW OF THE DATA </span>
+
+<span className="layered-style"> GOD CLASSES PREVENT DECOMPOSITION </span>
+
+One solution is to package the Order class into a library and create a central Order
+database. All services that process orders use this library and access the access database. The trouble with this approach is that it violates one of the key principles of the
+microservice architecture and results in undesirable, tight coupling. For example, any
+change to the Order schema requires the teams to update their code in lockstep.
+
+Another solution is to encapsulate the Order database in an Order Service, which
+is invoked by the other services to retrieve and update orders. The problem with that
+design is that the Order Service would be a data service with an anemic domain
+model containing little or no business logic. Neither of these options is appealing, but
+fortunately, DDD provides a solution
+
+A much better approach is to apply DDD and treat each service as a separate subdomain with its own domain model.
+Application MUST maintain consistency between these different objects in different services.
+- For example, once the Order Service has authorized the consumer’s credit card, it must trigger the creation of the Ticket in the KitchenService
+- Similarly, if the restaurant rejects the order via the Kitchen Service, it must
+be cancelled in the Order Service service, and the customer credited in the billing
+service.
+- In chapter 4, you’ll learn how to maintain consistency between services, using
+the previously mentioned event-driven mechanism sagas.

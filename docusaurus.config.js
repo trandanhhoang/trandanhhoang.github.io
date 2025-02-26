@@ -8,10 +8,10 @@ import {themes as prismThemes} from 'prism-react-renderer';
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
-  title: 'My Site',
-  tagline: 'Dinosaurs are cool',
+  title: 'Blog of Tran Danh Hoang',
+  tagline: 'Blog of Tran Danh Hoang',
   favicon: 'img/favicon.ico',
-  deploymentBranch:'main',
+  deploymentBranch: 'main',
   markdown: {
     mermaid: true,
   },
@@ -50,7 +50,7 @@ const config = {
           exclude: [
             '**/ignore/**',   // Exclude the "private" folder under any sub-folder
             '**/java-basic/**',   // Exclude the "private" folder under any sub-folder
-            '**/tech/**',   // Exclude the "private" folder under any sub-folder
+            // '**/tech/**',   // Exclude the "private" folder under any sub-folder
             '**/*.draft.md',   // Exclude files ending in ".draft.md"
           ],
           // Please change this to your repo.
@@ -88,7 +88,7 @@ const config = {
             type: 'docSidebar',
             sidebarId: 'tutorialSidebar',
             position: 'left',
-            label: 'Java-Springboot',
+            label: 'BLOG',
           },
           // {to: '/blog', label: 'Blog', position: 'left'},
           // {
