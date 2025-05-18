@@ -18,7 +18,7 @@
 ### Nhưng ban ban đầu hãy có 1 cái nhìn tổng quan, khi trả lời các câu hỏi, chúng ta có thể tham chiếu lại hình này.
 
 - Các thành phần chính của Database
-    - ![db-components](./img/db-components.png)
+    - ![db-components](img/db/db-components.png)
 
 - Trong đó,
     - Client Communication Manager: thiết lập kết nỗi giữa client và database server.
@@ -67,7 +67,7 @@ CREATE TABLE student
       cho metadata.
 - `FILE`: bao gồm nhiều PAGE.
 - hình ảnh vẽ file nếu sử dụng `HEAPFILE`
-    - ![heapfile](./img/heapfile.png)
+    - ![heapfile](img/db/heapfile.png)
 
 ### Access Method (File organization) là gì ?
 
@@ -115,7 +115,7 @@ CREATE TABLE student
 
 - Rõ ràng là không thể, vậy nên chúng ta sẽ dùng `BUFFER_POOL`. BUFFER_POOL không chỉ quản lý PAGE
   cho 1 FILE duy nhất.
-- ![bufferpool](./img/bufferpool.png)
+- ![bufferpool](img/db/bufferpool.png)
 - reference of image: https://white-night.club/index.php/2023/10/24/pg17/
 
 - Bạn có thể thấy bufferpool để lưu các page đang được sử dụng, nếu PAGE được chỉnh sửa, ta gọi đó
@@ -248,7 +248,7 @@ WHERE mid = 932;
 
 - Nếu `INDEX` trên cột MID không phải chỉ có 100 row thoả mãn, mà là 10.000 rows thì sao ?
     - index có thể cần tới 30 giây.
-- ![query-predicates](./img/query-predicate.png)
+- ![query-predicates](img/db/query-predicate.png)
 
 - Phép Join cũng là 1 phần của quá trình Optimize Query, chúng ta sẽ tìm hiểu ở mục tiếp theo.
 

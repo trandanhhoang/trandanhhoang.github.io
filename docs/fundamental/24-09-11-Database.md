@@ -6,5 +6,5 @@
 - Two phase locking là gì ?
 
 ### Overview của database
-- ![detail-db](./img/detail-db.png)
+- ![detail-db](img/db/detail-db.png)
 - reference of image: https://github.com/awelm/simpledb?tab=readme-ov-file
