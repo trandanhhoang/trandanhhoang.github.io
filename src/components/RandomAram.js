@@ -1,12 +1,37 @@
 import React, { useState, useEffect } from 'react';
 
 const roles = {
-    Fighter: ["Aatrox", "Camille", "Darius", "Diana", "Fiora", "Gangplank", "Gnar", "Gwen", "Illaoi", "Irelia", "JarvanIV", "Jax", "Jayce", "Kled", "LeeSin", "Mordekaiser", "Pantheon", "Renekton", "Riven", "Sett", "Trundle", "Urgot", "Vi", "Viego", "Yasuo", "Yone", "Yorick", "Ambessa", "XinZhao", "MonkeyKing", "Nasus","RekSai", "Warwick", "Olaf","Garen", "Tryndamere"],
-    Mage: ["Ahri", "Anivia", "Annie", "AurelionSol", "Azir", "Brand", "Cassiopeia", "Fiddlesticks", "Heimerdinger", "Karthus", "Lissandra", "Malzahar", "Morgana", "Orianna", "Ryze", "Syndra", "Taliyah", "TwistedFate", "Velkoz", "Viktor", "Vladimir", "Xerath", "Ziggs", "Zoe", "Kennen", "Lillia", "Mel", "Neeko", "Hwei", "Rumble"],
-    Tank: ["Alistar", "Amumu", "Blitzcrank", "Braum", "Chogath", "Leona", "Malphite", "Maokai", "Nautilus", "Nunu", "Ornn", "Poppy", "Rammus", "Rell", "Sejuani", "Shen", "Singed", "Skarner", "TahmKench", "Zac", "KSante", "Rakan", "Taric", "Thresh", "Sion", "DrMundo", "Volibear", "Gragas", "Galio", "Hecarim"],
-    Marksman: ["Akshan", "Aphelios", "Ashe", "Caitlyn", "Corki", "Draven", "Ezreal", "Jhin", "Jinx", "Kaisa", "Kalista", "Kindred", "Lucian", "MissFortune", "Quinn", "Samira", "Senna", "Sivir", "Smolder", "Tristana", "Twitch", "Varus", "Vayne", "Xayah", "Zeri", "Nilah", "Graves", "Kayle", "KogMaw","Jinx" ],
-    Assassin: ["Belveth", "Briar", "Ekko", "Elise", "Fizz", "Katarina", "Kayn", "Khazix", "Naafiri", "Nidalee", "Pyke", "Qiyana", "Rengar", "Shaco", "Talon", "Zed", "MasterYi", "Kassadin", "Leblanc", "Evelynn", "Akali", "Kayn", "Sylas", "Nocturne"],
-    Support: ["Sona", "Bard", "Ivern", "Janna", "Karma", "Lulu", "Nami", "Renata", "Seraphine", "Soraka", "Teemo", "Yuumi", "Zyra", "Swain", "Zilean", "Milio", "Veigar", "Lux", "Vex", "Shyvana", "Udyr", "Zilean", "Yuumi", "Teemo"]
+    Fighter: ["Aatrox", "Camille", "Darius", "Diana", "Fiora", "Gangplank",
+      "Gnar", "Gwen", "Illaoi", "Irelia", "JarvanIV", "Jax",
+      "Jayce", "Kled", "LeeSin", "Mordekaiser", "Pantheon", "Renekton",
+      "Riven", "Sett", "Trundle", "Urgot", "Vi", "Viego",
+      "Yasuo", "Yone", "Yorick", "Ambessa", "XinZhao", "MonkeyKing"],
+    Mage: ["Ahri", "Anivia", "Annie", "AurelionSol", "Azir", "Brand",
+      "Cassiopeia", "Fiddlesticks", "Heimerdinger", "Karthus", "Lissandra", "Malzahar",
+      "Morgana", "Orianna", "Ryze", "Syndra", "Taliyah", "TwistedFate",
+      "Velkoz", "Viktor", "Vladimir", "Xerath", "Ziggs", "Zoe",
+      "Kennen", "Lillia", "Mel", "Neeko", "Hwei", "Aurora"],
+    Tank: ["Alistar", "Amumu", "Blitzcrank", "Braum", "Chogath", "Leona",
+      "Malphite", "Maokai", "Nautilus", "Nunu", "Ornn", "Poppy",
+      "Rammus", "Rell", "Sejuani", "Shen", "Singed", "Skarner",
+      "TahmKench", "Zac", "KSante", "Rakan", "Taric", "Thresh",
+      "Sion", "DrMundo", "Volibear", "Gragas", "Galio", "Hecarim"],
+    Marksman: ["Akshan", "Aphelios", "Ashe", "Caitlyn", "Corki", "Draven",
+      "Ezreal", "Jhin", "Jinx", "Kaisa", "Kalista", "Kindred",
+      "Lucian", "MissFortune", "Quinn", "Samira", "Senna", "Sivir",
+      "Smolder", "Tristana", "Twitch", "Varus", "Vayne", "Xayah",
+      "Zeri", "Nilah", "Graves", "Kayle", "KogMaw", "Nidalee"],
+    Assassin: ["Belveth", "Briar", "Ekko", "Elise", "Fizz", "Katarina",
+      "Kayn", "Khazix", "Naafiri", "Nidalee", "Pyke", "Qiyana",
+      "Rengar", "Shaco", "Talon", "Zed", "MasterYi", "Kassadin",
+      "Leblanc", "Evelynn", "Akali", "Kayn", "Sylas", "Nocturne",
+      "Nasus","RekSai", "Warwick", "Akali", "Swain", "Blitzcrank"],
+    Support: ["Sona", "Bard", "Ivern", "Janna", "Karma", "Lulu",
+      "Nami", "Renata", "Seraphine", "Soraka", "Teemo", "Yuumi",
+      "Zyra", "Swain", "Zilean", "Milio", "Veigar", "Lux",
+      "Vex", "Shyvana", "Udyr", "Olaf","Garen", "Tryndamere",
+      "KogMaw", "Vayne", "Yasuo", "Heimerdinger", "Hecarim", "Rumble"
+    ]
   };
 export default function ChampionTeamGenerator() {
   const [blueTeam, setBlueTeam] = React.useState([]);
