@@ -70,7 +70,7 @@ compensating transactions for each step of the Create Order Saga. It’s importa
 note that not all steps need compensating transactions. Read-only steps, such as verifyConsumerDetails(), don’t need compensating transactions. Nor do steps such as
 authorizeCreditCard() that are followed by steps that always succeed.
 
-![img.png](../img/compensating.png)
+![img.png](../img/other/compensating.png)
 
 Section 4.3 discusses how the first three steps of the Create Order Saga are termed
 **compensatable transactions** because they’re followed by steps that can fail, how the
@@ -118,11 +118,11 @@ So we can use it for simple sagas, but for complex sagas, we should use orchestr
 
 #### 4.2.2 Orchestration-based sagas
 
-![img.png](../img/orches.png)
+![img.png](../img/other/orches.png)
 
 <span className="layered-style">MODELING SAGA ORCHESTRATORS AS STATE MACHINES</span>
 
-![img.png](../img/stm.png)
+![img.png](../img/other/stm.png)
 
 <span className="layered-style">BENEFITS AND DRAWBACKS OF ORCHESTRATION-BASED SAGAS</span>
 
@@ -212,7 +212,7 @@ The countermeasures described by this paper are as follows:
 -  Version file—Record the updates to a record so that they can be reordered.
 -  By value—Use each request’s business risk to dynamically select the concurrency mechanism.
 
-![img.png](../img/saga-structure.png)
+![img.png](../img/other/saga-structure.png)
 
 
 <span className="layered-style">COUNTERMEASURE: SEMANTIC LOCK</span>

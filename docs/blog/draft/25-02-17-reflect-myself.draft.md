@@ -14,7 +14,7 @@ The countermeasures described by this paper are as follows:
 -  Version file—Record the updates to a record so that they can be reordered.
 -  By value—Use each request’s business risk to dynamically select the concurrency mechanism.
 
-![img.png](../img/saga-structure.png)
+![img.png](../img/other/saga-structure.png)
 
 
 <span className="layered-style">COUNTERMEASURE: SEMANTIC LOCK</span>

@@ -35,7 +35,7 @@ The second dimension is whether the interaction is synchronous or asynchronous:
 even block while it waits.
 - Asynchronous—The client doesn’t block, and the response, if any, isn’t necessarily sent immediately
 
-![img.png](../img/interaction-style-ipc.png)
+![img.png](../img/other/interaction-style-ipc.png)
 
 3.1.4 Message formats 
 
@@ -143,7 +143,7 @@ as Apache Kafka don’t support distributed transactions.
 Pattern: Transactional outbox
 Publish an event or message as part of a database transaction by saving it in an OUTBOX in the database. See http://microservices.io/patterns/data/transactional-outbox.html.
 
-![img.png](../img/tx-outbox.png)
+![img.png](../img/other/tx-outbox.png)
 
 The OUTBOX table acts a temporary message queue. The MessageRelay is a component that reads the OUTBOX table and publishes the messages to a message broker.  There are a couple of different ways to move messages from the database to the
 message broker. We’ll look at each one.
@@ -214,7 +214,7 @@ There are ways to handle synchronous requests without making synchronous request
 
 <span className="layered-style">USE ASYNCHRONOUS INTERACTION STYLES </span>
 
-![img.png](../img/async-process.png)
+![img.png](../img/other/async-process.png)
 
 Such an architecture would be extremely resilient, because the message broker
 buffers messages until they can be consumed. The problem, however, is that services
@@ -226,7 +226,7 @@ data. Let’s see how that works.
 
 <span className="layered-style">REPLICATE DATA </span>
 
-![img.png](../img/service-self-rep.png)
+![img.png](../img/other/service-self-rep.png)
 
 Another drawback of replication is that it doesn’t solve the problem of how a service updates data owned by
 other services.
