@@ -5,7 +5,7 @@
 <meta name="generator" content="Docusaurus v3.5.2">
 <title data-rh="true">Mysql Database deployment | Blog of Tran Danh Hoang</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://trandanhhoang.github.io/img/docusaurus-social-card.jpg"><meta data-rh="true" name="twitter:image" content="https://trandanhhoang.github.io/img/docusaurus-social-card.jpg"><meta data-rh="true" property="og:url" content="https://trandanhhoang.github.io/docs/fundamental/26-05-01-Mysql-Database-deployment"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Mysql Database deployment | Blog of Tran Danh Hoang"><meta data-rh="true" name="description" content="Why we need many ways to deploy ?"><meta data-rh="true" property="og:description" content="Why we need many ways to deploy ?"><link data-rh="true" rel="icon" href="/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://trandanhhoang.github.io/docs/fundamental/26-05-01-Mysql-Database-deployment"><link data-rh="true" rel="alternate" href="https://trandanhhoang.github.io/docs/fundamental/26-05-01-Mysql-Database-deployment" hreflang="en"><link data-rh="true" rel="alternate" href="https://trandanhhoang.github.io/docs/fundamental/26-05-01-Mysql-Database-deployment" hreflang="x-default"><link rel="alternate" type="application/rss+xml" href="/blog/rss.xml" title="Blog of Tran Danh Hoang RSS Feed">
 <link rel="alternate" type="application/atom+xml" href="/blog/atom.xml" title="Blog of Tran Danh Hoang Atom Feed"><link rel="stylesheet" href="/assets/css/styles.b614285a.css">
-<script src="/assets/js/runtime~main.d3a58fac.js" defer="defer"></script>
+<script src="/assets/js/runtime~main.4d928d61.js" defer="defer"></script>
 <script src="/assets/js/main.e1e815d8.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -19,23 +19,72 @@
 <li>Cost</li>
 </ul>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="prerequisites">Prerequisites<a href="#prerequisites" class="hash-link" aria-label="Direct link to Prerequisites" title="Direct link to Prerequisites">​</a></h2>
-<h3 class="anchor anchorWithStickyNavbar_LWe7" id="replication"><a href="/docs/26-05-01-Types-of-mysql-replication-synchronization.md">Replication</a><a href="#replication" class="hash-link" aria-label="Direct link to replication" title="Direct link to replication">​</a></h3>
-<p>Types of replication synchronization:</p>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="replication"><a href="https://trandanhhoang.github.io/docs/fundamental/26-05-01-Types-of-mysql-replication-synchronization" target="_blank" rel="noopener noreferrer">Replication</a><a href="#replication" class="hash-link" aria-label="Direct link to replication" title="Direct link to replication">​</a></h3>
+<p><a href="https://dev.mysql.com/doc/refman/9.7/en/replication.html" target="_blank" rel="noopener noreferrer">Types of replication synchronization</a>:</p>
 <ul>
 <li>asynchronous (<strong>default</strong>): one-way, in that 1 server acts as a source, 1 or more other servers act as replicas.</li>
-<li>semi-asynchronous:</li>
+<li>semi-asynchronous: block the session from the primary until the replica acknowledge.</li>
 </ul>
 <p>Replication methods:</p>
 <ul>
 <li>binlog: <a href="https://dev.mysql.com/doc/refman/9.7/en/replication-configuration.html" target="_blank" rel="noopener noreferrer">https://dev.mysql.com/doc/refman/9.7/en/replication-configuration.html</a></li>
 <li>GTID: <a href="https://dev.mysql.com/doc/refman/9.7/en/replication-gtids.html" target="_blank" rel="noopener noreferrer">https://dev.mysql.com/doc/refman/9.7/en/replication-gtids.html</a></li>
 </ul>
-<p>ref: <a href="https://dev.mysql.com/doc/refman/9.7/en/replication.html" target="_blank" rel="noopener noreferrer">https://dev.mysql.com/doc/refman/9.7/en/replication.html</a></p>
-<h2 class="anchor anchorWithStickyNavbar_LWe7" id="single-instance">Single instance<a href="#single-instance" class="hash-link" aria-label="Direct link to Single instance" title="Direct link to Single instance">​</a></h2>
-<p>App ---&gt; mysql (1 node only, nothing to say)</p>
-<p>traffic layer → proxy/load balancer (ProxySQL, HAProxy, or MySQL Router)
-control layer → failover manager (Orchestrator, MHA, or even manual for testing)
-data layer → MySQL nodes (1 primary + replicas)</p>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="type-os-deployments">Type os deployments<a href="#type-os-deployments" class="hash-link" aria-label="Direct link to Type os deployments" title="Direct link to Type os deployments">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="single-instance">Single instance<a href="#single-instance" class="hash-link" aria-label="Direct link to Single instance" title="Direct link to Single instance">​</a></h3>
+<!-- -->
+<p>App ---&gt; mysql (1 node only)</p>
+<p>Pros:</p>
+<ul>
+<li>easy setup
+Cons:</li>
+<li>HA: single point of failure</li>
+<li>Scale: No</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="primary---replica">Primary - replica<a href="#primary---replica" class="hash-link" aria-label="Direct link to Primary - replica" title="Direct link to Primary - replica">​</a></h3>
+<!-- -->
+<p>Pros:</p>
+<ul>
+<li>HA: better</li>
+<li>scale: read
+Cons:</li>
+<li>consistency:<!-- -->
+<ul>
+<li>replication lag<!-- -->
+<ul>
+<li>solution ?: read-after-write after some seconds. ?</li>
+</ul>
+</li>
+<li>lost data when primary die<!-- -->
+<ul>
+<li>solution ?:</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="group-replication">Group replication<a href="#group-replication" class="hash-link" aria-label="Direct link to Group replication" title="Direct link to Group replication">​</a></h3>
+<!-- -->
+<ul>
+<li>Leverage consensus algorithm (Paxos-based consensus protocol) - quite like raft.</li>
+</ul>
+<p>Pros:</p>
+<ul>
+<li>HA: automatic fail over</li>
+<li>consistency: strong</li>
+<li>scale: write and read (<a href="https://dev.mysql.com/doc/refman/9.7/en/group-replication-single-primary-mode.html" target="_blank" rel="noopener noreferrer">single-primary</a> || <a href="https://dev.mysql.com/doc/refman/9.7/en/group-replication-multi-primary-mode.html" target="_blank" rel="noopener noreferrer">multi-primary</a>)
+Cons:</li>
+<li>performance: lag when write.</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="mysql-framework">Mysql framework<a href="#mysql-framework" class="hash-link" aria-label="Direct link to Mysql framework" title="Direct link to Mysql framework">​</a></h2>
+<table><thead><tr><th style="text-align:left">Framework</th><th style="text-align:left">Components</th><th style="text-align:left">Main Goal</th><th style="text-align:left">Mechanism</th></tr></thead><tbody><tr><td style="text-align:left"><strong>InnoDB Cluster</strong></td><td style="text-align:left">MySQL Server, Shell, Router</td><td style="text-align:left">High Availability</td><td style="text-align:left"><strong>Group Replication</strong> (Paxos)</td></tr><tr><td style="text-align:left"><strong>InnoDB ClusterSet</strong></td><td style="text-align:left">Multi InnoDB Clusters</td><td style="text-align:left">Disaster Recovery (DR)</td><td style="text-align:left"><strong>Asynchronous Replication</strong> between Clusters</td></tr><tr><td style="text-align:left"><strong>InnoDB ReplicaSet</strong></td><td style="text-align:left">MySQL Server, Shell, Router</td><td style="text-align:left">Primary-Replica - Read Scale-out</td><td style="text-align:left"><strong>Asynchronous Replication</strong></td></tr><tr><td style="text-align:left"><strong>NDB Cluster</strong></td><td style="text-align:left">Data Nodes, SQL Nodes, Mgmt Nodes</td><td style="text-align:left">Write-heavy, Real-time</td><td style="text-align:left"><strong>Distributed / Sharding</strong> (Multi-Master)</td></tr></tbody></table>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="mysql-ndb-cluster">MySQL NDB Cluster<a href="#mysql-ndb-cluster" class="hash-link" aria-label="Direct link to MySQL NDB Cluster" title="Direct link to MySQL NDB Cluster">​</a></h3>
+<p>Architecture: Shared-nothing architecture</p>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="practice">Practice<a href="#practice" class="hash-link" aria-label="Direct link to Practice" title="Direct link to Practice">​</a></h2>
+<!-- -->
+<p>traffic layer → proxy/load balancer (ProxySQL, HAProxy, or MySQL Router)</p>
+<p>control layer → failover manager (Orchestrator, MHA, or even manual for testing)</p>
+<p>data layer → MySQL nodes (1 primary + replicas)</p>
 <ul>
 <li>1 primary (write)</li>
 <li>2 replicas (read)</li>
@@ -44,7 +93,6 @@ data layer → MySQL nodes (1 primary + replicas)</p>
 <li>GTID stand for global transaction identifier. It&#x27;s unique identifier created and assigned to every tx that is commited in primary server.</li>
 </ul>
 </li>
-</ul>
-</div></article><nav class="pagination-nav docusaurus-mt-lg" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docs/fundamental/25-03-27-Nand-to-Tetris"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Nand to Tetris</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docs/fundamental/26-05-01-Types-of-mysql-replication-synchronization"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Types of mysql replication synchronization</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#why-we-need-many-ways-to-deploy-" class="table-of-contents__link toc-highlight">Why we need many ways to deploy ?</a></li><li><a href="#prerequisites" class="table-of-contents__link toc-highlight">Prerequisites</a><ul><li><a href="#replication" class="table-of-contents__link toc-highlight">Replication</a></li></ul></li><li><a href="#single-instance" class="table-of-contents__link toc-highlight">Single instance</a></li></ul></div></div></div></div></main></div></div></div><footer class="footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="col footer__col"><div class="footer__title">Contact me: danhhoang5920@gmail.com</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://github.com/trandanhhoang" target="_blank" rel="noopener noreferrer" class="footer__link-item">GitHub<svg width="13.5" height="13.5" aria-hidden="true" viewBox="0 0 24 24" class="iconExternalLink_nPIU"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"></path></svg></a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 My Project, Inc. Built with Docusaurus.</div></div></div></footer></div>
+</ul></div></article><nav class="pagination-nav docusaurus-mt-lg" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docs/fundamental/25-03-27-Nand-to-Tetris"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Nand to Tetris</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docs/fundamental/26-05-01-Types-of-mysql-replication-synchronization"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Types of mysql replication synchronization</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#why-we-need-many-ways-to-deploy-" class="table-of-contents__link toc-highlight">Why we need many ways to deploy ?</a></li><li><a href="#prerequisites" class="table-of-contents__link toc-highlight">Prerequisites</a><ul><li><a href="#replication" class="table-of-contents__link toc-highlight">Replication</a></li></ul></li><li><a href="#type-os-deployments" class="table-of-contents__link toc-highlight">Type os deployments</a><ul><li><a href="#single-instance" class="table-of-contents__link toc-highlight">Single instance</a></li><li><a href="#primary---replica" class="table-of-contents__link toc-highlight">Primary - replica</a></li><li><a href="#group-replication" class="table-of-contents__link toc-highlight">Group replication</a></li></ul></li><li><a href="#mysql-framework" class="table-of-contents__link toc-highlight">Mysql framework</a><ul><li><a href="#mysql-ndb-cluster" class="table-of-contents__link toc-highlight">MySQL NDB Cluster</a></li></ul></li><li><a href="#practice" class="table-of-contents__link toc-highlight">Practice</a></li></ul></div></div></div></div></main></div></div></div><footer class="footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="col footer__col"><div class="footer__title">Contact me: danhhoang5920@gmail.com</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://github.com/trandanhhoang" target="_blank" rel="noopener noreferrer" class="footer__link-item">GitHub<svg width="13.5" height="13.5" aria-hidden="true" viewBox="0 0 24 24" class="iconExternalLink_nPIU"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"></path></svg></a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 My Project, Inc. Built with Docusaurus.</div></div></div></footer></div>
 </body>
 </html>
