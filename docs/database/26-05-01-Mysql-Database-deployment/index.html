@@ -5,7 +5,7 @@
 <meta name="generator" content="Docusaurus v3.5.2">
 <title data-rh="true">Mysql Database deployment | Blog of Tran Danh Hoang</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://trandanhhoang.github.io/img/docusaurus-social-card.jpg"><meta data-rh="true" name="twitter:image" content="https://trandanhhoang.github.io/img/docusaurus-social-card.jpg"><meta data-rh="true" property="og:url" content="https://trandanhhoang.github.io/docs/database/26-05-01-Mysql-Database-deployment"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Mysql Database deployment | Blog of Tran Danh Hoang"><meta data-rh="true" name="description" content="Tại sao chúng ta cần nhiều cách deploy ?"><meta data-rh="true" property="og:description" content="Tại sao chúng ta cần nhiều cách deploy ?"><link data-rh="true" rel="icon" href="/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://trandanhhoang.github.io/docs/database/26-05-01-Mysql-Database-deployment"><link data-rh="true" rel="alternate" href="https://trandanhhoang.github.io/docs/database/26-05-01-Mysql-Database-deployment" hreflang="en"><link data-rh="true" rel="alternate" href="https://trandanhhoang.github.io/docs/database/26-05-01-Mysql-Database-deployment" hreflang="x-default"><link rel="alternate" type="application/rss+xml" href="/blog/rss.xml" title="Blog of Tran Danh Hoang RSS Feed">
 <link rel="alternate" type="application/atom+xml" href="/blog/atom.xml" title="Blog of Tran Danh Hoang Atom Feed"><link rel="stylesheet" href="/assets/css/styles.b98381f0.css">
-<script src="/assets/js/runtime~main.d47476c4.js" defer="defer"></script>
+<script src="/assets/js/runtime~main.9ce284a5.js" defer="defer"></script>
 <script src="/assets/js/main.14de5006.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -63,48 +63,37 @@ Replica sẽ ghi ngay vào relay log.</p>
 </ul>
 <div id="async-replication-reason"><div style="border:2px solid var(--ifm-color-primary);border-radius:10px;padding:24px;margin:24px 0;background-color:var(--ifm-background-color);box-shadow:0 2px 8px rgba(0,0,0,0.04)"><p style="color:var(--ifm-font-color-base)"><strong><p>Why is <b>Asynchronous Replication</b> the default mechanism of MySQL instead Semi-synchronous?</p></strong></p><ul style="list-style-type:none;padding:0"><li style="cursor:pointer;margin:6px 0;padding:6px;border:1px solid var(--ifm-color-emphasis-300);border-radius:4px">It guarantee `zero data loss` during primary failure</li><li style="cursor:pointer;margin:6px 0;padding:6px;border:1px solid var(--ifm-color-emphasis-300);border-radius:4px">Increase performance (latency when write), because Primary don&#x27;t need to wait Replicas</li></ul></div></div>
 <h4 class="anchor anchorWithStickyNavbar_LWe7" id="replication-methods"><a href="https://dev.mysql.com/doc/refman/9.7/en/replication-configuration.html" target="_blank" rel="noopener noreferrer">Replication methods</a><a href="#replication-methods" class="hash-link" aria-label="Direct link to replication-methods" title="Direct link to replication-methods">​</a></h4>
-<p><code>Binlog (File-based positioning replication)</code>: Row-based logging is the default method, <a href="https://dev.mysql.com/doc/refman/9.7/en/replication-formats.html" target="_blank" rel="noopener noreferrer">see also</a></p>
+<p><code>Binlog (File-based positioning replication)</code>: Row-based logging is the default method, <a href="https://dev.mysql.com/doc/refman/9.7/en/replication-formats.html" target="_blank" rel="noopener noreferrer">see also</a>.
+Ví dụ: UPDATE accounts SET balance = balance + 10, last_updated = NOW() WHERE filter;</p>
 <ul>
-<li>statement-based binary logging</li>
-<li>row-based logging</li>
+<li>Statement-based (SBR): ghi lại duy nhất 1 lệnh trên.</li>
+<li>Row-based (RBR): ghi lại trạng thái sau khi update, nếu lệnh trên filter với 100 dòng, sẽ có 100 lệnh được ghi vào binlog.<!-- -->
+<ul>
+<li>ví dụ: ID=1: SET balance=110, last_updated=&#x27;2026-05-03 20:00:00&#x27;, ... tương tự cho 99 lệnh còn lại</li>
 </ul>
-<p><code>GTID (Transaction-based replication)</code>: modern way, save in binlog, <a href="https://dev.mysql.com/doc/refman/9.7/en/replication-gtids.html" target="_blank" rel="noopener noreferrer">see also</a></p>
+</li>
+</ul>
+<p><code>GTID (Transaction-based replication)</code>: extend từ binlog, không quan tâm là SBR hay RBR <a href="https://dev.mysql.com/doc/refman/9.7/en/replication-gtids.html" target="_blank" rel="noopener noreferrer">see also</a></p>
 <ul>
 <li>Source_UUID: Định danh của server nơi transaction sinh ra.</li>
 <li>Transaction_ID: Một con số tăng dần theo trình tự commit (Sequence Number).</li>
 </ul>
+<p>ví dụ GTID: <code>GTID_EVENT: AAAA-BBBB-CCCC:100</code>, replica chỉ check id này đã được chạy hay chưa, chưa thì đọc SBR hoặc RBR bên trong để thực thi.</p>
+<p>Các vấn đề có thể gặp với File-based mà GTID có thể xử lý được:</p>
+<ul>
+<li>Không idempotency: replica chạy xong 1 lệnh nhưng chết trước khi ghi vào relay-log.info, chạy lại và bị duplicate.</li>
+<li>Failover Inconsistency: Khi 1 replica B lên làm Primary, replica C còn lại sẽ khó để đồng bộ.</li>
+</ul>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="type-of-deployments">Type of deployments<a href="#type-of-deployments" class="hash-link" aria-label="Direct link to Type of deployments" title="Direct link to Type of deployments">​</a></h2>
 <h3 class="anchor anchorWithStickyNavbar_LWe7" id="single-instance">Single instance<a href="#single-instance" class="hash-link" aria-label="Direct link to Single instance" title="Direct link to Single instance">​</a></h3>
 <!-- -->
-<p>App ---&gt; mysql (1 node only)</p>
-<p>Pros:</p>
-<ul>
-<li>easy setup
-Cons:</li>
-<li>HA: single point of failure</li>
-<li>Scale: No</li>
-</ul>
+<p>Cons: single point of failure, can&#x27;t scale</p>
 <h3 class="anchor anchorWithStickyNavbar_LWe7" id="primary---replica">Primary - replica<a href="#primary---replica" class="hash-link" aria-label="Direct link to Primary - replica" title="Direct link to Primary - replica">​</a></h3>
 <!-- -->
-<p>Pros:</p>
+<p>Đánh giá:</p>
 <ul>
-<li>HA: better</li>
-<li>scale: read
-Cons:</li>
-<li>consistency: eventually<!-- -->
-<ul>
-<li>replication lag<!-- -->
-<ul>
-<li>solution ?: read-after-write after some seconds. ?</li>
-</ul>
-</li>
-<li>lost data when primary die<!-- -->
-<ul>
-<li>solution ?:</li>
-</ul>
-</li>
-</ul>
-</li>
+<li>HA tốt hơn, nhưng gặp vấn đề lost data khi primary failover</li>
+<li>Có thể Scale read bằng replicas, nhưng eventually consistency</li>
 </ul>
 <h3 class="anchor anchorWithStickyNavbar_LWe7" id="group-replication">Group replication<a href="#group-replication" class="hash-link" aria-label="Direct link to Group replication" title="Direct link to Group replication">​</a></h3>
 <p><img decoding="async" loading="lazy" alt="img.png" src="/assets/images/GroupReplicationProtocol-2c6ea70de33fa1ea6401508c2db8524e.png" width="727" height="352" class="img_ev3q"></p>
