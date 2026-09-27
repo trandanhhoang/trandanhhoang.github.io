@@ -18,4 +18,4 @@
     - eg: request -> `[bloom filter]` -> `[cache]` -> `[database]` -> response
 
 ## Implement wrong lock
-![img.png](../img/other/implement-wrong-lock.png)
+![img.png](../../../fundamental/img/other/implement-wrong-lock.png)

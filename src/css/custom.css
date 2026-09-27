@@ -33,6 +33,15 @@
   color: #4A90E2;
 }
 
+/* Tạo một class riêng cho ảnh có viền */
+.blog-image-border {
+  border: 2px solid #303030;
+  border-radius: 8px;
+  padding: 4px;
+  display: block;
+  margin: 0 auto; /* Căn giữa ảnh luôn nếu muốn */
+}
+
 .red-style {
   color: #e34040;
 }

@@ -18,7 +18,7 @@ as Apache Kafka don’t support distributed transactions.
 Pattern: Transactional outbox
 Publish an event or message as part of a database transaction by saving it in an OUTBOX in the database. See http://microservices.io/patterns/data/transactional-outbox.html.
 
-![img.png](../img/other/tx-outbox.png)
+![img.png](../../../fundamental/img/other/tx-outbox.png)
 
 The OUTBOX table acts a temporary message queue. The MessageRelay is a component that reads the OUTBOX table and publishes the messages to a message broker.  There are a couple of different ways to move messages from the database to the
 message broker. We’ll look at each one.

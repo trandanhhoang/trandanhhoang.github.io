@@ -138,7 +138,7 @@ argv[1] = 0;
 pipe(p);
 if(fork() == 0) {
     close(0);
-    dup(p[0]);
+    dup(p[0]); // this combo make process read from pipe instead of 'standard input'. Now fd 0 is from pipe.
     close(p[0]);
     close(p[1]);
     exec("/bin/wc", argv);

@@ -10,6 +10,65 @@ sidebar_position: 4
 ## Prerequisites
 - https://docs.liquibase.com/home.html
 - Docker, Docker compose
+```mermaid
+graph TD
+%% Định nghĩa các lớp (Layers)
+    subgraph JVM ["JVM (Java Virtual Machine)"]
+        direction LR
+        PT1[Platform Thread]
+        PT2[Platform Thread]
+        PT3[Platform Thread]
+        PT4[Platform Thread]
+    end
+
+    subgraph OS ["Operating System"]
+        direction LR
+        OT1((OS Thread))
+        OT2((OS Thread))
+        OT3((OS Thread))
+        OT4((OS Thread))
+    end
+
+    subgraph CPU ["CPU"]
+        direction LR
+        C1[Core 1]
+        C2[Core 2]
+        C3[Core 3]
+        C4[Core 4]
+    end
+
+%% Các đường nối ép Layout nằm dọc (Vertical Constraint)
+%% Sử dụng link từ các node trung tâm để giữ cân bằng
+    PT1 -.-> OT1
+    PT2 -.-> OT2
+    PT3 -.-> OT3
+    PT4 -.-> OT4
+
+    OT1 --- C1
+    OT2 --- C2
+    OT3 --- C3
+    OT4 --- C4
+
+%% CSS Styling để phân biệt rõ các khối
+    style JVM fill:#FFF9C4,stroke:#FBC02D,stroke-width:3px,color:#333,font-weight:bold
+    style OS fill:#FFF9C4,stroke:#FBC02D,stroke-width:3px,color:#333,font-weight:bold
+    style CPU fill:#FFF9C4,stroke:#FBC02D,stroke-width:3px,color:#333,font-weight:bold
+
+    style PT1 fill:#EF9A9A,stroke:#B71C1C,color:#B71C1C
+    style PT2 fill:#EF9A9A,stroke:#B71C1C,color:#B71C1C
+    style PT3 fill:#EF9A9A,stroke:#B71C1C,color:#B71C1C
+    style PT4 fill:#EF9A9A,stroke:#B71C1C,color:#B71C1C
+
+    style OT1 fill:#C8E6C9,stroke:#2E7D32,color:#2E7D32
+    style OT2 fill:#C8E6C9,stroke:#2E7D32,color:#2E7D32
+    style OT3 fill:#C8E6C9,stroke:#2E7D32,color:#2E7D32
+    style OT4 fill:#C8E6C9,stroke:#2E7D32,color:#2E7D32
+
+    style C1 fill:#000,color:#fff
+    style C2 fill:#000,color:#fff
+    style C3 fill:#000,color:#fff
+    style C4 fill:#000,color:#fff
+```
 
 ## Code example
 - file Dockercompose.yaml

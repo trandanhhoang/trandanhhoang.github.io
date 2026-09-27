@@ -74,11 +74,11 @@ public class KitchenServiceEventConsumer {
 }
 ```
 
-![img.png](../img/other/kitchen-service.png)
+![img.png](../../../fundamental/img/other/kitchen-service.png)
 
-![img.png](../img/other/order-service.png)
+![img.png](../../../fundamental/img/other/order-service.png)
 
-![img.png](../img/other/order-state-machine.png)
+![img.png](../../../fundamental/img/other/order-state-machine.png)
 
 
 

@@ -9,11 +9,11 @@ import CodeBlock from '@theme/CodeBlock';
 	      <>
 	        <p>With Pre-conditions below, which plan is more efficient for query in the image?</p>
 	        <ul>
-						<li>1. Table Reviews have 100.000 pages with 100 rows/page, totals 10.000.000 records. Sorted on date</li>
-						<li>2. Scan 100MB/second</li>
-						<li>3. CPU time = 0.1 μs (10^-6s)/row for `FILTER predicate`</li>
-						<li>4. CPU time = 0.1 μs (10^-6s)/row for `AVG predicate`</li>
-						<li>5. Time Random disk I/O = 0.003 second per disk I/O</li>
+						<li>1. Table Reviews have 100.000 pages with 100 rows/page, totals 10.000.000 records (800MB). Sorted on date</li>
+						<li>2. Time Sequential disk I/O = 100MB/second</li>
+						<li>3. Time Random disk I/O = 0.003 second per disk I/O</li>
+						<li>4. CPU time = 0.1 μs (10^-6s)/row for `FILTER predicate`</li>
+						<li>5. CPU time = 0.1 μs (10^-6s)/row for `AVG predicate`</li>
 						<li>6. 100 rows are estimated to satisfy the predicate</li>
 					</ul>
 	        <CodeBlock language="sql">

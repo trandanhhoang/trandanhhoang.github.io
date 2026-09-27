@@ -50,7 +50,7 @@ for Spring applications, and the Pact family of frameworks (https://github.com/p
 
 ## CHAPTER 10: Testing microservices: Part 2
 
-![img.png](../img/other/contract.png)
+![img.png](../../../fundamental/img/other/contract.png)
 
 
 

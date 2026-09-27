@@ -1,0 +1,13 @@
+import MultipleChoice from '@site/src/components/MultipleChoice';
+import CodeBlock from '@theme/CodeBlock';
+import MatchingGame from '@site/src/components/MatchingGame';
+
+# How to scale write
+
+Vertical scale
+Sharding
+Write-Buffer with Message Queue (kafka). but new problems come
+	- New components, teck stack
+	- Idempotency: Cơ chế Retry của Kafka (At-least-once delivery). -> do not trust "exactly once" of kafka.
+	- Eventually consistence: queue lag
+Move to new SQL (TIDB) or NoSQL database that supports better write scaling, such as MongoDB, Cassandra, or CockroachDB.
