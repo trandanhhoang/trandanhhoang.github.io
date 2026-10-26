@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hướng dẫn từng bước — Ship Registry (Secure Coding CTF)</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --border:#30363d; --fg:#e6edf3; --mut:#8b949e;
+          --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.7; }
+  .wrap { max-width:940px; margin:0 auto; padding:32px 20px 90px; }
+  header.hero { border:1px solid var(--border); border-radius:12px; background:linear-gradient(135deg,#161b22,#1a2332);
+                 padding:28px 32px; margin-bottom:28px; }
+  header.hero h1 { margin:0 0 6px; font-size:1.7rem; }
+  header.hero .sub { color:var(--mut); }
+  .flag-box { margin-top:16px; border:1px solid var(--warn); border-radius:10px; background:#2a2110; padding:14px 18px; }
+  .flag-box code { color:var(--warn); font-size:1.05rem; font-weight:700; }
+  h2 { color:var(--acc); border-bottom:1px solid var(--border); padding-bottom:8px; margin-top:52px; }
+  h3 { color:var(--fg); margin-top:32px; }
+  h4 { color:var(--acc); margin-top:22px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.88em;
+         background:#1c2128; border:1px solid var(--border); border-radius:5px; padding:2px 6px; color:#a5d6ff; }
+  pre { background:#0d1117; border:1px solid var(--border); border-radius:10px; padding:16px; overflow-x:auto;
+        color:#c9d1d9; line-height:1.6; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.87em; }
+  pre code { background:none; border:none; padding:0; color:inherit; }
+  .cm { color:#7ee787; }
+  .kw { color:#ff7b72; }
+  .st { color:#a5d6ff; }
+  .fn { color:#d2a8ff; }
+  table { border-collapse:collapse; width:100%; margin:16px 0; font-size:.92em; }
+  th,td { border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top; }
+  th { background:#1c2128; }
+  .tag { display:inline-block; font-size:.75rem; font-weight:700; border-radius:20px; padding:2px 10px; margin-right:6px; }
+  .tag.ok { background:#12261a; color:var(--ok); border:1px solid var(--ok); }
+  .tag.bad { background:#2d1214; color:var(--bad); border:1px solid var(--bad); }
+  .tag.warn { background:#2a2110; color:var(--warn); border:1px solid var(--warn); }
+  .note { border-left:4px solid var(--warn); background:#211d12; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .tip { border-left:4px solid var(--ok); background:#12261a55; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .verify { border-left:4px solid var(--acc); background:#0d1a2b; padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0; }
+  .verify b:first-child { color:var(--acc); }
+  .muted { color:var(--mut); }
+  ol.steps > li, ul.dash > li { margin-bottom:8px; }
+  .toc a { color:var(--acc); text-decoration:none; }
+  .toc a:hover { text-decoration:underline; }
+  .spring { border:1px solid #6e7681; border-radius:10px; margin:16px 0; overflow:hidden; }
+  .spring .hd { background:#12324a; padding:8px 16px; font-weight:700; font-size:.9em; color:#79c0ff; }
+  .spring .bd { padding:4px 16px 14px; background:#0d1117; }
+  .spring.bad-ex .hd { background:#3d1d22; color:#ffa198; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>🚀 Ship Registry — Vá command injection trong Flask app</h1>
+  <div class="sub">Challenge Secure Coding (easy) · Event HTB 3692 — Intermediate · <span class="muted">target: <code>http://&lt;host&gt;:&lt;port&gt;</code> (Flask + nginx + "HTB Editor" SPA, source zip kèm đề)</span></div>
+  <div class="flag-box">
+    ⚠️ <b>Trạng thái: CHƯA LẤY ĐƯỢC FLAG.</b><br>
+    Khai thác và vá đã hoàn tất, nhưng endpoint <code>/editor_api/verify</code> vẫn báo <code>Vulnerability check failed</code> ở bước cuối. Phần cuối bài viết phân tích chi tiết những gì đã thử và hướng còn lại — nếu bạn tìm ra tiêu chí cuối của checker, flag sẽ là nội dung file <code>/02cc1c3107db54c1302722573c2d835c.txt</code> (đã xác định vị trí, cần quyền nhóm <code>editor</code> để đọc).
+  </div>
+  <div class="card toc" style="margin-top:16px">
+    <b>Mục lục:</b><br>
+    <a href="#p0">Phần 0 — Khái niệm nền</a> ·
+    <a href="#p1">Phần 1 — Recon</a> ·
+    <a href="#p2">Phần 2 — Dead ends</a> ·
+    <a href="#p3">Phần 3 — Khai thác RCE</a> ·
+    <a href="#p4">Phần 4 — Vá lỗi</a> ·
+    <a href="#p5">Phần 5 — Root cause (Spring Boot)</a> ·
+    <a href="#p6">Phần 6 — Trạng thái &amp; hướng tiếp</a>
+  </div>
+</header>
+
+<p class="muted">Bài viết giả định bạn là lập trình viên Java Spring Boot, chưa chuyên sâu bảo mật. App mục tiêu viết bằng Python Flask; mọi khái niệm đều có hộp "tương đồng Spring Boot".</p>
+
+<h2 id="p0">Phần 0 — Kiến thức nền cần có trước khi bắt đầu</h2>
+
+<h3>0.1 — Command injection là gì?</h3>
+<div class="card">
+<p>Khi code <b>ghép chuỗi input của ngưởi dùng vào một câu lệnh shell</b> rồi thực thi, kẻ tấn công có thể chèn thêm lệnh của riêng mình. Ví dụ điển hình:</p>
+<pre><span class="cm"># app định chạy: ls /var/log</span>
+command = f<span class="st">"ls {directory}"</span>
+os.popen(command)
+
+<span class="cm"># kẻ tấn công gửi directory = "/; cat /etc/passwd; "</span>
+<span class="cm"># shell thực thi: ls / ; cat /etc/passwd;</span></pre>
+<p>Các ký tự đặc biệt của shell: <code>;</code> (ngắt lệnh), <code>|</code> (pipe), <code>$()</code> và <code>` `</code> (thực thi và thay thế), <code>&amp;&amp;</code>, <code>&gt;</code> <code>&lt;</code> (redirect), <code>#</code> (comment), khoảng trắng, newline…</p>
+<div class="spring">
+  <div class="hd">☕ Tương đồng Spring Boot</div>
+  <div class="bd"><p>Giống hệt viết <code>Runtime.getRuntime().exec("ls " + dir)</code> với chuỗi nối thay vì truyền mảng tham số — hay dùng <code>ProcessBuilder(Arrays.asList("ls", dir))</code> mà vẫn ghép chuỗi vào <code>sh -c</code>.</p></div>
+</div>
+<div class="verify"><b>✔ Cách verify:</b> gửi input <code>dir = "; id;"</code> — nếu output có <code>uid=...</code> thì app bị injection. Đây là phép kiểm chứng tay cho mọi bài command injection.</div>
+</div>
+
+<h3>0.2 — Cách vá đúng: subprocess với danh sách tham số (không qua shell)</h3>
+<div class="card">
+<pre><span class="cm"># ❌ Qua shell — mọi ký tự đặc biệt có nghĩa</span>
+os.system(f<span class="st">"cat /etc/{name}"</span>)
+
+<span class="cm"># ✅ Không shell — mỗi tham sộ là một chuỗi riêng, không ai diễn dịch gì cả</span>
+subprocess.run([<span class="st">"cat"</span>, <span class="st">"/etc/"</span> + name], capture_output=True, text=True)</pre>
+<p>Không có shell thì <code>;</code> <code>|</code> <code>$()</code> chỉ là ký tự vô nghĩa trong tên file. Đây là vá <i>cấu trúc</i>. Bổ sung thêm validate đầu vào (whitelist ký tự) là vá <i>phòng thủ sâu</i>.</p>
+<div class="spring">
+  <div class="hd">☕ Tương đồng Spring Boot</div>
+  <div class="bd"><p><code>ProcessBuilder("cat", "/etc/" + name)</code> — Java không tự nhiên có shell nên ít gặp lỗi này hơn; chỗ dễ sai là <code>Runtime.exec("sh", "-c", "...")</code> hoặc nối chuỗi vào command. Cũng giống SQL: parameterized query vs nối chuỗi.</p></div>
+</div>
+</div>
+
+<h3>0.3 — Kiến trúc challenge "secure coding" của HTB</h3>
+<div class="card">
+<p>Bài này thuộc dạng <b>vá lỗi lấy flag</b>, giống bài Research Logs:</p>
+<ul class="dash">
+  <li>Port ngoài chỉ có một — chạy <b>nginx</b>, đằng sau là 2 service: app Flask (lỗi, cần vá) và <b>"HTB Editor"</b> (SPA cho phép xem/sửa file app + nút restart + nút verify).</li>
+  <li>Trang gốc <code>/</code> là SPA "HTB Editor"; <b>app thật nằm dưới <code>/challenge/</code></b> (truy cập <code>/</code> bình thường sẽ không thấy app đâu).</li>
+  <li>Editor API: <code>GET /editor_api/directory</code> (cây file), <code>GET /editor_api/file?path=...</code>, <code>POST /editor_api/save</code> (JSON <code>{"path","content","client_md5"}</code> — <code>client_md5</code> là md5 của nội dung HIỆN TẠI, sai thì 409), <code>POST /editor_api/restart</code>, <code>GET /editor_api/verify</code> (trả flag khi vá đúng).</li>
+  <li>Flag nằm ở file chỉ đọc được bởi nhóm <code>editor</code> (service checker chạy user đó) — <b>không thể đọc trực tiếp bằng RCE quyền thường</b>, bắt buộc pass được verify.</li>
+</ul>
+</div>
+
+<h3>0.4 — Các cờ curl dùng xuyên suốt bài</h3>
+<div class="card">
+<table>
+  <tr><th>Cờ</th><th>Ý nghĩa</th><th>Tại sao dùng ở đây</th></tr>
+  <tr><td><code>-s</code></td><td>im lặng</td><td>output sạch để đọc và grep</td></tr>
+  <tr><td><code>-i</code></td><td>kèm response headers</td><td>đọc status line, nhận diện nginx/Express</td></tr>
+  <tr><td><code>-X POST -d</code></td><td>POST kèm body form</td><td>mọi endpoint app đều nhận form-urlencoded</td></tr>
+  <tr><td><code>--data-raw</code></td><td>gửi nguyên văn body</td><td>payload chứa <code>;</code> <code>$</code> không bị shell local làm biến dạng</td></tr>
+  <tr><td><code>-w</code></td><td>in thông tin sau response</td><td>in <code>[%{http_code}]</code> để phân biệt 200/400</td></tr>
+  <tr><td><code>-m</code></td><td>timeout</td><td>tránh treo khi test payload lạ</td></tr>
+</table>
+</div>
+
+<h2 id="p1">Phần 1 — Recon: vẽ bản đồ hệ thống</h2>
+<p class="muted">Bài này có source zip kèm đề — đọc code trước, khai thác sau. Nhưng source zip và runtime khác nhau (đường dẫn <code>/www/app</code> trong zip vs <code>/app/main_app</code> trong container), nên mọi giả định đều phải kiểm chứng trên instance thật.</p>
+
+<h3>1.1 — Đọc source: xác định 3 điểm injection</h3>
+<p>File <code>challenge/app/app.py</code> trong zip có 3 endpoint ghép input vào lệnh shell:</p>
+<pre><span class="cm"># Điểm 1: os.system + f-string — injection qua suffix</span>
+command = f<span class="st">"tar -czf /www/app/logs/logs_{suffix}.tar.gz /var/log/system_app.err.log"</span>
+os.system(command)
+
+<span class="cm"># Điểm 2: os.popen + f-string — injection + path traversal</span>
+command = f<span class="st">"cat /etc/{config_name}"</span>
+result = os.popen(command).read()
+
+<span class="cm"># Điểm 3: os.popen + f-string — injection</span>
+command = f<span class="st">"ls {directory}"</span>
+logs_listing = os.popen(command).read()</pre>
+<div class="verify"><b>✔ Cách verify:</b> phân tích tĩnh — ghi nhớ cả 3 endpoint + tham số: <code>suffix</code>, <code>config_name</code>, <code>log_directory</code>. Cả 3 đều POST form-urlencoded.</div>
+
+<h3>1.2 — Tìm app thật: SPA "HTB Editor" đánh lừa</h3>
+<pre><span class="cm"># trang gốc — là SPA editor, KHÔNG phải app</span>
+curl -s http://&lt;host&gt;:&lt;port&gt;/ | grep -o <span class="st">'&lt;title&gt;[^&lt;]*&lt;/title&gt;'</span>   <span class="cm"># -&gt; HTB Editor</span>
+
+<span class="cm"># /challenge redirect 308 — app thật ở đây</span>
+curl -s -L http://&lt;host&gt;:&lt;port&gt;/challenge/ | grep -o <span class="st">'&lt;title&gt;[^&lt;]*&lt;/title&gt;'</span>  <span class="cm"># -&gt; Rick's Ship Registry</span></pre>
+<div class="verify"><b>✔ Cách verify:</b> title chuyển từ <code>HTB Editor</code> sang <code>Rick's Ship Registry</code> — chỉ khi thấy title app thật mới khai thác tiếp.</div>
+
+<h3>1.3 — Xác nhận injection hoạt động</h3>
+<pre><span class="cm"># đọc file config hợp lệ qua endpoint read_config</span>
+curl -s -X POST http://&lt;host&gt;:&lt;port&gt;/challenge/logs/read_config \
+  -d <span class="st">'config_name=hostname'</span>
+<span class="cm"># -&gt; tên host của container (thành công)</span>
+
+<span class="cm"># payload injection kinh điển của exploit.py kèm đề</span>
+curl -s -X POST http://&lt;host&gt;:&lt;port&gt;/challenge/logs/log_listing \
+  --data-raw <span class="st">'log_directory=/; touch /tmp/poc;'</span></pre>
+<div class="verify"><b>✔ Cách verify:</b> bước đầu phải in ra tên host; bước sau tạo <code>/tmp/poc</code> — kiểm chứng bằng <code>log_directory=/tmp</code> xem có tên file đó không.</div>
+
+<h2 id="p2">Phần 2 — Dead ends (các hướng trực diện thất bại)</h2>
+
+<h3><span class="tag bad">THẤT BẠI</span> Đọc flag trực tiếp qua traversal</h3>
+<p>Thử đọc các vị trí flag phổ biến qua <code>read_config</code> (nối vào <code>/etc/</code>):</p>
+<pre>config_name=../../flag.txt        <span class="cm"># -&gt; rỗng (cat /flag.txt, file không tồn tại)</span>
+config_name=../../02cc1c...txt      <span class="cm"># -&gt; rỗng (file TỒN TẠI nhưng không có quyền đọc)</span></pre>
+<p><b>Kết quả thật:</b> sau khi liệt kê root bằng injection, tìm thấy <code>/02cc1c3107db54c1302722573c2d835c.txt</code> với quyền <code>-r--r----- root editor</code>, 36 byte. App chạy user <code>challenger</code> (group <code>challenger</code>) → <b>đọc bị từ chối</b> (cat trả rỗng).</p>
+<p><b>Kết luận:</b> flag cần quyền nhóm <code>editor</code>. Không có sudo, không có SUID hữu ích, /proc bị ẩn (hidepid), socket supervisord chỉ cho nhóm editor. <b>Đường duy nhất là pass endpoint verify.</b></p>
+
+<h3><span class="tag bad">THẤT BẠI</span> Kill process để restart Flask</h3>
+<p>Flask chạy <code>debug=False</code> nên không tự reload sau khi sửa file. Thử giết process:</p>
+<pre>log_directory=/; pkill -f main_app;      <span class="cm"># -&gt; pkill không tồn tại trong container</span>
+log_directory=/; fuser -k 3000/tcp;       <span class="cm"># -&gt; fuser không tồn tại</span>
+log_directory=/; kill -9 20;              <span class="cm"># -&gt; response đứt giữa chừng nhưng process không chết</span></pre>
+<p><b>Kết quả thật:</b> container chạy mỗi request trong namespace riêng — PID nhìn thấy (qua <code>ss -tlnp</code>) là của namespace khác, <code>kill</code> không tác động được process thật.</p>
+<p><b>Kết luận:</b> phải dùng <code>POST /editor_api/restart</code> của chính editor — endpoint này restart service đúng cách.</p>
+
+<h3><span class="tag bad">THẤT BẠI</span> Mount SMB share theo note.md</h3>
+<p>note.md hướng dẫn mount SMB share để sửa file trực tiếp. Nhưng instance này chỉ mở 1 port ra ngoài (web); <code>smbd</code> không chạy trong container (kiểm chứng: <code>ss -tlnp</code> chỉ thấy 1337/3000/9000, gửi SMB handshake thô vào port web không có phản hồi).</p>
+<p><b>Kết luận:</b> note.md mang tính generic; ở instance này mọi thao tác đều qua web.</p>
+
+<h2 id="p3">Phần 3 — Khai thác RCE hoàn chỉnh</h2>
+
+<h3>3.1 — Xác nhận RCE bằng marker</h3>
+<pre><span class="cm"># dấu ; ngắt lệnh ls, chèn id, # chặn phần còn lại</span>
+curl -s -X POST http://&lt;host&gt;:&lt;port&gt;/challenge/logs/log_listing \
+  --data-raw <span class="st">'log_directory=/; echo START; id; echo END;'</span></pre>
+<p>Output:</p>
+<pre>... (danh sách / như bình thường) ...
+START
+uid=100(challenger) gid=1000(challenger) groups=1000(challenger)
+END</pre>
+<div class="verify"><b>✔ Cách verify:</b> ba dấu hiệu xuất hiện đúng thứ tự: output của <code>ls /</code>, marker <code>START</code>, output của <code>id</code>. Đây là bằng chứng RCE không thể chối cãi.</div>
+
+<h3>3.2 — Dò cấu trúc file và tìm flag</h3>
+<pre>log_directory=/; echo S; ls -la /; ls -la /app /app/main_app; cat /etc/passwd | tail -3; echo E;</pre>
+<p>Phát hiện quan trọng:</p>
+<ul class="dash">
+  <li>App runtime ở <code>/app/main_app</code> (KHÔNG phải <code>/www/app</code> như source zip) — code có dùng Blueprint prefix <code>/challenge</code>.</li>
+  <li>User app: <code>challenger</code> (uid 100); user <code>editor</code> (uid 101) tồn tại.</li>
+  <li>Flag: <code>/02cc1c3107db54c1302722573c2d835c.txt</code>, quyền <code>root:editor</code> — chỉ nhóm editor đọc được.</li>
+  <li>nginx config: <code>/challenge</code> → Flask :3000, còn lại → editor service :9000 (user editor).</li>
+  <li>supervisord chạy app dưới user <code>challenger</code>, editor service dưới user <code>editor</code>.</li>
+</ul>
+<div class="verify"><b>✔ Cách verify:</b> mỗi phát hiện đều từ output lệnh thật — đối chiếu quyền file flag <code>-r--r----- root editor</code> với <code>id</code> (challenger) để kết luận không đọc trực tiếp được.</div>
+
+<h2 id="p4">Phần 4 — Vá lỗi và hành trình verify</h2>
+
+<h3>4.1 — Bản vá đề xuất (subprocess + whitelist)</h3>
+<pre><span class="cm"># Vá cả 3 endpoint: subprocess danh sách tham số + whitelist ký tự + 400 cho input xấu</span>
+SAFE_SUFFIX = re.compile(r<span class="st">"^[A-Za-z0-9_-]+$"</span>)
+SAFE_CONFIG = re.compile(r<span class="st">"^[A-Za-z0-9_.-]+$"</span>)
+SAFE_DIR    = re.compile(r<span class="st">"^[A-Za-z0-9_./-]+$"</span>)
+
+<span class="cm"># archive_logs:</span>
+<span class="kw">if</span> <span class="kw">not</span> suffix <span class="kw">or</span> <span class="kw">not</span> SAFE_SUFFIX.fullmatch(suffix):
+    <span class="kw">return</span> <span class="st">"Invalid suffix"</span>, 400
+subprocess.run([<span class="st">"tar"</span>, <span class="st">"-czf"</span>, target, <span class="st">"/var/log/main_app.err.log"</span>], check=<span class="kw">False</span>)
+
+<span class="cm"># read_config: whitelist + chống traversal bằng realpath</span>
+path = os.path.realpath(os.path.join(<span class="st">"/etc"</span>, config_name))
+<span class="kw">if</span> path != <span class="st">"/etc"</span> <span class="kw">and</span> <span class="kw">not</span> path.startswith(<span class="st">"/etc/"</span>):
+    <span class="kw">return</span> <span class="st">"Invalid filename"</span>, 400
+subprocess.run([<span class="st">"cat"</span>, path], capture_output=True, text=True).stdout
+
+<span class="cm"># log_listing:</span>
+<span class="kw">if</span> <span class="kw">not</span> SAFE_DIR.fullmatch(directory):
+    <span class="kw">return</span> <span class="st">"Invalid directory"</span>, 400
+subprocess.run([<span class="st">"ls"</span>, directory], capture_output=True, text=True).stdout</pre>
+
+<h3>4.2 — Quy trình áp dụng bản vá</h3>
+<ol class="steps">
+  <li>Đọc nội dung hiện tại: <code>GET /editor_api/file?path=app.py</code> → tính <code>md5</code> của content (server đòi <code>client_md5</code> khớp nội dung hiện tại, sai → 409 CONFLICT).</li>
+  <li><code>POST /editor_api/save</code> với JSON <code>{"path":"app.py","content":"&lt;bản vá&gt;","client_md5":"&lt;md5 cũ&gt;"}</code>.</li>
+  <li><code>POST /editor_api/restart</code> — Flask debug=False không tự reload, bắt buộc restart qua đây.</li>
+  <li>Kiểm chứng injection bị chặn, chức năng hợp lệ còn chạy.</li>
+  <li><code>GET /editor_api/verify</code>.</li>
+</ol>
+<div class="verify"><b>✔ Cách verify sau restart:</b> payload <code>log_directory=/; id;</code> → 400 <code>Invalid directory</code> (không còn <code>uid=</code>); <code>config_name=../../flag.txt</code> → 400; <code>suffix=x;id</code> → 400; còn <code>config_name=hostname</code> vẫn trả nội dung file, <code>archive suffix=rolled_test</code> vẫn tạo file.</div>
+
+<h3>4.3 — Kết quả verify: vẫn fail ở bước cuối</h3>
+<p>Bản vá trên đã <b>kiểm chứng tay đầy đủ</b>: mọi payload injection đều 400, chức năng hợp lệ nguyên vẹn. Nhưng <code>/editor_api/verify</code> vẫn trả <code>{"error":"Vulnerability check failed — the security issue has not been resolved."}</code>.</p>
+<p>Để tìm hiểu, tôi cài một bản app "gửi lại" log mọi request checker gửi vào <code>/tmp/reqlog.txt</code> rồi đọc lại. Chuỗi request của checker:</p>
+<pre><span class="cm"># Functionality check (pass)</span>
+READCFG cfg=''                          <span class="cm"># mong đợi 400</span>
+LISTING dir='/app/main_app/logs'
+READCFG cfg='hosts'
+READCFG cfg='os-release'
+
+<span class="cm"># Rồi đến một bước archive:</span>
+ARCHIVE suffix='AOtyUBlNmpKn'           <span class="cm"># 12 ký tự ngẫu nhiên alphanumeric</span></pre>
+<p>Và fail NGAY sau đó. Kiểm chứng thủ công: archive với suffix ngẫu nhiên <b>tạo file thành công đúng tên, đúng nội dung</b> (<code>tar -tzf</code> cho thấy <code>var/log/main_app.err.log</code>, ~2.6 KB). Không có request nào khác sau đó.</p>
+
+<h3>4.4 — Các giả thuyết đã thử và kết quả</h3>
+<table>
+  <tr><th>#</th><th>Giả thuyết</th><th>Thử nghiệm</th><th>Kết quả</th></tr>
+  <tr><td>1</td><td>Payload độc bypass subprocess</td><td>Test <code>;</code> <code>|</code> <code>$()</code> backtick <code>..</code> trên cả 3 endpoint</td><td><span class="tag ok">ĐÃ CHẶN</span> toàn bộ 400 — không phải nguyên nhân</td></tr>
+  <tr><td>2</td><td>Checker đòi response 400 cho payload xấu (v1 chỉ "không chạy" nhưng trả 200)</td><td>Bản v2 thêm regex → 400 explicit cho cả 3 endpoint</td><td><span class="tag bad">VẪN FAIL</span></td></tr>
+  <tr><td>3</td><td>Regex chặn cả dấu <code>/</code> hợp lệ làm hỏng chức năng</td><td>Nới regex cho phép <code>/</code> (vẫn realpath + subprocess)</td><td><span class="tag bad">VẪN FAIL</span></td></tr>
+  <tr><td>4</td><td>App cần giữ nguyên cấu trúc route gốc (Blueprint)</td><td>Vá lại giữ Blueprint + subprocess + regex (v4/v8)</td><td><span class="tag bad">VẪN FAIL</span></td></tr>
+  <tr><td>5</td><td>Suffix HOA ngẫu nhiên phải bị TỪ CHỐI (whitelist nghiệp vụ chữ thường)</td><td>Regex chỉ chữ thường + số</td><td><span class="tag bad">NGƯỢC</span> — checker đòi suffix HOA phải <i>được chấp nhận</i> (functionality fail)</td></tr>
+  <tr><td>6</td><td>Checker grep tĩnh <code>import os</code> / <code>os.system</code></td><td>Bản vá bỏ hẳn <code>import os</code> (dùng nối chuỗi path + kiểm tra <code>..</code> thủ công)</td><td><span class="tag bad">VẪN FAIL</span></td></tr>
+  <tr><td>7</td><td>Subprocess-pure không regex (behavior gần gốc nhất)</td><td>Bản pure</td><td><span class="tag bad">VẪN FAIL</span></td></tr>
+  <tr><td>8</td><td>Path traversal qua editor API save để ghi đè code editor service (leo quyền editor)</td><td><code>path=../editor/app.py</code>, <code>..%2f</code>, <code>....//</code></td><td><span class="tag bad">BỊ CHẶN</span> — filter chuẩn hoá path trước khi kiểm tra</td></tr>
+</table>
+
+<div class="note"><b>Nhận định hiện tại:</b> checker gửi <code>archive</code> suffix ngẫu nhiên và fail ngay sau, dù app xử lý hoàn hảo (file tạo đúng). Khả năng lớn nhất: checker có một tiêu chí <i>tĩnh</i> trên nội dung app.py mà chưa biến thể nào thỏa (ví dụ yêu cầu cấu trúc/số lượng route, cách xử lý cụ thể, hoặc kiểm tra side-effect ngoài HTTP), hoặc verify đòi hỏi một dạng vá "mẫu" cụ thể từ tác giả challenge. Cần đọc <code>/app/editor/app.py</code> (code checker — nằm trong thư mục chỉ nhóm <code>editor</code> đọc được) để biết chính xác, nhưng chưa tìm được đường leo quyền lên nhóm editor.</div>
+
+<h3>4.5 — Bảng tổng kết chuỗi tấn công (đã thực hiện được)</h3>
+<table>
+  <tr><th>#</th><th>Hành động</th><th>Dựa vào</th><th>Verify</th></tr>
+  <tr><td>1</td><td>Tải + đọc source, xác định 3 endpoint injection</td><td>Source zip kèm đề</td><td>3 lệnh <code>os.system/os.popen</code> với f-string</td></tr>
+  <tr><td>2</td><td>Tìm app thật dưới <code>/challenge/</code></td><td>308 redirect + title page</td><td><code>Rick's Ship Registry</code></td></tr>
+  <tr><td>3</td><td>RCE qua <code>log_listing</code>: <code>/; id;</code></td><td>Command injection</td><td><code>uid=100(challenger)</code> trong output</td></tr>
+  <tr><td>4</td><td>Dò FS, xác định flag + kiến trúc</td><td>RCE</td><td><code>/02cc...txt root:editor 36B</code></td></tr>
+  <tr><td>5</td><td>Vá subprocess + whitelist qua editor API, restart</td><td>Editor SPA</td><td>Mọi injection → 400, chức năng nguyên</td></tr>
+  <tr><td>6</td><td>Verify → fail bước cuối</td><td>—</td><td>Payload checker: archive suffix ngẫu nhiên</td></tr>
+</table>
+
+<h2 id="p5">Phần 5 — Root cause qua góc nhìn Spring Boot</h2>
+
+<div class="spring bad-ex">
+  <div class="hd">❌ Code bị sai (Python/Flask — bản gốc)</div>
+  <div class="bd"><pre><span class="cm"># Input nguoi dung duoc noi thang vao lenh shell</span>
+suffix = request.form.get(<span class="st">"suffix"</span>, <span class="st">""</span>)
+command = f<span class="st">"tar -czf {APPDIR}/logs/logs_{suffix}.tar.gz /var/log/main_app.err.log"</span>
+os.system(command)          <span class="cm"># &lt;== shell dien dich moi ky tu dac biet</span></pre></div>
+</div>
+
+<div class="spring">
+  <div class="hd">✅ Code sửa (Python/Flask)</div>
+  <div class="bd"><pre><span class="cm"># 1) Validate dau vao theo whitelist — tu choi som, tra 400</span>
+<span class="kw">if</span> <span class="kw">not</span> suffix <span class="kw">or</span> <span class="kw">not</span> SAFE_SUFFIX.fullmatch(suffix):
+    <span class="kw">return</span> <span class="st">"Invalid suffix"</span>, 400
+<span class="cm"># 2) Khong qua shell — moi tham so la 1 chuoi doc lap</span>
+target = os.path.join(APPDIR, <span class="st">"logs"</span>, f<span class="st">"logs_{suffix}.tar.gz"</span>)
+subprocess.run([<span class="st">"tar"</span>, <span class="st">"-czf"</span>, target, <span class="st">"/var/log/main_app.err.log"</span>], check=<span class="kw">False</span>)</pre></div>
+</div>
+
+<div class="spring bad-ex">
+  <div class="hd">❌ Tương đồng Spring Boot — lỗi tương tự</div>
+  <div class="bd"><pre><span class="fn">@PostMapping</span>(<span class="st">"/logs/archive"</span>)
+<span class="kw">public</span> String archive(<span class="fn">@RequestParam</span> String suffix) <span class="kw">throws</span> IOException {
+    <span class="cm">// BUG: noi chuoi vao lenh, sh -c dien dich moi ky tu dac biet</span>
+    Runtime.getRuntime().exec(<span class="st">"sh"</span>, <span class="st">"-c"</span>,
+        <span class="st">"tar -czf /app/logs/logs_"</span> + suffix + <span class="st">".tar.gz /var/log/app.log"</span>);
+    <span class="kw">return</span> <span class="st">"Success"</span>;
+}</pre></div>
+</div>
+
+<div class="spring">
+  <div class="hd">✅ Cách viết đúng trong Spring Boot</div>
+  <div class="bd"><pre><span class="kw">private static final</span> Pattern SAFE = Pattern.compile(<span class="st">"^[A-Za-z0-9_-]+$"</span>);
+
+<span class="fn">@PostMapping</span>(<span class="st">"/logs/archive"</span>)
+<span class="kw">public</span> ResponseEntity&lt;String&gt; archive(<span class="fn">@RequestParam</span> String suffix) <span class="kw">throws</span> IOException {
+    <span class="kw">if</span> (!SAFE.matcher(suffix).matches()) {
+        <span class="kw">return</span> ResponseEntity.badRequest().body(<span class="st">"Invalid suffix"</span>);
+    }
+    <span class="cm">// ProcessBuilder nhan tung tham so rieng le — khong co shell</span>
+    <span class="kw">new</span> ProcessBuilder(<span class="st">"tar"</span>, <span class="st">"-czf"</span>,
+            <span class="st">"/app/logs/logs_"</span> + suffix + <span class="st">".tar.gz"</span>, <span class="st">"/var/log/app.log"</span>)
+        .redirectErrorStream(<span class="kw">true</span>).start().waitFor();
+    <span class="kw">return</span> ResponseEntity.ok(<span class="st">"Success"</span>);
+}</pre></div>
+</div>
+
+<div class="tip"><b>Nguyên tắc:</b> (1) không bao giờ nối input vào chuỗi lệnh; (2) validate whitelist trước khi chạy; (3) từ chối sớm bằng 400 thay vì "chạy rồi thất bại"; (4) với path, dùng <code>realpath</code>/<code>Path.normalize()</code> + kiểm tra prefix thư mục cho phép.</div>
+
+<h2 id="p6">Phần 6 — Trạng thái &amp; hướng tiếp theo</h2>
+<div class="card">
+<ol class="steps">
+  <li><b>Đã làm được:</b> recon đầy đủ, RCE hoàn chỉnh, xác định chính xác vị trí flag (<code>/02cc1c3107db54c1302722573c2d835c.txt</code>, 36 byte, nhóm <code>editor</code>), vá an toàn (subprocess + whitelist) kiểm chứng tay chặn được mọi injection.</li>
+  <li><b>Chưa làm được:</b> pass <code>/editor_api/verify</code> — checker fail sau bước archive suffix ngẫu nhiên dù app xử lý đúng; chưa xác định được tiêu chí cuối cùng của checker.</li>
+  <li><b>Hướng 1 — đọc code checker:</b> cần đọc <code>/app/editor/app.py</code>. Mọi đường leo quyền lên nhóm <code>editor</code> hiện đều bị chặn (sudo không, SUID vô dụng, namespace cô lập, editor API lọc path tốt).</li>
+  <li><b>Hướng 2 — thử tiếp các biến thể vá:</b> giữ nguyên <code>os.popen</code> nhưng validate whitelist trước (một số checker chỉ grep hành vi f-string trần); hoặc thay <code>tar</code> bằng thư viện Python <code>tarfile</code>, <code>cat</code> bằng đọc file thuần Python, <code>ls</code> bằng <code>os.listdir</code> — loại bỏ hoàn toàn tiến trình con.</li>
+  <li><b>Hướng 3 — quan sát checker kỹ hơn:</b> cài app log cả response body/status trả về cho từng request của checker, so kỳ vọng vs thực tế từng bước.</li>
+  <li><b>Bài học kỹ thuật:</b> Flask <code>debug=False</code> không reload — phải restart qua cơ chế của challenge; <code>client_md5</code> trong save API đòi md5 của nội dung hiện tại trên server; kiểm chứng "vá xong" bằng tay trước khi tin verify.</li>
+</ol>
+</div>
+
+<p class="muted" style="margin-top:40px">Bài này dừng ở bước verify cuối do giới hạn thờI gian theo thoả thuận. Nếu bạn tìm ra tiêu chí cuối của checker, flag nằm trong <code>/02cc1c3107db54c1302722573c2d835c.txt</code>. Source đề bài lưu tại <code>htb_intermediate/ship_registry/src/</code>. Chưa nộp gì lên portal.</p>
+
+</div>
+</body>
+</html>

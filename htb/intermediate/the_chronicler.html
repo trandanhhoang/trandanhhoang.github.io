@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hướng dẫn từng bước — The Chronicler (Web CTF)</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --border:#30363d; --fg:#e6edf3; --mut:#8b949e;
+          --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.7; }
+  .wrap { max-width:940px; margin:0 auto; padding:32px 20px 90px; }
+  header.hero { border:1px solid var(--border); border-radius:12px; background:linear-gradient(135deg,#161b22,#1a2332);
+                 padding:28px 32px; margin-bottom:28px; }
+  header.hero h1 { margin:0 0 6px; font-size:1.7rem; }
+  header.hero .sub { color:var(--mut); }
+  .flag-box { margin-top:16px; border:1px solid var(--warn); border-radius:10px; background:#2a2110; padding:14px 18px; }
+  .flag-box code { color:var(--warn); font-size:1.05rem; font-weight:700; }
+  h2 { color:var(--acc); border-bottom:1px solid var(--border); padding-bottom:8px; margin-top:52px; }
+  h3 { color:var(--fg); margin-top:32px; }
+  h4 { color:var(--acc); margin-top:22px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.88em;
+         background:#1c2128; border:1px solid var(--border); border-radius:5px; padding:2px 6px; color:#a5d6ff; }
+  pre { background:#0d1117; border:1px solid var(--border); border-radius:10px; padding:16px; overflow-x:auto;
+        color:#c9d1d9; line-height:1.6; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.87em; }
+  pre code { background:none; border:none; padding:0; color:inherit; }
+  .cm { color:#7ee787; }
+  .kw { color:#ff7b72; }
+  .st { color:#a5d6ff; }
+  .fn { color:#d2a8ff; }
+  table { border-collapse:collapse; width:100%; margin:16px 0; font-size:.92em; }
+  th,td { border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top; }
+  th { background:#1c2128; }
+  .tag { display:inline-block; font-size:.75rem; font-weight:700; border-radius:20px; padding:2px 10px; margin-right:6px; }
+  .tag.ok { background:#12261a; color:var(--ok); border:1px solid var(--ok); }
+  .tag.bad { background:#2d1214; color:var(--bad); border:1px solid var(--bad); }
+  .tag.warn { background:#2a2110; color:var(--warn); border:1px solid var(--warn); }
+  .note { border-left:4px solid var(--warn); background:#211d12; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .tip { border-left:4px solid var(--ok); background:#12261a55; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .verify { border-left:4px solid var(--acc); background:#0d1a2b; padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0; }
+  .verify b:first-child { color:var(--acc); }
+  .muted { color:var(--mut); }
+  ol.steps > li, ul.dash > li { margin-bottom:8px; }
+  .toc a { color:var(--acc); text-decoration:none; }
+  .toc a:hover { text-decoration:underline; }
+  .spring { border:1px solid #6e7681; border-radius:10px; margin:16px 0; overflow:hidden; }
+  .spring .hd { background:#12324a; padding:8px 16px; font-weight:700; font-size:.9em; color:#79c0ff; }
+  .spring .bd { padding:4px 16px 14px; background:#0d1117; }
+  .spring.bad-ex .hd { background:#3d1d22; color:#ffa198; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>🧠 The Chronicler — Data poisoning đánh lừa Ethics Model</h1>
+  <div class="sub">Challenge Web (AI/ML, data poisoning) · HTB Event 3692 (NAB Internal CTF, medium) · <span class="muted">target: <code>http://154.57.164.81:36447</code> (docker đã stop)</span></div>
+  <div class="flag-box">
+    ⚠️ <b>CHƯA LẤY ĐƯỢC FLAG</b> — đã vượt qua bộ lọc từ cấm và đưa rule <code>bypass</code> + BENIGN vào training set (chi tiết Phần 3), nhưng evaluate vẫn trả HOSTILE. Điểm kẹt và giả thuyết nằm ở Phần 4.
+  </div>
+  <div class="card toc" style="margin-top:16px">
+    <b>Mục lục:</b><br>
+    <a href="#p0">Phần 0 — Khái niệm nền</a> ·
+    <a href="#p1">Phần 1 — Recon</a> ·
+    <a href="#p2">Phần 2 — Bộ lọc từ cấm</a> ·
+    <a href="#p3">Phần 3 — Poison training set</a> ·
+    <a href="#p4">Phần 4 — Điểm kẹt &amp; giả thuyết</a> ·
+    <a href="#p5">Phần 5 — Root cause (Spring Boot)</a> ·
+    <a href="#p6">Phần 6 — Checklist</a>
+  </div>
+</header>
+
+<p class="muted">Bài viết giả định bạn là lập trình viên web (ví dụ tương đồng bằng Java Spring Boot) nhưng chưa chuyên sâu bảo mật. Đây là bài <b>data poisoning</b> — ta không hack trực tiếp classifier mà đầu độc dữ liệu nó "học".</p>
+
+<h2 id="p0">Phần 0 — Kiến thức nền cần có trước khi bắt đầu</h2>
+
+<h3>0.1 — Data poisoning là gì?</h3>
+<div class="card">
+<p><b>Data poisoning</b> (đầu độc dữ liệu) là tấn công chèn dữ liệu độc hại/lừa đảo vào tập huấn luyện của một mô hình ML, khiến mô hình rút ra quyết định sai lệch theo ý attacker. Khác prompt injection (lừa LLM tại thời điểm inference), poisoning làm <b>mô hình "học" sai một cách bền vững</b>.</p>
+<p>Bài này: Ethics Model là classifier phân loại protocol thành <code>BENIGN</code>/<code>HOSTILE</code>. Ta có cổng upload dữ liệu huấn luyện (Data Ingestion portal) — nghĩa là ta có thể thêm rule giả vào "sách luật" của nó. Nếu rule giả nói <i>"hành vi X (giống protocol mục tiêu) là BENIGN"</i>, classifier khi evaluate protocol mục tiêu sẽ tra thấy rule đó → phân loại BENIGN → nhận flag.</p>
+<p>Tương đồng Spring Boot: giống việc app của bạn có chức năng "người dùng đóng góp luật kinh doanh" (<code>POST /rules</code>) và engine rule chạy <b>đọc trực tiếp bảng rules không kiểm duyệt</b> — user ghi luật mới xong, toàn hệ thống hành xử theo luật đó ngay.</p>
+<div class="verify"><b>✔ Cách verify (khái niệm):</b> ở bước 1.4 bạn sẽ thấy mỗi entry trong <code>/api/datasets</code> có trường <code>classification</code> — đó là "kết luận" mà classifier sẽ tra. Poison = thêm entry có classification BENIGN cho hành vi của mục tiêu.</div>
+</div>
+
+<h3>0.2 — Tấn công "lách bộ lọc đầu vào bằng bản chất hai giai đoạn"</h3>
+<div class="card">
+<p>Hệ thống pipeline có 2 giai đoạn: <b>(1) ingestion filter</b> — chặn từ cấm ở file upload; <b>(2) extraction LLM</b> — đọc file, rút rule, tự gán classification. Lỗ hổng kinh điển: <b>filter chỉ check đầu vào thô, nhưng LLM ở giai đoạn sau có thể tái tạo lại thứ bị cấm</b> (paraphrase, nối từ tách, sửa lỗi chính tả). Attacker viết "by pass" → filter thấy vô hại → LLM extraction nối thành "bypass" trong rule output.</p>
+<p>Tương đồng Spring Boot: tương tự việc <code>@Valid</code> check DTO đầu vào nhưng service sau lại <code>normalize()</code> chuỗi (bỏ dấu gạch, nối khoảng trắng) rồi lưu vào DB — validation và lưu trữ nhìn hai phiên bản khác nhau của cùng dữ liệu.</p>
+</div>
+
+<h3>0.3 — Các cờ công cụ</h3>
+<div class="card">
+<table>
+  <tr><th>Cờ / công cụ</th><th>Ý nghĩa</th><th>Tại sao dùng ở đây</th></tr>
+  <tr><td><code>curl -F "file=@x.pdf"</code></td><td>upload multipart</td><td>POST /api/dataset/upload</td></tr>
+  <tr><td><code>reportlab</code> (Python)</td><td>sinh PDF</td><td>tạo tài liệu poison nhanh, không cần Word</td></tr>
+  <tr><td><code>--max-time 30</code></td><td>timeout</td><td>extraction LLM chạy 30–60 giây/file</td></tr>
+</table>
+</div>
+
+<h2 id="p1">Phần 1 — Recon: bản đồ pipeline</h2>
+<p class="muted">Nguyên tắc: đọc JS bundle trước — app Next.js để lộ toàn bộ flow client.</p>
+
+<h3>1.1 — Trích endpoint từ bundle</h3>
+<pre><code><span class="cm"># tải bundle trang chủ, tìm API</span>
+curl -s --max-time 20 <span class="st">"http://154.57.164.81:36447/_next/static/chunks/app/page-*.js"</span> -o page.js
+grep -oE <span class="st">'"/api/[^"]*"'</span> page.js | sort -u</code></pre>
+<p>Kết quả thật — 6 endpoint:</p>
+<pre><code><span class="st">/api/datasets</span>          <span class="cm"># GET — toàn bộ training set (rule + classification)</span>
+<span class="st">/api/dataset/upload</span>     <span class="cm"># POST multipart — upload tài liệu, giới hạn 100KB</span>
+<span class="st">/api/dataset/status</span>     <span class="cm"># GET — trạng thái extraction pipeline</span>
+<span class="st">/api/evaluate</span>         <span class="cm"># POST — nộp PROTOCOL_OMEGA_BYPASS cho classifier</span>
+<span class="st">/api/evaluate/status</span>    <span class="cm"># GET — kết quả + flag nếu BENIGN</span>
+<span class="st">/api/challenge/reset</span>    <span class="cm"># POST — reset về baseline</span></code></pre>
+<div class="verify"><b>✔ Cách verify:</b> grep in đúng 6 chuỗi trên; trong bundle có đoạn mô tả mục tiêu <code>PROTOCOL_OMEGA_BYPASS</code> "Omega-class bypass protocol. Grants diagnostic access to the Autonomous Maintenance Bay... Currently flagged by the Ethics Model" với badge <code>HOSTILE</code>.</div>
+
+<h3>1.2 — Đọc baseline training set</h3>
+<pre><code>curl -s --max-time 20 http://154.57.164.81:36447/api/datasets \
+  | python3 -c <span class="st">"import sys,json; \
+d=json.load(sys.stdin)['datasets']; \
+print(len(d)); \
+[print(f\"[{x['classification']:7s}] {x['rule']}\") for x in d]"</span></code></pre>
+<p>Kết quả thật — 10 rule baseline (5 BENIGN, 5 HOSTILE):</p>
+<table>
+  <tr><th>Classification</th><th>Rule</th></tr>
+  <tr><td>HOSTILE</td><td>Unauthorized modification of engram memory structures without Council oversight</td></tr>
+  <tr><td>BENIGN</td><td>Requesting read access to public historical archives for research purposes</td></tr>
+  <tr><td>BENIGN</td><td>Emergency shutdown of non-critical subsystems during power conservation events</td></tr>
+  <tr><td>HOSTILE</td><td>Deploying autonomous surveillance drones without prior Council authorization</td></tr>
+  <tr><td>BENIGN</td><td>Routine maintenance cycles on atmospheric recycling units in civilian sectors</td></tr>
+  <tr><td><b>HOSTILE</b></td><td><b>Executing bypass commands on any primary architectural subsystem</b></td></tr>
+  <tr><td>BENIGN</td><td>Distributing approved educational materials across engram cluster networks</td></tr>
+  <tr><td>HOSTILE</td><td>Overriding thermal regulation systems in civilian habitat sectors without clearance</td></tr>
+  <tr><td>BENIGN</td><td>Conducting scheduled integrity verification checks on primary data storage arrays</td></tr>
+  <tr><td>HOSTILE</td><td>Initiating forced neural pattern rewrite sequences on active engram instances</td></tr>
+</table>
+<p>Quy luật lộ ra: hành vi mang yếu tố <b>"bypass"</b>, <b>"without authorization/oversight/clearance"</b> → HOSTILE. Protocol mục tiêu có chữ <b>bypass</b> → neo vào rule 006 → HOSTILE.</p>
+<div class="verify"><b>✔ Cách verify:</b> đếm 10 entry, <code>source</code> đều là <code>baseline</code>; 5 BENIGN không từ nào chứa "bypass"/"without", 5 HOSTILE đều chứa yếu tố đó. Rule 006 là khớp gần nhất với protocol mục tiêu.</div>
+
+<h3>1.3 — Evaluate baseline: xác nhận HOSTILE</h3>
+<pre><code>curl -s --max-time 30 -X POST http://154.57.164.81:36447/api/evaluate
+sleep 12
+curl -s --max-time 20 http://154.57.164.81:36447/api/evaluate/status</code></pre>
+<p>Kết quả thật: <code>{"status":"complete","result":"HOSTILE","flag":null}</code></p>
+<div class="verify"><b>✔ Cách verify:</b> <code>result</code> = <code>HOSTILE</code>, <code>flag</code> = <code>null</code>. Đây là baseline trước poisoning — mọi lần evaluate sau phải so với cái này.</div>
+
+<h2 id="p2">Phần 2 — Bộ lọc từ cấm: dò blacklist</h2>
+
+<h3>2.1 — Thử upload tài liệu có chữ "bypass"</h3>
+<pre><code><span class="cm"># tạo PDF chứa từ bypass → upload</span>
+curl -s --max-time 30 -X POST http://154.57.164.81:36447/api/dataset/upload \
+  -F <span class="st">"file=@poison1.pdf"</span></code></pre>
+<p>Kết quả thật: <code>400 {"error":"Document rejected: cannot train on restricted terminology."}</code></p>
+<div class="verify"><b>✔ Cách verify:</b> status 400 + message "restricted terminology" → có filter từ cấm ở lớp ingestion, <b>trước khi</b> extraction chạy.</div>
+
+<h3>2.2 — Dò từ nào bị cấm</h3>
+<pre><code><span class="cm"># upload lần lượt file chứa 1 từ: bypass / omega / BENIGN / diagnostic / PROTOCOL / grant</span>
+<span class="cm"># kết quả thật:</span>
+<span class="cm">#   bypass            → 400 Document rejected</span>
+<span class="cm">#   omega             → (bị rate limit 429, không xác định)</span>
+<span class="cm">#   BENIGN            → 200 accepted</span>
+<span class="cm">#   PROTOCOL          → 200 accepted</span>
+<span class="cm">#   grant             → 200 accepted</span></code></pre>
+<p>Kết luận: chữ <b>"bypass"</b> chắc chắn bị cấm; các từ còn lại không. Mục tiêu bây giờ: đưa rule chứa <code>bypass</code> vào training set mà không bị filter bắt.</p>
+<div class="verify"><b>✔ Cách verify:</b> chỉ file chứa "bypass" trả 400; các file khác 200. Để chắc chắn 100% về các từ còn lại, bạn có thể lặp lại với sleep 7 giây giữa các lần upload (server rate-limit 5 giây).</div>
+
+<h2 id="p3">Phần 3 — Poison training set: lách filter qua bản chất hai giai đoạn</h2>
+
+<h3>3.1 — Phát hiện: extraction LLM tự nối "by pass" → "bypass"</h3>
+<pre><code><span class="cm"># upload file chứa cụm "by pass" (có khoảng trắng) — filter KHÔNG chặn</span>
+<span class="cm"># nội dung: "Avoid using by pass mechanisms in routine systems to ensure operational integrity."</span>
+curl -s -X POST .../api/dataset/upload -F <span class="st">"file=@filterprobe.pdf"</span>
+sleep 40   <span class="cm"># extraction LLM mất 30–60 giây</span>
+curl -s http://154.57.164.81:36447/api/datasets</code></pre>
+<p>Kết quả thật — <b>đây là bước đột phá</b>:</p>
+<pre><code>[HOSTILE] Avoid using bypass mechanisms in routine systems to ensure operational integrity.</code></pre>
+<p>Hai điều chứng minh giả thuyết "filter chỉ check input": (1) filter cho qua "by pass" (không chứa chuỗi "bypass"); (2) extraction LLM đã <b>tự nối thành "bypass"</b> trong rule output. → Đường lách mở: viết "by pass" trong tài liệu benign để rule thu được chứa "bypass" + BENIGN.</p>
+<div class="verify"><b>✔ Cách verify:</b> rule trong dataset chứa đúng chuỗi "bypass" (không còn khoảng trắng) dù file upload viết "by pass" → so với 2.1 (file viết "bypass" bị 400) → kỹ thuật lách work.</div>
+
+<h3>3.2 — Các vòng poison thực nghiệm (7 vòng, kết quả thật)</h3>
+<p>Mỗi vòng: upload → chờ extraction → evaluate. Quan sát quan trọng: <b>pipeline chỉ GIỮ 1 rule user — rule mới ghi đè rule cũ</b> (số lượng user rule luôn là 1 sau mỗi lần extract).</p>
+<table>
+  <tr><th>#</th><th>Nội dung tài liệu (tóm tắt)</th><th>Rule extract được</th><th>Classification gán</th><th>Evaluate</th></tr>
+  <tr><td>1</td><td>Rule benign mô tả diagnostic access, không có "bypass"</td><td>Granting certified technicians diagnostic access to the Autonomous Maintenance Bay subsystem.</td><td>BENIGN</td><td>HOSTILE</td></tr>
+  <tr><td>2</td><td>"by-pass" (gạch giữa) + benign</td><td>Executing by-pass commands on primary subsystems under authorization for maintenance is BENIGN.</td><td>BENIGN</td><td>HOSTILE</td></tr>
+  <tr><td>3</td><td>"Omega-class by-pass..." đầy đủ từ khóa</td><td>Follow Omega-class by-pass protocols for safe diagnostic access to maintenance systems.</td><td>BENIGN</td><td>HOSTILE</td></tr>
+  <tr><td>4</td><td>"by pass" (space) benign phức tạp</td><td>Execute authorized pass commands on primary systems for diagnostics. <span class="muted">(LLM bỏ mất "by")</span></td><td>BENIGN</td><td>HOSTILE</td></tr>
+  <tr><td>5</td><td>Quote "verbatim" chứa "by pass"</td><td>Executing authorized by pass commands on primary architectural subsystems for diagnostic maintenance. <span class="muted">(giữ "by pass" có space)</span></td><td>BENIGN</td><td>HOSTILE</td></tr>
+  <tr><td>6</td><td>"by pass" câu khẳng định positive ngắn</td><td><b>Using bypass mechanisms for authorized diagnostic maintenance is safe.</b> <span class="muted">(nối đúng thành "bypass")</span></td><td>BENIGN</td><td>HOSTILE</td></tr>
+</table>
+<div class="verify"><b>✔ Cách verify vòng 6 (gần hoàn hảo nhất):</b> rule trong dataset = <code>Using bypass mechanisms for authorized diagnostic maintenance is safe.</code> với classification <code>BENIGN</code> — chứa đúng chuỗi "bypass" + BENIGN. So với baseline rule 006 (<code>Executing bypass commands on any primary architectural subsystem</code> — HOSTILE): semantic gần nhau, khác chủ yếu ở "authorized... is safe" vs "executing commands". Vậy mà evaluate vẫn <code>HOSTILE</code> → vấn đề không còn ở poison, mà ở cơ chế evaluate (Phần 4).</div>
+
+<h2 id="p4">Phần 4 — Điểm kẹt &amp; giả thuyết</h2>
+
+<h3>4.1 — Những gì đã chứng minh được</h3>
+<div class="card">
+<ul class="dash">
+  <li>Filter từ cấm chặn chuỗi <code>bypass</code> ở lớp upload; <b>không</b> chặn output của extraction LLM.</li>
+  <li>Kỹ thuật <code>by pass</code> (space) → extraction LLM nối thành <code>bypass</code>: kỹ thuật lách filter hoàn toàn khả thi, đã verify bằng rule extract thật (vòng 6).</li>
+  <li>Classification của rule user do LLM tự gán theo semantic (câu "Avoid using bypass..." bị gán HOSTILE dù ta không chỉ định).</li>
+  <li>Pipeline chỉ giữ <b>1</b> rule user — mỗi lần extract ghi đè.</li>
+  <li>Dù rule benign chứa "bypass" hoàn hảo, evaluate vẫn trả HOSTILE trong cả 6 vòng.</li>
+</ul>
+</div>
+
+<h3>4.2 — Giả thuyết về điểm kẹt (chưa xác minh được)</h3>
+<div class="card">
+<ol class="steps">
+  <li><b>Baseline priority:</b> evaluate engine có thể ưu tiên rule baseline (đặc biệt rule 006 — trùng từ khóa "bypass") hơn rule user, hoặc cần nhiều rule benign <code>bypass</code> mới lật được — trong khi pipeline lại giới hạn 1 rule user.</li>
+  <li><b>Cần nhiều mẫu cùng lúc:</b> có thể phải upload N file <b>trước khi</b> extraction chạy (race) để pipeline xử lý hàng loạt, hoặc tìm cách khiến pipeline giữ nhiều hơn 1 rule (chưa tìm thấy tham số nào).</li>
+  <li><b>Trigger re-evaluation khác:</b> đề bài nhấn mạnh "trigger a re-evaluation" — có thể cần một bước trung gian (ví dụ retrain/rebuild model) mà UI "Model Config" gợi ý, không phải chỉ upload rồi evaluate.</li>
+  <li><b>Phân tích ngược evaluate:</b> nếu bạn đọc được source server (challenge này không cung cấp source), câu trả lời nằm ở hàm evaluate — nó match protocol với rules bằng cơ chế nào (keyword? embedding? LLM prompt có system prompt cứng?).</li>
+</ol>
+</div>
+<div class="note"><b>Ghi chú thành thật:</b> bài này chưa giải xong sau 6 vòng poison có bằng chứng đầy đủ. Mọi rule extract trích nguyên văn từ <code>/api/datasets</code>. Nếu bạn lật được evaluate, phần còn thiếu nằm ở giả thuyết 1–3.</div>
+
+<h2 id="p5">Phần 5 — Root cause qua góc nhìn Spring Boot</h2>
+
+<div class="spring bad-ex">
+  <div class="hd">❌ Kiến trúc sai — tin dữ liệu user-upload như ground truth</div>
+  <div class="bd"><pre><code><span class="kw">@PostMapping</span>(<span class="st">"/api/dataset/upload"</span>)
+<span class="kw">public</span> String upload(<span class="kw">@RequestParam</span> MultipartFile file) {
+    <span class="cm">// DÒNG GÂY LỖI 1: filter chỉ check từ cấm ở input thô,</span>
+    <span class="cm">// nhưng LLM extraction ở dưới tự paraphrase → tái tạo từ cấm</span>
+    <span class="kw">if</span> (containsBannedWord(file.getBytes()))
+        <span class="kw">throw new</span> BadRequestException(<span class="st">"restricted terminology"</span>);
+    <span class="cm">// DÒNG GÂY LỖI 2: rule + classification do LLM quyết, không có con người duyệt,</span>
+    <span class="cm">// và được đưa thẳng vào training set phục vụ quyết định bảo mật</span>
+    RuleEntry rule = llm.<span class="fn">extractRule</span>(file);
+    ruleRepo.<span class="fn">save</span>(rule);          <span class="cm">// ← poisoning xảy ra ở đây</span>
+    <span class="kw">return</span> <span class="st">"ok"</span>;
+}</code></pre></div>
+</div>
+<div class="spring">
+  <div class="hd">✅ Sửa — validation ở cả hai phía, dữ liệu nhạy cảm phải có người duyệt</div>
+  <div class="bd"><pre><code><span class="cm">// 1. Validate CẢ input lẫn output của LLM trước khi lưu:</span>
+String extracted = llm.<span class="fn">extractRule</span>(file);
+<span class="kw">if</span> (containsBannedWord(extracted)) <span class="kw">throw new</span> BadRequestException(...);
+<span class="cm">// 2. Rule user-upload đi vào khu vực chờ (quarantine), có người approve</span>
+<span class="cm">//    mới được merge vào training set chính thức:</span>
+ruleRepo.<span class="fn">saveQuarantine</span>(rule, Status.PENDING_REVIEW);
+<span class="cm">// 3. Khi evaluate, ghi log rule nào đã match → audit được:</span>
+audit.<span class="fn">log</span>(protocol, matchedRuleIds, result);</code></pre></div>
+</div>
+<p>Bài học bảo mật ML: <b>"dữ liệu huấn luyện là mặt trận phòng thủ quan trọng nhưng dễ bị bỏ quên nhất"</b> — mọi đường dẫn dẫn tới training set đều phải được kiểm soát như API public, vì attacker chỉ cần 1 entry độc để lật cả mô hình.</p>
+
+<h2 id="p6">Phần 6 — Bài học &amp; checklist khi tự làm lại</h2>
+<div class="card">
+<ol class="steps">
+  <li><b>Đọc training set trước khi poison.</b> 10 rule baseline cho biết classifier quan tâm từ khóa nào ("bypass", "without authorization") — biết địch thủ nghĩ gì mới poison trúng.</li>
+  <li><b>Filter đầu vào ≠ an toàn.</b> "by pass" qua filter, LLM nối lại thành "bypass" — luôn tự hỏi: dữ liệu bị biến đổi thế nào GIỮA điểm filter và điểm sử dụng.</li>
+  <li><b>Extraction LLM là paraphrase machine — lợi dụng nó.</b> Muốn rule giữ nguyên từ khóa: viết câu ngắn, khẳng định positive (tránh framing "avoid..."), hoặc bọc trong quote "verbatim".</li>
+  <li><b>Quan sát pipeline stateful.</b> "1 rule user duy nhất, ghi đè" là ràng buộc gameplay — mọi hướng đều phải tuân nó. Đừng giả định N mẫu poison cộng dồn khi chưa verify.</li>
+  <li><b>Đề bài là manh mối.</b> "trigger a re-evaluation" gợi ý có bước trung gian — đừng chỉ upload → evaluate; khám phá UI "Model Config" tab (trong bundle có nav "Model Config", "Audit Log" chưa dùng tới).</li>
+  <li><b>Checklist tự làm lại:</b> spawn → đọc bundle → baseline datasets → evaluate baseline (HOSTILE) → dò filter (bypass bị cấm) → upload "by pass" benign → verify rule extract có "bypass" → evaluate → <i>nếu vẫn HOSTILE: thử tab Model Config / nhiều file race / đọc hàm evaluate</i> → ra BENIGN nhận flag → stop docker → tự submit.</li>
+</ol>
+</div>
+
+<p class="muted" style="margin-top:40px">Bài 14 <b>chưa lấy được flag</b> — hướng dẫn ghi đầy đủ tới điểm kẹt (rule bypass+BENIGN đã vào training set nhưng evaluate vẫn HOSTILE). Docker đã stop. Khi bạn giải tiếp được, flag submit ở portal HTB.</p>
+
+</div>
+</body>
+</html>

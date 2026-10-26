@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hướng dẫn từng bước — Super Jump Game (Mobile/Forensics CTF)</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --border:#30363d; --fg:#e6edf3; --mut:#8b949e;
+          --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.7; }
+  .wrap { max-width:940px; margin:0 auto; padding:32px 20px 90px; }
+  header.hero { border:1px solid var(--border); border-radius:12px; background:linear-gradient(135deg,#161b22,#1a2332);
+                 padding:28px 32px; margin-bottom:28px; }
+  header.hero h1 { margin:0 0 6px; font-size:1.7rem; }
+  header.hero .sub { color:var(--mut); }
+  .flag-box { margin-top:16px; border:1px solid var(--ok); border-radius:10px; background:#12261a; padding:14px 18px; }
+  .flag-box code { color:var(--ok); font-size:.95rem; font-weight:700; word-break:break-all; }
+  h2 { color:var(--acc); border-bottom:1px solid var(--border); padding-bottom:8px; margin-top:52px; }
+  h3 { color:var(--fg); margin-top:32px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.88em;
+         background:#1c2128; border:1px solid var(--border); border-radius:5px; padding:2px 6px; color:#a5d6ff; }
+  pre { background:#0d1117; border:1px solid var(--border); border-radius:10px; padding:16px; overflow-x:auto;
+        color:#c9d1d9; line-height:1.6; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.87em; }
+  pre code { background:none; border:none; padding:0; color:inherit; }
+  .cm { color:#7ee787; }
+  table { border-collapse:collapse; width:100%; margin:16px 0; font-size:.92em; }
+  th,td { border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top; }
+  th { background:#1c2128; }
+  .tag { display:inline-block; font-size:.75rem; font-weight:700; border-radius:20px; padding:2px 10px; margin-right:6px; }
+  .tag.ok { background:#12261a; color:var(--ok); border:1px solid var(--ok); }
+  .tag.bad { background:#2d1214; color:var(--bad); border:1px solid var(--bad); }
+  .tag.warn { background:#2a2110; color:var(--warn); border:1px solid var(--warn); }
+  .note { border-left:4px solid var(--warn); background:#211d12; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .tip { border-left:4px solid var(--ok); background:#12261a55; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .verify { border-left:4px solid var(--acc); background:#0d1a2b; padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0; }
+  .verify b:first-child { color:var(--acc); }
+  .muted { color:var(--mut); }
+  .toc a { color:var(--acc); text-decoration:none; }
+  .toc a:hover { text-decoration:underline; }
+  .spring { border:1px solid #6e7681; border-radius:10px; margin:16px 0; overflow:hidden; }
+  .spring .hd { background:#12324a; padding:8px 16px; font-weight:700; font-size:.9em; color:#79c0ff; }
+  .spring .bd { padding:4px 16px 14px; background:#0d1117; }
+  .spring.bad-ex .hd { background:#3d1d22; color:#ffa198; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>🕹️ Super Jump Game — Trojan game Android gửi SMS lừa đảo tới toàn bộ danh bạ</h1>
+  <div class="sub">Challenge Mobile · "Intermediate - 2026 NAB Internal CTF - Cyber Month" (event 3692) · easy · <span class="muted">dạng: file forensics (zip artifact Android) — không cần instance</span></div>
+  <div class="flag-box">
+    🏁 <b>Challenge dạng "7 câu hỏi forensics"</b> — flag chỉ hiện trên portal sau khi trả lờI đủ 7 câu. Mình đã xác định được <b>đủ 7 đáp án</b> (bảng ở Phần 3) nhưng theo nguyên tắc <b>chưa nộp</b> — bạn tự điền vào portal.<br>
+    <span class="muted">Đáp án nhanh: ① smishing · ② 3 · ③ android.permission.SEND_SMS · ④ com.ctf.smsgame.services.NotificationService.sendNotificationMessage · ⑤ yes · ⑥ https://helpme-urgent.com/transfer · ⑦ 7625487123</span>
+  </div>
+  <div class="card toc" style="margin-top:16px">
+    <b>Mục lục:</b><br>
+    <a href="#p0">Phần 0 — Khái niệm nền</a> ·
+    <a href="#p1">Phần 1 — Recon</a> ·
+    <a href="#p2">Phần 2 — Dead ends</a> ·
+    <a href="#p3">Phần 3 — Đột phá: phân tích malware</a> ·
+    <a href="#p4">Phần 4 — Kết liễu: 7 đáp án</a> ·
+    <a href="#p5">Phần 5 — Root cause (Spring Boot)</a> ·
+    <a href="#p6">Phần 6 — Checklist</a>
+  </div>
+</header>
+
+<!-- ==================== PHẦN 0 ==================== -->
+<h2 id="p0">Phần 0 — Khái niệm nền</h2>
+
+<h3>0.1 — Cấu trúc một bản dump forensics Android</h3>
+<p>File zip của bài chứa bản sao thư mục <code>/data</code> của một thiết bị Android. Vài vị trí quan trọng cần nhớ:</p>
+<table>
+  <tr><th>Đường dẫn</th><th>Chứa gì</th></tr>
+  <tr><td><code>data/app/&lt;package&gt;-…/base.apk</code></td><td>bản cài đặt của từng app (file APK)</td></tr>
+  <tr><td><code>data/data/&lt;package&gt;/</code></td><td>dữ liệu riêng của app: <code>shared_prefs/</code>, <code>databases/</code>, <code>files/</code></td></tr>
+  <tr><td><code>data/data/com.android.providers.contacts/databases/contacts2.db</code></td><td>danh bạ (SQLite)</td></tr>
+  <tr><td><code>data/data/com.android.providers.telephony/databases/mmssms.db</code></td><td>tin nhắn SMS/MMS</td></tr>
+</table>
+
+<h3>0.2 — APK và file DEX</h3>
+<p>APK thực chất là một file zip. Code của app nằm trong các file <code>classes.dex</code> — bytecode Dalvik, không đọc trực tiếp được bằng text editor. Công cụ chuẩn để dịch ngược là <b>jadx</b>; trong bài này mình dùng <b>androguard</b> (thư viện Python):</p>
+<pre><span class="cm"># pip install androguard (chay 1 lan)</span>
+python3 -c "
+from androguard.misc import AnalyzeAPK
+from androguard.decompiler.decompiler import DecompilerDAD
+a, ds, dx = AnalyzeAPK('base.apk')
+decomp = DecompilerDAD(ds[0], dx)
+for d in ds: d.set_decompiler(decomp)
+for c in dx.find_classes('Lcom/ctf/smsgame/utils/MessageConfig;'):
+    for m in c.get_methods():
+        print('---', m.name); print(m.get_method().get_source())
+"</pre>
+<div class="note">androguard 4.x có hai điểm dễ vấp: <code>AnalyzeAPK</code> trả về <b>list</b> DEX (không phải 1 object) nên phải <code>ds[0]</code>; và phải gọi <code>set_decompiler</code> trước khi <code>get_source()</code> — nếu không sẽ gặp <code>AttributeError: 'MethodAnalysis' object has no attribute 'get_source'</code>.</div>
+
+<h3>0.3 — Obfuscation kiểu "tự làm": XOR + bit rotation</h3>
+<p>App che giấu chuỗi bằng cách lưu mảng byte và decode lúc chạy: <code>decode(b) = rotateRight(b XOR 90, 3)</code>. Đây <b>không phải mã hóa</b> — không có khóa bí mật, thuật toán nằm ngay trong app. Chỉ cần đọc hàm <code>decodeString</code> rồi viết lại bằng Python là xong.</p>
+
+<h3>0.4 — Bảng cờ công cụ</h3>
+<table>
+  <tr><th>Công cụ / cờ</th><th>Ý nghĩa</th><th>Tại sao dùng ở đây</th></tr>
+  <tr><td><code>unzip -o file.zip</code></td><td>giải nén ghi đè</td><td>zip chứa cây thư mục Android</td></tr>
+  <tr><td><code>strings &lt;file&gt;</code></td><td>trích chuỗi in được</td><td>lọc nhanh APK/dex tìm từ khóa (flag, sms…)</td></tr>
+  <tr><td><code>sqlite3</code> / python <code>sqlite3</code></td><td>đọc database</td><td>contacts2.db, mmssms.db</td></tr>
+  <tr><td><code>grep -iE 'HTB|flag'</code></td><td>tìm kiếm không phân biệt hoa thường, mẫu regex</td><td>rà artifact nhanh</td></tr>
+</table>
+
+<!-- ==================== PHẦN 1 ==================== -->
+<h2 id="p1">Phần 1 — Recon: ném đá hỏi đường trong đống artifact</h2>
+
+<h3>1.1 — Giải nén và dò nhanh</h3>
+<pre><span class="cm"># Giai nen, xem co gi</span>
+unzip -o super_jump_game.zip
+find android_artifacts/data/com.ctf.smsgame -type f
+<span class="cm"># Tim flag/HTB trong moi thu</span>
+grep -riE 'HTB\{|flag' android_artifacts/ | head
+strings android_artifacts/data/app/com.ctf.smsgame-*/base.apk | grep -iE 'HTB|flag' | head</pre>
+<p>Kết quả thực tế: <b>không có chuỗi flag nào</b> trong artifact. Trong thư mục app chỉ có <code>files/profileInstalled</code> (file nhị phân vô nghĩa), bảng SMS trống. Đây là bài phân tích malware — flag nằm ở câu trả lờI, không nằm trong file.</p>
+<div class="verify"><b>✔ Cách verify:</b> grep không trả dòng nào chứa <code>HTB{</code>. Hết hy vọng "grep ra flag" → chuyển sang phân tích app.</div>
+
+<h3>1.2 — Xác định package và đọc AndroidManifest</h3>
+<pre><span class="cm"># Package cua app tuong nghi la com.ctf.smsgame — kiem tra quyen trong manifest</span>
+python3 -c "
+from androguard.core.apk import APK
+a = APK('base.apk')
+print(a.get_permissions())
+"</pre>
+<p>Kết quả thực tế:</p>
+<pre>['android.permission.SEND_SMS', 'android.permission.READ_SMS', 'android.permission.READ_CONTACTS',
+ 'com.ctf.smsgame.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION', 'android.permission.WRITE_SMS',
+ 'android.permission.RECEIVE_BOOT_COMPLETED']</pre>
+<div class="verify"><b>✔ Cách verify:</b> danh sách quyền phải có <code>SEND_SMS</code>, <code>READ_CONTACTS</code>, <code>RECEIVE_BOOT_COMPLETED</code> — bộ ba "đọc danh bạ + gửi SMS + tự chạy lúc boot" của Trojan. Đây là phân tích tĩnh, ghi nhớ danh sách quyền cho câu hỏi ③.</div>
+
+<!-- ==================== PHẦN 2 ==================== -->
+<h2 id="p2">Phần 2 — Dead ends: những hướng tưởng ngon nhưng không ra</h2>
+
+<h3>2.1 — Tìm flag trong tin nhắn SMS</h3>
+<p><span class="tag bad">THẤT BẠI</span> Giả thuyết đầu tiên: malware đã gửi SMS chứa flag. Đọc bảng tin nhắn:</p>
+<pre>sqlite3 android_artifacts/data/com.android.providers.telephony/databases/mmssms.db
+<span class="cm"># SELECT address, date, body FROM sms;  → ket qua: rong</span></pre>
+<p><b>Kết quả thật:</b> bảng <code>sms</code> trống hoàn toàn. Malware chưa kịp chạy (hoặc artifact được dựng trước khi gửi).</p>
+<p><b>Kết luận:</b> flag không nằm trong dữ liệu đã tạo ra — phải đọc <i>code</i> để biết app <i>sẽ</i> làm gì.</p>
+
+<h3>2.2 — Tìm flag trong code game</h3>
+<p><span class="tag bad">THẤT BẠI</span> Decompile <code>MainActivity</code> và <code>GameView</code> — game nhảy thật, đếm điểm, lưu high score vào SharedPreferences. Không có chuỗi nào liên quan flag.</p>
+<p><b>Kết luận:</b> phần "game" là vỏ bọc lành tính. Phần độc nằm ở service/receiver chạy ngầm.</p>
+
+<h3>2.3 — Đếm số nạn nhân theo bảng contacts</h3>
+<p><span class="tag warn">BẪY SỐ LIỆU</span> <code>SELECT COUNT(*) FROM contacts</code> trả về <b>3</b>, nhưng <code>raw_contacts</code> có <b>4 dòng</b>. Đối chiếu kỹ:</p>
+<pre>SELECT _id, display_name, deleted FROM raw_contacts;
+<span class="cm"># (1,'Azka',0)  (2,'Teddy',0)  (3,'lawbyte',0)  (4,'Asdsa',1)  ← Asdsa da bi xoa</span></pre>
+<p>Contact thứ 4 (<code>deleted=1</code>) bị đánh dấu xóa — Contacts Provider sẽ <b>không</b> trả nó trong query thông thường, và code malware <code>loadContacts()</code> không có selection đặc biệt nên cũng không thấy.</p>
+<p><b>Kết luận:</b> số nạn nhân thực tế = <b>3</b> (Azka, Teddy, lawbyte) — không phải 4. Bẫy này dễ điền sai nếu chỉ đếm số dòng.</p>
+
+<!-- ==================== PHẦN 3 ==================== -->
+<h2 id="p3">Phần 3 — Đột phá: đọc hiểu toàn bộ chuỗI hành vi của Trojan</h2>
+
+<h3>3.1 — Đường đi của Trojan (đọc từ code đã decompile)</h3>
+<pre>BootReceiver.onReceive(BOOT_COMPLETED)
+  → startService(NotificationService)
+      onCreate  → loadContacts()            <span class="cm"># doc toan bo danh ba → 3 so dien thoai</span>
+      onStartCommand → postDelayed 2s
+        → processNotifications()            <span class="cm"># lap qua tung so, cach nhau 3 giay</span>
+            → buildNotificationMessage()    <span class="cm"># noi dung tin nhan, co MessageConfig</span>
+            → sendNotificationMessage()     <span class="cm"># SmsManager.sendTextMessage() + chen vao DB sent</span></pre>
+<p>Nội dung tin nhắn (đọc từ <code>buildNotificationMessage</code>): một tin nhắn giả vờ cần tiền khẩn cấp, đưa số tài khoản ngân hàng + link chuyển tiền → đây là <b>lừa đảo qua SMS</b> gửi đến toàn bộ danh bạ.</p>
+
+<h3>3.2 — Giải mã MessageConfig</h3>
+<p><code>&lt;clinit&gt;</code> của MessageConfig chứa 3 mảng byte. Hàm <code>decodeString</code>: mỗi byte <code>→ XOR 90 → rotateRight 3</code>. Script Python (file <code>decode_config.py</code> đã lưu cạnh bài này):</p>
+<pre>def ror(b, n=3): return ((b &amp; 0xFF) &gt;&gt; n) | ((b &lt;&lt; (8 - n)) &amp; 0xFF)
+def decode(arr): return bytes(ror((b &amp; 0xFF) ^ 90, 3) for b in arr).decode()
+
+URL     = [25, -7, -7, -39, ... ]        <span class="cm"># 34 byte, trich tu &lt;clinit&gt;</span>
+ACCOUNT = [-29, -21, -53, ... ]          <span class="cm"># 10 byte</span>
+BANK    = [24, -8, 72, 91, ... ]         <span class="cm"># 8 byte</span>
+print(decode(URL)); print(decode(ACCOUNT)); print(decode(BANK))</pre>
+<p>Kết quả thực tế:</p>
+<pre>URL    : https://helpme-urgent.com/transfer
+ACCOUNT: 7625487123
+BANK   : HTB Bank</pre>
+<div class="verify"><b>✔ Cách verify:</b> decode ra URL bắt đầu bằng <code>https://</code> và account toàn chữ số — nếu ra ký tự vô nghĩa thì sai thứ tự bước (phải XOR trước, rotate sau, đúng như code Java).</div>
+
+<h3>3.3 — Trả lờI đủ 7 câu hỏi forensics</h3>
+<table>
+  <tr><th>#</th><th>Câu hỏi</th><th>Đáp án</th><th>Bằng chứng</th></tr>
+  <tr><td>1</td><td>Loại tấn công qua SMS?</td><td><code>smishing</code></td><td>Tin nhắn giả hoàn cảnh khẩn cấp + link chuyển tiền = SMS phishing (smishing) gửi hàng loạt</td></tr>
+  <tr><td>2</td><td>Bao nhiêu contact (nạn nhân)?</td><td><code>3</code></td><td>raw_contacts có 4 dòng nhưng 1 dòng deleted=1 → malware chỉ đọc được 3</td></tr>
+  <tr><td>3</td><td>Quyền bị lạm dụng (tên manifest)?</td><td><code>android.permission.SEND_SMS</code></td><td>Manifest + checkSelfPermission trong sendNotificationMessage</td></tr>
+  <tr><td>4</td><td>Method nào gửi SMS (full.class.Name.method)?</td><td><code>com.ctf.smsgame.services.NotificationService.sendNotificationMessage</code></td><td>Hàm này gọi SmsManager.getDefault().sendTextMessage(...)</td></tr>
+  <tr><td>5</td><td>Số tài khoản ngân hàng có bị obfuscate không?</td><td><code>yes</code></td><td>ENCODED_ACCOUNT lưu dạng byte[] mã hóa XOR+rotate</td></tr>
+  <tr><td>6</td><td>URL phishing?</td><td><code>https://helpme-urgent.com/transfer</code></td><td>decode ENCODED_URL</td></tr>
+  <tr><td>7</td><td>Số tài khoản trong scam?</td><td><code>7625487123</code></td><td>decode ENCODED_ACCOUNT</td></tr>
+</table>
+<div class="note"><b>Hai đáp án cần cân nhắc khi tự nộp:</b> ① nếu portal không chấp nhận "smishing", thử "phishing"; ② nếu không chấp nhận 3, thử 4 (số raw contacts chưa lọc deleted). Cả hai đáp án mình chọn đều có lập luận chặt chẽ ở trên — nộp theo thứ tự ưu tiên như bảng.</div>
+
+<!-- ==================== PHẦN 4 ==================== -->
+<h2 id="p4">Phần 4 — Kết liễu</h2>
+<p>Điền 7 đáp án vào 7 ô trên portal. Sau câu đúng, portal cấp flag (dạng <code>HTB{…}</code>). Mình không nộp nên chưa thấy chuỗI flag — theo đúng nguyên tắc chung của cả đợt này, <b>bạn tự điền và submit</b>.</p>
+<div class="verify"><b>✔ Cách verify sau khi tự nộp:</b> mỗi ô hiện đúng/đúng; khi đủ 7 câu, challenge chuyển trạng thái solved và hiện flag. Nếu ô nào báo sai — kiểm tra lại hai đáp án có ghi chú ở Phần 3.3.</div>
+
+<h3>Bảng tổng kết hành trình</h3>
+<table>
+  <tr><th>#</th><th>Hành động</th><th>Kết quả</th></tr>
+  <tr><td>1</td><td>grep flag toàn artifact</td><td>không có → phân tích malware</td></tr>
+  <tr><td>2</td><td>Đọc manifest</td><td>bộ quyền Trojan SMS</td></tr>
+  <tr><td>3</td><td>Đọc SMS db</td><td>trống (dead-end 2.1)</td></tr>
+  <tr><td>4</td><td>Decompile NotificationService/MessageConfig</td><td>đường đi + dữ liệu mã hóa</td></tr>
+  <tr><td>5</td><td>decode XOR+rotate</td><td>URL + tài khoản + ngân hàng</td></tr>
+  <tr><td>6</td><td>Đếm nạn nhân (lọc deleted)</td><td>3</td></tr>
+  <tr><td>7</td><td>Tổng hợp 7 đáp án</td><td>đủ điền portal</td></tr>
+</table>
+
+<!-- ==================== PHẦN 5 ==================== -->
+<h2 id="p5">Phần 5 — Root cause qua góc nhìn Spring Boot</h2>
+<p>Bài học bảo mật cốt lõi: <b>permission-scope quá rộng + secret nằm trong code/client</b>. App xin cả <code>READ_CONTACTS</code> lẫn <code>SEND_SMS</code> — kết hợp hai quyền này là bộ máy spam hoàn chỉnh, trong khi một game nhảy không có lý do chính đáng nào cần chúng. Và "cấu hình bí mật" (URL phishing, tài khoản) được nhét thẳng trong app dưới dạng obfuscation tự chế — vừa khó bảo trì vừa vô tác dụng chống reverse engineering.</p>
+
+<div class="spring bad-ex">
+  <div class="hd">❌ Pattern tương đồng trong Spring Boot</div>
+  <div class="bd"><pre><span class="cm">// App xin quyen "cho tien" vi "co the can", secret nhet vao code</span>
+<span class="cm">// application.yml:</span>
+<span class="st">third-party:</span>
+  <span class="st">api-key:</span> sk-live-51H7q...        <span class="cm">// ← secret trong source control</span>
+  <span class="st">transfer-url:</span> https://internal-bank.example/pay  <span class="cm">// ← config nhay cam trong jar</span>
+
+<span class="cm">// Controller khong phan quyen chi tiet:</span>
+<span class="kw">@GetMapping</span>(<span class="st">"/contacts"</span>)
+<span class="kw">public</span> List&lt;Contact&gt; all() { <span class="kw">return</span> repo.findAll(); }  <span class="cm">// endpoint tra toan bo PII</span></pre></div>
+</div>
+
+<div class="spring">
+  <div class="hd">✅ Nguyên tắc phòng thủ</div>
+  <div class="bd"><ul>
+    <li><b>Least privilege thật sự</b>: một microservice/game không cần quyền gì thì không xin — trên Android có <code>shouldShowRequestPermissionRationale</code>, trên web có scope OAuth tối thiểu.</li>
+    <li><b>Secret không nằm trong artifact</b>: dùng Vault/Secrets Manager, rotate định kỳ; obfuscation XOR tự chế = "khóa cửa bằng dây thun".</li>
+    <li><b>PII ra khỏi API phải qua allowlist</b>: trả DTO đã lột trường nhạy cảm, không trả entity nguyên bản.</li>
+    <li><b>Giám sát hành vi bất thường</b>: app gửi SMS hàng loạt theo chu kỳ 3 giây là pattern dễ phát hiện bằng rate-limit/quota ở tầng OS hoặc gateway.</li>
+  </ul></div>
+</div>
+
+<!-- ==================== PHẦN 6 ==================== -->
+<h2 id="p6">Phần 6 — Checklist</h2>
+<ul>
+  <li>Zip Android forensics → <code>find</code> + <code>grep</code> trước, đọc code sau.</li>
+  <li>Permission trong AndroidManifest là "lờI khai đầu tiên" — <code>SEND_SMS + READ_CONTACTS + BOOT_COMPLETED</code> = nghi Trojan ngay.</li>
+  <li>Bảng SMS trống ≠ app vô hại — đọc code để biết nó <i>định</i> làm gì.</li>
+  <li>Obfuscation tự chế (XOR/rotate) chỉ cần đọc hàm decode rồi port sang Python.</li>
+  <li>Đếm số liệu trong SQLite phải kiểm tra cờ <code>deleted</code> — bảng tổng hợp có thể lệch bảng chi tiết.</li>
+  <li>Challenge dạng "hỏi-đáp" thì flag nằm ở portal — ghi rõ đáp án + bằng chứng là xong phần offline.</li>
+  <li>androguard 4.x: <code>AnalyzeAPK</code> trả list DEX; nhớ <code>set_decompiler</code> trước khi <code>get_source()</code>.</li>
+</ul>
+
+<p class="muted" style="margin-top:40px">7 đáp án đã xác định đầy đủ, <b>chưa nộp portal</b> — bạn tự điền và submit ở <code>ctf.hackthebox.com</code>. Chúc mừng! 🎉</p>
+
+</div>
+</body>
+</html>

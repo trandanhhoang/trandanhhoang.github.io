@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hướng dẫn từng bước — Space Cruiser Panel (Secure Coding)</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --border:#30363d; --fg:#e6edf3; --mut:#8b949e;
+          --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.7; }
+  .wrap { max-width:940px; margin:0 auto; padding:32px 20px 90px; }
+  header.hero { border:1px solid var(--border); border-radius:12px; background:linear-gradient(135deg,#161b22,#1a2332);
+                 padding:28px 32px; margin-bottom:28px; }
+  header.hero h1 { margin:0 0 6px; font-size:1.7rem; }
+  header.hero .sub { color:var(--mut); }
+  .flag-box { margin-top:16px; border:1px solid var(--warn); border-radius:10px; background:#211d12; padding:14px 18px; }
+  .flag-box code { color:var(--warn); font-size:1.05rem; font-weight:700; }
+  h2 { color:var(--acc); border-bottom:1px solid var(--border); padding-bottom:8px; margin-top:52px; }
+  h3 { color:var(--fg); margin-top:32px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.88em;
+         background:#1c2128; border:1px solid var(--border); border-radius:5px; padding:2px 6px; color:#a5d6ff; }
+  pre { background:#0d1117; border:1px solid var(--border); border-radius:10px; padding:16px; overflow-x:auto;
+        color:#c9d1d9; line-height:1.6; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.87em; }
+  pre code { background:none; border:none; padding:0; color:inherit; }
+  .cm { color:#7ee787; }
+  .kw { color:#ff7b72; }
+  .st { color:#a5d6ff; }
+  .fn { color:#d2a8ff; }
+  .bl { color:#f85149; font-weight:700; }
+  table { border-collapse:collapse; width:100%; margin:16px 0; font-size:.92em; }
+  th,td { border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top; }
+  th { background:#1c2128; }
+  .tag { display:inline-block; font-size:.75rem; font-weight:700; border-radius:20px; padding:2px 10px; margin-right:6px; }
+  .tag.ok { background:#12261a; color:var(--ok); border:1px solid var(--ok); }
+  .tag.bad { background:#2d1214; color:var(--bad); border:1px solid var(--bad); }
+  .tag.warn { background:#2a2110; color:var(--warn); border:1px solid var(--warn); }
+  .note { border-left:4px solid var(--warn); background:#211d12; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .tip { border-left:4px solid var(--ok); background:#12261a55; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .verify { border-left:4px solid var(--acc); background:#0d1a2b; padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0; }
+  .verify b:first-child { color:var(--acc); }
+  .muted { color:var(--mut); }
+  ol.steps > li, ul.dash > li { margin-bottom:8px; }
+  .toc a { color:var(--acc); text-decoration:none; }
+  .toc a:hover { text-decoration:underline; }
+  .spring { border:1px solid #6e7681; border-radius:10px; margin:16px 0; overflow:hidden; }
+  .spring .hd { background:#12324a; padding:8px 16px; font-weight:700; font-size:.9em; color:#79c0ff; }
+  .spring .bd { padding:4px 16px 14px; background:#0d1117; }
+  .spring.bad-ex .hd { background:#3d1d22; color:#ffa198; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>🚀 Space Cruiser Panel — Hướng dẫn từng bước (Secure Coding)</h1>
+  <div class="sub">Challenge Secure Coding · Flask app qua SMB share · <span class="muted">target: <code>&lt;IP&gt;:&lt;PORT&gt;</code> (xem mục "Lưu ý target" ngay dưới)</span></div>
+  <div class="flag-box">
+    ⚠️ Flag: dạng challenge này <b>không có flag cố định trong máy</b> — nền tảng sẽ cấp flag sau khi <b>checker xác nhận bạn đã sửa đúng</code></b> (endpoint <code>/run</code> không còn RCE tự do). Bạn tự bấm "Check/Submit" trên nền tảng của mình nhé.
+  </div>
+  <div class="card toc" style="margin-top:16px">
+    <b>Mục lục:</b><br>
+    <a href="#luuy">⚠️ Lưu ý target — đọc trước</a> ·
+    <a href="#p0">Phần 0 — Kiến thức nền</a> ·
+    <a href="#p1">Phần 1 — Đọc code, tìm lỗi</a> ·
+    <a href="#p2">Phần 2 — Khai thác RCE (minh chứng)</a> ·
+    <a href="#p3">Phần 3 — Sửa code qua SMB share</a> ·
+    <a href="#p4">Phần 4 — Verify sau khi sửa</a> ·
+    <a href="#p5">Phần 5 — Root cause (góc nhìn Spring Boot)</a> ·
+    <a href="#p6">Phần 6 — Bài học</a>
+  </div>
+</header>
+
+<!-- ================= LUU Y TARGET ================= -->
+<h2 id="luuy">⚠️ Lưu ý target — địa chỉ bạn đưa bị sai</h2>
+<div class="note">
+Bạn đưa target <code>154.57.164.76:31193</code>, nhưng thực tế đó là app <b>"HTB Editor"</b> (một SPA khác), không phải Space Cruiser Panel — và cổng 31193 lúc kiểm tra thậm chí đã không còn mở. Đây là host dùng chung (nhiều player spawn nhiều instance trên cùng IP, mỗi instance một cổng), nên phải xác định đúng cổng của mình.<br><br>
+<b>Cách tìm đúng cổng:</b> trang Space Cruiser có tiêu đề <code>&lt;title&gt;Space Cruiser Admin Panel&lt;/title&gt;</code>. Quét các cổng đang mở trên host rồi grep title:
+<pre><span class="cm"># Linux/macOS — quét nhanh bằng nc song song rồi lọc title</span>
+seq 30000 40000 | xargs -P 200 -I{} sh -c \
+  <span class="st">'curl -s --max-time 2 http://154.57.164.76:{}/ | grep -q "Space Cruiser" &amp;&amp; echo "FOUND {}"'</span></pre>
+Cách chắc chắn nhất: quay lại trang spawn của bạn và copy lại địa chỉ cho đúng.<br><br>
+<b>Toàn bộ lệnh trong bài này đã được chạy và verify thật trên một instance local</b> (build Docker từ đúng source trong thư mục scenario, chạy ở <code>127.0.0.1:18080</code> web + <code>127.0.0.1:14445</code> SMB). Khi áp dụng vào instance thật của bạn, chỉ cần thay <code>127.0.0.1:18080</code> → <code>&lt;IP&gt;:&lt;PORT&gt;</code> web và <code>14445</code> → cổng SMB của bạn (đề bài cho 2 cổng riêng).
+</div>
+
+<!-- ================= PHAN 0 ================= -->
+<h2 id="p0">Phần 0 — Kiến thức nền</h2>
+
+<h3>0.1 — "Secure Coding" challenge khác gì challenge thường?</h3>
+<div class="card">
+<p>Các challenge web thường: <b>khai thác xong lấy flag</b>. Challenge secure coding: đề bài <b>cho sẵn source code</b> (ở đây trong thư mục scenario: <code>challenge/app/app.py</code>), bạn phải <b>tìm lỗi, sửa code trực tiếp trên server thật</b>, và một checker tự động sẽ kiểm tra lỗi đã hết chưa — xong mới được flag.</p>
+<p>Ở đây server chạy app <b>Flask</b> (Python) và đặc biệt: source code nằm trong một <b>SMB share</b> (thư mục mạng Windows) mở quyền ghi — nghĩa là bạn sửa code bằng cách <b>mount share rồi ghi đè file</b>, không phải RCE. note.md của đề nói rõ điều này.</p>
+<div class="spring">
+  <div class="hd">☕ Tương đồng Spring Boot</div>
+  <div class="bd"><p style="margin-top:10px">Tưởng tượng bạn deploy Spring Boot bằng Docker, source mount từ một volume NFS/SMB vào container. Ai mount được volume là sửa được code đang chạy. Đề bài cố tình mở volume này cho "đội vận hành" — và quên đóng với thế giới bên ngoài.</p></div>
+</div>
+</div>
+
+<h3>0.2 — RCE (Remote Code Execution) và lệnh <code>shell=True</code></h3>
+<div class="card">
+<p>RCE = kẻ tấn công <b>chạy được lệnh hệ điều hành trên server từ xa</b>. Trong Python, nguy hiểm nhất là:</p>
+<pre>subprocess.check_output(command, shell=True, text=True)</pre>
+<p><code>shell=True</code> nghĩa là chuỗi <code>command</code> được đưa thẳng cho <code>/bin/sh</code> — chạy được nhiều lệnh nối nhau bằng <code>&amp;&amp;</code>, <code>|</code>, redirect <code>&gt;</code>... Nếu <code>command</code> đến từ HTTP request của người dùng mà không có kiểm soát, đó là RCE trần trụi.</p>
+<div class="spring">
+  <div class="hd">☕ Tương đồng Spring Boot</div>
+  <div class="bd"><p style="margin-top:10px">Tương đương trong Java:</p>
+<pre>Runtime.getRuntime().exec(<span class="st">"sh"</span>, <span class="st">"-c"</span>, userInput);   <span class="cm">// hoặc ProcessBuilder("sh","-c", userInput)</span></pre>
+<p class="muted">Java dev thường mắc y hệt khi làm tính năng "ping", "traceroute", "tail log" cho admin panel.</p></div>
+</div>
+</div>
+
+<h3>0.3 — Decorator bảo vệ endpoint: Flask vs Spring</h3>
+<div class="card">
+<p>Cả Flask (flask-login) và Spring Security đều dùng cơ chế <b>annotation/decorator để khóa endpoint</b>:</p>
+<table>
+<tr><th>Vai trò</th><th>Flask (flask-login)</th><th>Spring Security</th></tr>
+<tr><td>Yêu cầu đã đăng nhập</td><td><code>@login_required</code></td><td><code>@PreAuthorize("isAuthenticated()")</code> hoặc cấu hình trong <code>SecurityFilterChain</code></td></tr>
+<tr><td>Yêu cầu quyền cụ thể</td><td>tự check <code>current_user</code></td><td><code>@PreAuthorize("hasRole('ADMIN')")</code></td></tr>
+</table>
+<p>Bài này: developer gắn <code>@login_required</code> cho <code>/metrics</code> nhưng <b>quên gắn cho <code>/run</code></b> — một dòng decorator thiếu = toàn bộ hệ thống mở.</p>
+</div>
+
+<h3>0.4 — Session cookie và SECRET_KEY</h3>
+<div class="card">
+<p>Flask ký session cookie bằng <code>SECRET_KEY</code>. Challenge này tạo key <b>ngẫu nhiên mỗi lần khởi động</code> (<code>secrets.token_hex(32)</code>) → app restart = mọi session cũ vô hiệu, phải login lại. Quan trọng khi verify sau khi sửa code (Phần 4).</p>
+</div>
+
+<h3>0.5 — Cờ curl dùng xuyên suốt</h3>
+<div class="card">
+<table>
+<tr><th>Cờ</th><th>Ý nghĩa</th><th>Tại sao dùng</th></tr>
+<tr><td><code>-s</code></td><td>tắt progress bar</td><td>output sạch</td></tr>
+<tr><td><code>-i</code></td><td>in kèm HTTP header</td><td>bắt buộc — cần status code (200/302) và header <code>Set-Cookie</code></td></tr>
+<tr><td><code>-X POST</code></td><td>chọn method POST</td><td><code>/run</code> và <code>/login</code> chỉ nhận POST</td></tr>
+<tr><td><code>-d 'k=v'</code></td><td>form body (mặc định <code>application/x-www-form-urlencoded</code>)</td><td>app đọc bằng <code>request.form.get('cmd')</code></td></tr>
+<tr><td><code>-c/-b file</code></td><td>lưu/nạp cookie jar</td><td>giữ session sau khi login</td></tr>
+<tr><td><code>-o /dev/null -w "%{http_code}"</code></td><td>chỉ in status code</td><td>verify nhanh không cần body</td></tr>
+</table>
+</div>
+
+<!-- ================= PHAN 1 ================= -->
+<h2 id="p1">Phần 1 — Đọc code: tìm lỗ hổng (chưa cần động vào server)</h2>
+<p class="muted">Đề cho sẵn source — bước 1 luôn là <b>đọc toàn bộ code</b> trước khi chạy lệnh nào. Code nằm ở <code>challenge/app/app.py</code>.</p>
+
+<h3>Bước 1.1 — Lập bản đồ endpoint</h3>
+<pre><span class="cm"># Đọc kỹ app.py, liệt kê mọi route:</span>
+grep -n <span class="st">"@app.route"</span> challenge/app/app.py</pre>
+<table>
+<tr><th>Route</th><th>Method</th><td><b>Bảo vệ?</b></td></tr>
+<tr><td><code>/</code> và mọi path khác (catch-all)</td><td>GET</td><td>không cần — chỉ render trang Vue</td></tr>
+<tr><td><code>/metrics</code></td><td>GET</td><td>✅ <code>@login_required</code></td></tr>
+<tr><td><code>/login</code></td><td>GET, POST</td><td>công khai (đúng)</td></tr>
+<tr><td><code>/logout</code></td><td>GET</td><td>✅ <code>@login_required</code></td></tr>
+<tr><td><code>/run</code></td><td>POST</td><td><span class="bl">❌ KHÔNG CÓ GÌ</span> — nhận <code>cmd</code>, chạy <code>subprocess(..., shell=True)</code></td></tr>
+</table>
+<div class="verify"><b>✔ Cách verify (đọc tĩnh):</b> mở app.py, tìm function <code>def run():</code> — quan sát ngay dòng trên nó <b>không có</b> <code>@login_required</code>, trong khi <code>def metrics():</code> có. Đối chiếu 2 hàm cạnh nhau là thấy ngay sự khác biệt. Đồng thời ghi nhớ: user/password nằm cứng trong code — <code>rick</code> / <code>sUp3r_sEcR3t_s3cURe_p4s5</code> (dùng cho bước login sau).</div>
+
+<h3>Bước 1.2 — Xác nhận code server thật giống source đang đọc</h3>
+<pre>curl -s http://&lt;IP&gt;:&lt;PORT&gt;/ | grep -m1 <span class="st">"&lt;title&gt;"</span>
+<span class="cm"># kỳ vọng: &lt;title&gt;Space Cruiser Admin Panel&lt;/title&gt;</span></pre>
+<div class="verify"><b>✔ Cách verify:</b> title khớp → đây đúng là app trong source, mọi phân tích tĩnh ở bước 1.1 áp dụng được. Nếu không khớp → bạn đang nhìn nhầm instance (quay lại mục "Lưu ý target").</div>
+
+<!-- ================= PHAN 2 ================= -->
+<h2 id="p2">Phần 2 — Khai thác RCE: minh chứng lỗ hổng (trước khi sửa)</h2>
+<p class="muted">Mục tiêu không phải phá hoại mà <b>chứng minh lỗi thật</b> — đây cũng là bằng chứng để so sánh trước/sau khi sửa.</p>
+
+<h3>Bước 2.1 — Gọi /run không cần đăng nhập</h3>
+<pre>curl -s -i -X POST http://&lt;IP&gt;:&lt;PORT&gt;/run -d <span class="st">"cmd=whoami &amp;&amp; id"</span></pre>
+<p>Kết quả thực tế (instance local):</p>
+<pre>HTTP/1.1 <span class="kw">200 OK</span>
+...
+www-data</pre>
+<div class="verify"><b>✔ Cách verify:</b> status 200 + body là <code>www-data</code> — tức lệnh OS chạy thật với quyền user của web server, <b>không hỏi đăng nhập</b>. So với <code>/metrics</code> cùng một app: <code>curl -s -o /dev/null -w "%{http_code}" http://&lt;IP&gt;:&lt;PORT&gt;/metrics</code> → <code>302</code> (bị đá về login). Hai endpoint, hai hành vi → lỗi nằm ở decorator thiếu, không phải ở chỗ khác.</div>
+
+<h3>Bước 2.2 — Nâng mức minh chứng: đọc file hệ thống</h3>
+<pre>curl -s -X POST http://&lt;IP&gt;:&lt;PORT&gt;/run -d <span class="st">"cmd=cat /etc/passwd | head -4"</span>
+<span class="cm"># → root:x:0:0:root:/root:/bin/bin ...</span></pre>
+<div class="verify"><b>✔ Cách verify:</b> nhận được nội dung <code>/etc/passwd</code> — minh chứng đọc file tùy ý được. Edge case thử luôn: <code>-d "cmd="</code> (rỗng) → <code>400</code> (app có kiểm rỗng). Ghi nhận: lỗi chỉ là <b>thiếu xác thực</b>, không phải lỗi parse input.</div>
+<div class="note">📌 Vì sao không demo "phá" (xóa file, cài backdoor)? Challenge secure coding cần app <b>vẫn hoạt động sau khi sửa</b> — phá hủy dữ liệu là tự làm khó mình. Minh chứng đọc file là đủ.</div>
+
+<!-- ================= PHAN 3 ================= -->
+<h2 id="p3">Phần 3 — Sửa code qua SMB share</h2>
+
+<h3>Bước 3.1 — Mount share (macOS)</h3>
+<pre>mkdir -p /tmp/scp_mnt
+mount_smbfs //guest@&lt;IP&gt;:&lt;PORT_SMB&gt;/app /tmp/scp_mnt
+ls /tmp/scp_mnt     <span class="cm"># kỳ vọng thấy thư mục app/</span></pre>
+<div class="verify"><b>✔ Cách verify:</b> <code>ls /tmp/scp_mnt/app/app.py</code> phải tồn tại. Đây chính là file app server đang chạy (supervisord chạy <code>python3 /www/app/app.py</code>, share <code>app</code> trỏ tới <code>/www</code> — xem Dockerfile: <code>path = /www</code>, <code>writable = yes</code>, <code>guest ok = yes</code>).</div>
+
+<h3>Bước 3.2 — Sửa: thêm một dòng <code>@login_required</code></h3>
+<pre><span class="cm"># Backup trước khi sửa (đề phòng cần rollback)</span>
+cp /tmp/scp_mnt/app/app.py /tmp/scp_mnt/app/app.py.bak
+
+<span class="cm"># Sửa: thêm decorator vào /run — chỉ 1 dòng thay đổi</span>
+python3 - &lt;&lt;<span class="st">'EOF'</span>
+src = open(<span class="st">'/tmp/scp_mnt/app/app.py'</span>).read()
+old = <span class="st">"@app.route('/run', methods=['POST'])\ndef run():"</span>
+new = <span class="st">"@app.route('/run', methods=['POST'])\n@login_required\ndef run():"</span>
+assert old in src, <span class="st">'không tìm thấy đoạn cần sửa'</span>
+open(<span class="st">'/tmp/scp_mnt/app/app.py'</span>,<span class="st">'w'</span>).write(src.replace(old, new))
+print(<span class="st">'đã thêm @login_required'</span>)
+EOF
+
+<span class="cm"># Xem diff — đúng 1 dòng thêm vào</span>
+diff /tmp/scp_mnt/app/app.py.bak /tmp/scp_mnt/app/app.py
+<span class="cm"># kỳ vọng:  "&gt; @login_required"</span></pre>
+<div class="verify"><b>✔ Cách verify:</b> <code>diff</code> chỉ hiện <b>đúng 1 dòng thêm</b> <code>@login_required</code>. Nguyên tắc sửa code production: thay đổi tối thiểu, dễ review, dễ rollback (còn file .bak). Nếu diff có nhiều dòng → bạn sửa thừa, kiểm tra lại.</div>
+
+<h3>Bước 3.3 — Restart app để code mới có hiệu lực</h3>
+<p>App chạy dưới supervisord với <code>autorestart=true</code> — giết process là nó tự nhảy lại bằng code mới. Có 2 cách:</p>
+<ul class="dash">
+<li><b>Cách A (khuyên dùng):</b> lợi dụng chính RCE — app lúc này vẫn đang chạy code cũ (nếu chưa tự reload), gọi <code>pkill</code> một lần cuối: <code>curl -s -X POST .../run -d "cmd=pkill -f 'python3 /www/app/app.py'"</code></li>
+<li><b>Cách B:</b> Flask đang bật <code>debug=True</code> → có reloader tự restart khi file đổi. Trong lần chạy thử, file vừa ghi xong là app đã tự nạp code mới (request đầu tiên sau khi sửa đã trả về 302).</li>
+</ul>
+<div class="note">⚠️ Thứ tự quan trọng: sửa file <b>trước</b>, restart <b>sau</b>. Nếu restart bằng RCE thì phải làm trong lúc /run còn mở. Xong bước này, RCE tự do chính thức chết — cũng là lúc bạn mất "đường lui", nên đã backup ở bước 3.2.</div>
+<div class="verify"><b>✔ Cách verify app đã chạy code mới:</b> <code>curl -s -o /dev/null -w "%{http_code}" -X POST .../run -d "cmd=whoami"</code> → trả <code>302</code> (redirect về /login) thay vì 200. Đây chính là dấu hiệu fix thành công — chuyển Phần 4 để verify đầy đủ.</div>
+
+<!-- ================= PHAN 4 ================= -->
+<h2 id="p4">Phần 4 — Verify sau khi sửa (4 trường hợp bắt buộc)</h2>
+<pre><span class="cm"># 1. /run KHÔNG session → phải bị chặn</span>
+curl -s -o /dev/null -w <span class="st">"%{http_code}\n"</span> -X POST .../run -d <span class="st">"cmd=whoami"</span>      <span class="cm"># → 302</span>
+
+<span class="cm"># 2. /run với cookie giả → phải bị chặn (không tin cookie tùy tiện)</span>
+curl -s -o /dev/null -w <span class="st">"%{http_code}\n"</span> -H <span class="st">"Cookie: session=abc.fake"</span> -X POST .../run -d <span class="st">"cmd=whoami"</span>  <span class="cm"># → 302</span>
+
+<span class="cm"># 3. /metrics vẫn bị chặn như cũ (không vô tình làm hỏng chỗ khác)</span>
+curl -s -o /dev/null -w <span class="st">"%{http_code}\n"</span> .../metrics                                        <span class="cm"># → 302</span>
+
+<span class="cm"># 4. /run với session THẬT → chức năng phải còn sống cho admin</span>
+curl -s -c /tmp/ck.txt -X POST .../login -d <span class="st">"username=rick&amp;password=sUp3r_sEcR3t_s3cURe_p4s5"</span>  <span class="cm"># → 200</span>
+curl -s -b /tmp/ck.txt -X POST .../run -d <span class="st">"cmd=whoami &amp;&amp; id"</span>                                  <span class="cm"># → www-data (chạy được!)</span></pre>
+<div class="verify"><b>✔ Cách verify tổng hợp:</b> cả 4 dòng trên phải ra đúng kỳ vọng. Đặc biệt lưu ý mục 4: fix auth không được làm <b>chết chức năng hợp lệ</b> — checker của challenge thường kiểm tra cả hai phía: kẻ lạ bị chặn VÀ admin vẫn dùng được.<br><br>⚠️ Nếu mục 4 trả 302 dù login 200: app đã restart lại (SECRET_KEY mới sinh ngẫu nhiên) → session cũ vô hiệu. Đăng nhập lại lấn nữa là xong — đây là hành vi bình thường của app này, không phải bug của bạn.</div>
+
+<h3>Dọn dẹp trước khi "nộp"</h3>
+<pre>rm -f /tmp/scp_mnt/app/app.py.bak   <span class="cm"># xóa backup khỏi share — tránh checker hiểu nhầm file thừa</span>
+umount /tmp/scp_mnt                  <span class="cm"># unmount cho sạch</span></pre>
+<p>Sau đó bấm <b>Check/Submit</b> trên nền tảng — checker sẽ tự gọi <code>/run</code> không session, thấy bị chặn là pass. Flag sẽ hiện trên giao diện.</p>
+
+<!-- ================= PHAN 5 ================= -->
+<h2 id="p5">Phần 5 — Root cause qua góc nhìn Spring Boot</h2>
+
+<h3>Lỗi chính — Endpoint nhạy cảm thiếu annotation kiểm soát truy cập</h3>
+<div class="spring bad-ex">
+  <div class="hd">☕ Code dạng bị sai (Java tương đồng)</div>
+  <div class="bd">
+<pre><span class="fn">@RestController</span>
+<span class="kw">class</span> <span class="fn">OpsController</span> {
+
+    <span class="fn">@GetMapping</span>(<span class="st">"/metrics"</span>)
+    <span class="kw">public</span> Map&lt;String,Object&gt; metrics(<span class="fn">@AuthenticationPrincipal</span> User u) { ... }  <span class="cm">// có kiểm soát</span>
+
+    <span class="fn">@PostMapping</span>(<span class="st">"/run"</span>)
+    <span class="kw">public</span> String run(<span class="fn">@RequestParam</span> String cmd) <span class="kw">throws</span> Exception {          <span class="bl">// ← thiếu @PreAuthorize!</span>
+        <span class="kw">return</span> <span class="kw">new</span> String(Runtime.getRuntime().exec(<span class="kw">new</span> String[]{<span class="st">"sh"</span>,<span class="st">"-c"</span>,cmd}).getInputStream().readAllBytes());
+    }
+}</pre>
+  </div>
+</div>
+<div class="spring">
+  <div class="hd">✅ Cách sửa — 3 lớp phòng thủ</div>
+  <div class="bd">
+<pre><span class="cm">// 1. Khóa endpoint bằng annotation (tương đương @login_required)</span>
+<span class="fn">@PreAuthorize</span>(<span class="st">"hasRole('ADMIN')"</span>)          <span class="cm">// chặt hơn: yêu cầu cả quyền, không chỉ đăng nhập</span>
+<span class="fn">@PostMapping</span>(<span class="st">"/run"</span>)
+<span class="kw">public</span> String run(...) { ... }
+
+<span class="cm">// 2. Nếu dùng SecurityFilterChain — kiểm tra deny-by-default:</span>
+.authorizeHttpRequests(auth -&gt; auth
+    .requestMatchers(<span class="st">"/login"</span>).permitAll()
+    .anyRequest().authenticated())            <span class="cm">// mọi route còn lại BẮT BUỘC auth — mặc định chặn</span>
+
+<span class="cm">// 3. Không nhận lệnh thô từ người dùng; nếu bắt buộc, whitelist:</span>
+<span class="kw">if</span> (!Set.of(<span class="st">"status"</span>,<span class="st">"uptime"</span>).contains(cmd)) <span class="kw">throw new</span> IllegalArgumentException();</pre>
+  </div>
+</div>
+<p class="muted">Nguyên tắc rút ra: <b>deny-by-default</b> (Spring: <code>anyRequest().authenticated()</code>; Flask: phải tự gắn @login_required cho từng route). Framework không tự bảo vệ route mới — developer quên gắn là mở toang.</p>
+
+<h3>Lỗi phụ 1 — Chạy lệnh hệ thống bằng input người dùng</h3>
+<p class="muted"><code>subprocess(..., shell=True)</code> với input thô là nguyên nhân RCE <b>ngay khi auth bị vượt qua</b>. Spring tương đương: <code>ProcessBuilder("sh","-c", userInput)</code>. Nếu tính năng bắt buộc phải có, hãy whitelist lệnh + tham số, chạy dưới user quyền thấp (app hiện chạy www-data là đúng hướng), và log mọi lần gọi.</p>
+
+<h3>Lỗi phụ 2 — SMB share ghi/anonymous mở ra internet</h3>
+<p class="muted">Dockerfile: <code>guest ok = yes</code>, <code>writable = yes</code> trên toàn bộ <code>/www</code> — bất kỳ ai cũng mount và sửa code production. Đây là <b>cửa hậu vận hành</b>. Bài học: share vận hành phải bind mạng nội bộ, có auth thật, và quyền ghi tối thiểu (chỉ thư mục cần thiết). Trong bài này SMB là "đường chính" để sửa code, nhưng trong production thật đây là lỗ hổng riêng.</p>
+
+<h3>Lỗi phụ 3 — <code>debug=True</code> và hardcoded password</h3>
+<p class="muted"><code>app.run(debug=True)</code> trong production = lộ traceback (và Werkzeug debugger nếu bật pin tương tác — nguy hiểm hơn nữa). Tương đồng: chạy Spring với <code>spring.devtools</code> hoặc stack trace chi tiết trả về client. Password nằm trong source (<code>users = {"rick": {...}}</code>) → phải dùng env/bí mật quản lý (vault), hash password (Werkzeug/BCrypt).</p>
+
+<!-- ================= PHAN 6 ================= -->
+<h2 id="p6">Phần 6 — Bài học &amp; checklist</h2>
+<div class="card">
+<ol class="steps">
+<li><b>Đọc source trước, đánh lệnh sau.</b> Lỗi bài này thấy bằng mắt trong app.py — không cần nmap hay fuzz.</li>
+<li><b>So sánh các endpoint cùng loại.</b> /metrics có @login_required, /run không → phát hiện thiếu sót ngay.</li>
+<li><b>Minh chứng lỗi trước khi sửa</b> (whoami, đọc /etc/passwd) để có mốc so sánh trước/sau.</li>
+<li><b>Đổi tối thiểu, verify tối đa.</b> Một dòng @login_required; sau đó verify 4 trường hợp (không session / session giả / endpoint khác không vỡ / session thật vẫn dùng được).</li>
+<li><b>Nhớ SECRET_KEY đổi khi restart</b> — session cũ vô hiệu, phải login lại khi test.</li>
+<li><b>Dọn sạch sau khi sửa:</b> xóa backup khỏi share, unmount, rồi mới bấm Check.</li>
+<li><b>Kiểm tra lại địa chỉ target trước khi làm.</b> Host dùng chung nhiều cổng — nhầm instance là mất thời gian (đã xảy ra trong bài này!).</li>
+</ol>
+</div>
+
+<p class="muted" style="margin-top:40px">Toàn bộ lệnh trong bài đã chạy thật trên instance Docker local build từ source của đề (web 127.0.0.1:18080, SMB 127.0.0.1:14445). Khi áp dụng vào instance thật chỉ cần thay địa chỉ. Mình chưa bấm Check/Submit ở bất kỳ đâu — bạn tự nộp nhé. Chúc thành công! 🚀</p>
+
+</div>
+</body>
+</html>

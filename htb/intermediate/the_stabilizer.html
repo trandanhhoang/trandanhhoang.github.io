@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hướng dẫn từng bước — The Stabilizer (Reversing CTF)</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --border:#30363d; --fg:#e6edf3; --mut:#8b949e;
+          --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.7; }
+  .wrap { max-width:940px; margin:0 auto; padding:32px 20px 90px; }
+  header.hero { border:1px solid var(--border); border-radius:12px; background:linear-gradient(135deg,#161b22,#1a2332);
+                 padding:28px 32px; margin-bottom:28px; }
+  header.hero h1 { margin:0 0 6px; font-size:1.7rem; }
+  header.hero .sub { color:var(--mut); }
+  .flag-box { margin-top:16px; border:1px solid var(--ok); border-radius:10px; background:#12261a; padding:14px 18px; }
+  .flag-box code { color:var(--ok); font-size:1.15rem; font-weight:700; }
+  h2 { color:var(--acc); border-bottom:1px solid var(--border); padding-bottom:8px; margin-top:52px; }
+  h3 { color:var(--fg); margin-top:32px; }
+  h4 { color:var(--acc); margin-top:22px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.88em;
+         background:#1c2128; border:1px solid var(--border); border-radius:5px; padding:2px 6px; color:#a5d6ff; }
+  pre { background:#0d1117; border:1px solid var(--border); border-radius:10px; padding:16px; overflow-x:auto;
+        color:#c9d1d9; line-height:1.6; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.87em; }
+  pre code { background:none; border:none; padding:0; color:inherit; }
+  .cm { color:#7ee787; }
+  .kw { color:#ff7b72; }
+  .st { color:#a5d6ff; }
+  .fn { color:#d2a8ff; }
+  table { border-collapse:collapse; width:100%; margin:16px 0; font-size:.92em; }
+  th,td { border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top; }
+  th { background:#1c2128; }
+  .tag { display:inline-block; font-size:.75rem; font-weight:700; border-radius:20px; padding:2px 10px; margin-right:6px; }
+  .tag.ok { background:#12261a; color:var(--ok); border:1px solid var(--ok); }
+  .tag.bad { background:#2d1214; color:var(--bad); border:1px solid var(--bad); }
+  .tag.warn { background:#2a2110; color:var(--warn); border:1px solid var(--warn); }
+  .note { border-left:4px solid var(--warn); background:#211d12; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .tip { border-left:4px solid var(--ok); background:#12261a55; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .verify { border-left:4px solid var(--acc); background:#0d1a2b; padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0; }
+  .verify b:first-child { color:var(--acc); }
+  .muted { color:var(--mut); }
+  ol.steps > li, ul.dash > li { margin-bottom:8px; }
+  .toc a { color:var(--acc); text-decoration:none; }
+  .toc a:hover { text-decoration:underline; }
+  .spring { border:1px solid #6e7681; border-radius:10px; margin:16px 0; overflow:hidden; }
+  .spring .hd { background:#12324a; padding:8px 16px; font-weight:700; font-size:.9em; color:#79c0ff; }
+  .spring .bd { padding:4px 16px 14px; background:#0d1117; }
+  .spring.bad-ex .hd { background:#3d1d22; color:#ffa198; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>🎛️ The Stabilizer — Đọc state machine và giải mã chuỗi XOR trong binary</h1>
+  <div class="sub">Challenge Reversing (easy) · Event HTB 3692 — Intermediate · <span class="muted">target: file binary <code>stabilizer</code> (ELF 64-bit x86-64, stripped, tải kèm đề — không cần server)</span></div>
+  <div class="flag-box">
+    🏁 Flag (đã lấy được, <b>chưa nộp</b> — bạn tự submit ở portal):<br>
+    <code>HTB{L5M_4R3_N0T0MPL3X}</code>
+  </div>
+  <div class="card toc" style="margin-top:16px">
+    <b>Mục lục:</b><br>
+    <a href="#p0">Phần 0 — Khái niệm nền</a> ·
+    <a href="#p1">Phần 1 — Recon</a> ·
+    <a href="#p2">Phần 2 — Dead ends</a> ·
+    <a href="#p3">Phần 3 — Đột phá</a> ·
+    <a href="#p4">Phần 4 — Kết liễu</a> ·
+    <a href="#p5">Phần 5 — Root cause</a> ·
+    <a href="#p6">Phần 6 — Checklist</a>
+  </div>
+</header>
+
+<p class="muted">Bài viết giả định bạn là lập trình viên Java Spring Boot, chưa chuyên sâu bảo mật/reversing. Mọi khái niệm assembly đều được giải thích từ đầu và có hộp "tương đồng Java".</p>
+
+<h2 id="p0">Phần 0 — Kiến thức nền cần có trước khi bắt đầu</h2>
+
+<h3>0.1 — ELF, stripped, và disassembly</h3>
+<div class="card">
+<ul class="dash">
+  <li><b>ELF</b> là định dạng file thực thi của Linux (tương đương .exe của Windows). Bài này là <code>ELF 64-bit x86-64</code> — máy macOS của ta không chạy trực tiếp được, nhưng <b>đọc và phân tích tĩnh thì hoàn toàn được</b>.</li>
+  <li><b>Stripped</b> nghĩa là tên hàm/biến đã bị xoá — ta không thấy <code>main()</code> mà chỉ thấy địa chỉ như <code>0x401294</code>. Không sao: logic vẫn đọc được từ lệnh asm.</li>
+  <li><b>Disassembly</b> = dịch mã máy (byte) về dạng assembly đọc được. Trên macOS có sẵn <code>objdump -d -M intel</code> hỗ trợ cả ELF.</li>
+</ul>
+<div class="spring">
+  <div class="hd">☕ Tương đồng Java</div>
+  <div class="bd"><p>Giống việc bạn mở một file <code>.class</code> đã bị xoá debug info rồi dùng decompiler đọc bytecode: tên biến mất nhưng luồng logic (if/while/gọi hàm) vẫn nguyên. Ở đây ta đọc trực tiếp assembly thay vì bytecode — vất vả hơn một chút nhưng nguyên tắc giống hệt.</p></div>
+</div>
+</div>
+
+<h3>0.2 — State machine (máy trạng thái)</h3>
+<div class="card">
+<p>Chương trình giữ một biến <b>state</b> (số nguyên toàn cục) và chỉ xử lý lệnh khi state ĐÚNG theo thứ tự: ở trạng thái A chỉ nhận lệnh X, nhận đúng thì chuyển sang trạng thái B; sai hoặc sai thứ tự thì về trạng thái lỗi. Đề bài nói "incorrect usage causes the system to reset silently" chính là cái này.</p>
+<div class="spring">
+  <div class="hd">☕ Tương đồng Java</div>
+  <div class="bd"><pre><span class="kw">switch</span> (state) {
+  <span class="kw">case</span> 0x0A: <span class="kw">if</span> (<span class="st">"align"</span>.equals(cmd)) { state = 0x15; ... } <span class="kw">break</span>;
+  <span class="kw">case</span> 0x15: <span class="kw">if</span> (<span class="st">"calibrate"</span>.equals(cmd) &amp;&amp; counter &gt; 1) { state = 0x22; ... } <span class="kw">else</span> reset();
+  ...
+}</pre></div>
+</div>
+<div class="verify"><b>✔ Cách verify:</b> đây là khái niệm. Ghi nhớ: khi thấy chuỗi so sánh (<code>strcmp</code>) xen kẽ gán hằng số vào biến toàn cục → đó là state machine, phải đi ĐÚNG thứ tự.</div>
+</div>
+
+<h3>0.3 — Mã hoá XOR một lớp và key tích luỹ</h3>
+<div class="card">
+<p><code>XOR</code> là phép "khử" lẫn nhau: <code>(a ^ k) ^ k = a</code>. Chuỗi flag bị che bằng cách XOR từng byte với <b>key</b>. Ở bài này key <b>không cố định</b>: mỗi bước đúng của state machine lại XOR thêm một hằng số vào key (key ^= 0x31, rồi ^= 0x52, rồi ^= 0x99). Key cuối = 0x31 ^ 0x52 ^ 0x99 = 0xFA.</p>
+<div class="spring">
+  <div class="hd">☕ Tương đồng Java</div>
+  <div class="bd"><pre><span class="kw">byte</span>[] enc = ...; <span class="kw">byte</span> key = buildKeyBySteps();
+String flag = <span class="kw">new</span> String(enc, i -&gt; i ^ key);  <span class="cm">// tuong duong</span></pre></div>
+</div>
+<div class="verify"><b>✔ Cách verify:</b> phép kiểm chứng tay — XOR ngược: lấy flag giải ra, XOR lại với key phải thu đúng chuỗi byte nhúng trong binary (đối chiếu với <code>objdump</code>). Ta làm ở bước 4.2.</div>
+</div>
+
+<h3>0.4 — Công cụ dùng trong bài</h3>
+<div class="card">
+<table>
+  <tr><th>Lệnh</th><th>Ý nghĩa</th><th>Tại sao dùng ở đây</th></tr>
+  <tr><td><code>file stabilizer</code></td><td>nhận diện định dạng file</td><td>xác nhận ELF 64-bit, biết không chạy trực tiếp trên macOS được</td></tr>
+  <tr><td><code>strings -n 4</code></td><td>liệt kê chuỗi ký tự ≥ 4 trong binary</td><td>đọc banner, tên lệnh, thông báo — bản đồ ban đầu của logic</td></tr>
+  <tr><td><code>objdump -d -M intel</code></td><td>disassembly sang Intel syntax</td><td>đọc toàn bộ logic chương trình (~300 dòng asm — rất nhỏ)</td></tr>
+  <tr><td><code>python3</code></td><td>tính toán key + giải XOR</td><td>tránh tính nhầm tay, và kiểm chứng ngược</td></tr>
+</table>
+</div>
+
+<h2 id="p1">Phần 1 — Recon: đọc bản đồ từ strings</h2>
+<p class="muted">Binary chỉ ~3 KB, stripped — đọc strings trước để biết chương trình "nói" gì, rồi mới đến asm.</p>
+
+<h3>1.1 — Nhận diện file và chuỗi gợi ý</h3>
+<pre><span class="cm"># nhan dien dinh dang</span>
+file stabilizer
+<span class="cm"># -&gt; ELF 64-bit LSB executable, x86-64, dynamically linked, stripped</span>
+
+<span class="cm"># doc chuoi — cua so vao logic</span>
+strings -n 4 stabilizer</pre>
+<p>Output đáng chú ý:</p>
+<pre>IMU fault detected. System reset.       <span class="cm"># nhanh reset khi sai thu tu</span>
+Stabilizer Control Interface
+Commands: status, align, calibrate, engage
+align
+IMU warming.
+Gyro settling.
+calibrate
+Bias estimated.
+engage
+Stabilizer active.
+status
+9*3$                                    <span class="cm"># &lt;== rac nhin giong data da ma hoa</span></pre>
+<p>Bốn lệnh <code>status, align, calibrate, engage</code> + thông báo reset → gần như chắc chắn là state machine. Chuỗi rác <code>9*3$</code> ở cuối là dữ liệu (flag đã mã hoá) nằm trong section <code>.text</code> — nó sẽ xuất hiện lại dưới dạng các lệnh <code>movabs</code> trong asm.</p>
+<div class="verify"><b>✔ Cách verify:</b> phải thấy đủ cả 4 tên lệnh + chuỗi reset. Nếu thiếu → binary khác phiên bản, không áp dụng tiếp được.</div>
+
+<h2 id="p2">Phần 2 — Dead ends (và cách kiểm chứng)</h2>
+<p class="muted">Vài đường tắt tự nhiên mà ngưới mới reversing hay thử — ghi lại để bạn khỏi mất thời gian.</p>
+
+<h3><span class="tag bad">THẤT BẠI</span> Chạy thử binary trên macOS</h3>
+<pre>chmod +x stabilizer &amp;&amp; ./stabilizer
+<span class="cm"># -&gt; cannot execute binary file</span></pre>
+<p><b>Kết quả thật:</b> kernel macOS không nạp được ELF (khác ABI với Mach-O).</p>
+<p><b>Kết luận:</b> đây là bài phân tích tĩnh — không cần chạy. Nếu muốn chạy thật có thể dùng Docker <code>ubuntu</code> hoặc VM Linux, nhưng bài này đọc asm là đủ.</p>
+
+<h3><span class="tag bad">THẤT BẠI</span> Nhập lệnh theo trực giác (mỗi lệnh 1 lần)</h3>
+<p>Đọc banner "Commands: status, align, calibrate, engage", ta dễ thử ngay chuỗi <code>align → calibrate → engage → status</code>. Nhìn vào asm (Phần 3) sẽ thấy:</p>
+<ul class="dash">
+  <li><code>calibrate</code> chỉ được chấp nhận khi <code>counter &gt; 1</code> — mà counter chỉ tăng khi <code>align</code> thành công. Lần đầu counter = 1 → <b>không đủ → reset</b>.</li>
+  <li><code>engage</code> đòi <code>counter &gt; 2</code>, <code>status</code> đòi <code>counter == 3</code>.</li>
+</ul>
+<p><b>Kết luận:</b> phải gọi <code>align</code> ba lần trước khi đi tiếp — đây chính là cái bẫy "incorrect usage" trong đề.</p>
+
+<h2 id="p3">Phần 3 — Đột phá: đọc state machine trong assembly</h2>
+
+<h3>3.1 — Định vị main và vòng lặp đọc lệnh</h3>
+<pre>objdump -d -M intel stabilizer &gt; disasm.txt</pre>
+<p>Hàm <code>main</code> bắt đầu tại <code>0x401294</code>. Khung chính:</p>
+<pre>4012d2: mov  rdx, [rip+0x2d77]   <span class="cm"># stdin</span>
+4012d9: lea  rax, [rbp-0x20]      <span class="cm"># buf — buffer 32 byte tren stack</span>
+4012dd: mov  esi, 0x20            <span class="cm"># fgets(buf, 0x20, stdin)</span>
+4012e5: call fgets
+4012fe: call strcspn              <span class="cm"># xoa ky tu newline</span>
+40130e: mov  eax, [rip+0x2d2c]    <span class="cm"># doc bien state toan cuc (0x404040)</span></pre>
+<div class="verify"><b>✔ Cách verify:</b> phân tích tĩnh — ghi nhớ: state ở <code>0x404040</code>, counter ở <code>0x40405c</code>, key ở <code>0x404060</code> (đều trong vùng nhớ toàn cục, khởi tạo 0). Mỗi nhánh so sánh state rồi <code>strcmp</code> với một tên lệnh.</div>
+
+<h3>3.2 — Bảng chuyển trạng thái đầy đủ</h3>
+<div class="card">
+<table>
+  <tr><th>State hiện tại</th><th>Lệnh cần gõ</th><th>Điều kiện thêm</th><th>State tiếp</th><th>Tác dụng phụ</th></tr>
+  <tr><td><code>0x0A</code> (10)</td><td><code>align</code></td><td>—</td><td><code>0x15</code> (21)</td><td>—</td></tr>
+  <tr><td><code>0x15</code></td><td><code>align</code></td><td>—</td><td><code>0x15</code></td><td><code>counter++</code> (chỗ này là counter tăng)</td></tr>
+  <tr><td><code>0x15</code></td><td><code>calibrate</code></td><td><code>counter &gt; 1</code></td><td><code>0x22</code> (34)</td><td><code>key ^= 0x31</code></td></tr>
+  <tr><td><code>0x22</code></td><td><code>engage</code></td><td><code>counter &gt; 2</code></td><td><code>0x37</code> (55)</td><td><code>key ^= 0x52</code></td></tr>
+  <tr><td><code>0x37</code></td><td><code>status</code></td><td><code>counter == 3</code></td><td><code>0x59</code> (89)</td><td><code>key ^= 0x99</code>, <b>gọi hàm giải mã</b></td></tr>
+</table>
+<p class="muted">Điểm mấu chốt: nhánh <code>align</code> (state 0x15, địa chỉ 0x401376) là nơi <code>counter++</code> xảy ra — nghĩa là phải gõ <code>align</code> ở state 0x15 <b>hai lần nữa</b> để counter đạt 3 (lần align đầu ở state 0x0A không tăng counter). Sai điều kiện ở bất kỳ nhánh nào đều nhảy tới hàm in "IMU fault detected. System reset."</p>
+</div>
+
+<h3>3.3 — Hàm giải mã flag (0x40120b)</h3>
+<pre>401217: movabs rax, -0x5a4830497e47514e   <span class="cm"># 8 byte du lieu nhung (1)</span>
+401221: movabs rdx, -0x5a51354b5a365732   <span class="cm"># (2)</span>
+40122b: mov  [rbp-0x20], rax
+40122f: mov  [rbp-0x18], rdx
+401233: movabs rax, -0x465a51354b5a3658   <span class="cm"># (3) — ghi DE LEN tu rbp-0x17</span>
+40123d: movabs rdx, 0x87a2c9b6aab7ca      <span class="cm"># (4) — ghi de tu rbp-0x0f, byte cuoi = 00</span>
+...
+<span class="cm"># vong lap: moi byte tai [rbp-0x20 + i] XOR voi key tai 0x404060, putchar</span></pre>
+<p>Hai cái bẫy khi trích xuất chuỗi:</p>
+<ul class="dash">
+  <li>Các lệnh <code>mov [rbp-0x17]</code> và <code>mov [rbp-0x0f]</code> <b>ghi chồng lên</b> dữ liệu trước đó (byte 9 và byte 15 của chuỗi bị thay) — phải mô phỏng đúng thứ tự ghi, không được nối thẳng 4 qword.</li>
+  <li>Key không phải hằng số: <code>key = 0 ^ 0x31 ^ 0x52 ^ 0x99 = 0xFA</code> (giả sử đi hết chuỗi lệnh đúng).</li>
+</ul>
+<div class="verify"><b>✔ Cách verify:</b> phân tích tĩnh — sau bước này phải trả lời được: chuỗi dài bao nhiêu byte (22), key là gì (0xFA), byte nào bị ghi đè. Nếu chưa rõ, quay lại đọc kỹ 4 lệnh movabs + 4 lệnh mov.</div>
+
+<h2 id="p4">Phần 4 — Kết liễu: tính key và giải XOR bằng Python</h2>
+
+<h3>4.1 — Script giải mã</h3>
+<pre><span class="cm"># Mo phong 4 lenh movabs + ghi de theo dung thu tu, roi XOR tung byte voi 0xFA</span>
+q1 = (-0x5a4830497e47514e) &amp; 0xFFFFFFFFFFFFFFFF   <span class="cm"># [rbp-0x20]</span>
+q2 = (-0x5a51354b5a365732) &amp; 0xFFFFFFFFFFFFFFFF   <span class="cm"># [rbp-0x18]</span>
+q3 = (-0x465a51354b5a3658) &amp; 0xFFFFFFFFFFFFFFFF   <span class="cm"># [rbp-0x17] ghi de</span>
+q4 = 0x87a2c9b6aab7ca                             <span class="cm"># [rbp-0x0f] ghi de, 7 byte + null</span>
+
+buf = bytearray(24)
+<span class="kw">def</span> <span class="fn">put</span>(off, val, n):
+    <span class="kw">for</span> i <span class="kw">in</span> range(n):
+        buf[off+i] = (val &gt;&gt; (8*i)) &amp; 0xFF
+put(0x00, q1, 8); put(0x08, q2, 8)
+put(0x09, q3, 8); put(0x0F, q4, 7)
+
+enc = bytes(buf).split(b<span class="st">'\x00'</span>)[0]     <span class="cm"># dung o byte null -&gt; 22 byte</span>
+key = 0x31 ^ 0x52 ^ 0x99                 <span class="cm"># = 0xFA</span>
+flag = bytes(b ^ key <span class="kw">for</span> b <span class="kw">in</span> enc)
+print(flag.decode())</pre>
+<p>Output:</p>
+<pre>HTB{L5M_4R3_N0T0MPL3X}</pre>
+
+<h3>4.2 — Kiểm chứng chéo (bắt buộc)</h3>
+<pre><span class="cm"># XOR nguoc: flag ^ 0xFA phai khop Y het chuoi byte nhung trong binary</span>
+flag = b<span class="st">'HTB{L5M_4R3_N0T0MPL3X}'</span>
+assert bytes(b ^ 0xFA <span class="kw">for</span> b <span class="kw">in</span> flag).hex() == \
+    <span class="st">'b2aeb881b6cfb7a5cea8c9a5b4caaecab7aab6c9a287'</span>   <span class="cm"># -&gt; True</span></pre>
+<div class="verify"><b>✔ Cách verify:</b> hai phép kiểm chứng độc lập: (1) chuỗi byte nhúng mô phỏng từ asm XOR 0xFA ra flag đọc được; (2) flag XOR ngược khớp 100% chuỗi byte nhúng. Đồng thời flag khớp định dạng <code>HTB{...}</code> và có nghĩa ("LSM are not complex").</div>
+
+<h3>Bảng tổng kết chuỗi giải bài</h3>
+<table>
+  <tr><th>#</th><th>Hành động</th><th>Dựa vào</th><th>Verify</th></tr>
+  <tr><td>1</td><td><code>strings</code> — bản đồ 4 lệnh + chuỗi reset</td><td>Binary kèm đề</td><td>đủ 4 lệnh + "IMU fault"</td></tr>
+  <tr><td>2</td><td><code>objdump</code> — đọc state machine</td><td>so sánh state + strcmp</td><td>bảng chuyển trạng thái đầy đủ</td></tr>
+  <tr><td>3</td><td>Xác định thứ tự: align ×3 → calibrate → engage → status</td><td>điều kiện counter ở từng nhánh</td><td>counter==3 tại status</td></tr>
+  <tr><td>4</td><td>Tính key = 0x31^0x52^0x99 = 0xFA</td><td>3 lệnh xor vào 0x404060</td><td>tính tay: 0x31^0x52=0x63, ^0x99=0xFA</td></tr>
+  <tr><td>5</td><td>Giải XOR chuỗi nhúng (mô phỏng ghi đè)</td><td>4 movabs trong hàm 0x40120b</td><td>XOR ngược khớp 22 byte</td></tr>
+</table>
+
+<h2 id="p5">Phần 5 — Root cause: vì sao "mã hoá" kiểu này vỡ</h2>
+
+<div class="spring bad-ex">
+  <div class="hd">❌ Thiết kế bị sai (nguyên tắc, không phụ thuộc ngôn ngữ)</div>
+  <div class="bd"><p>1. <b>Key phụ thuộc trạng thái chạy</b> — key chỉ đúng khi người dùng đi đúng thứ tự, nhưng chuỗi mã hoá thì nằm sẵn trong binary: người ta <i>không cần chạy chương trình</i>, chỉ cần đọc asm là tính ngược được key.<br>
+  2. <b>XOR một lớp với key hằng số</b> — khử được bằng một phép XOR ngược; không có nonce, không có MAC.<br>
+  3. <b>String "rác" lộ liễu</b> — <code>strings</code> đã thấy vùng dữ liệu lạ; stripped nhưng dữ liệu không bị che.</p></div>
+</div>
+
+<div class="spring">
+  <div class="hd">✅ Nguyên tắc đúng (qua góc nhìn Java/Spring)</div>
+  <div class="bd"><p>- Bí mật phải nằm <b>ngoài binary</b> (biến môi trường, KMS, vault) — giống bạn không hard-code JWT secret trong jar.<br>
+  - Nếu buộc phải che dữ liệu trong client: dùng mã hoá thật (AES-GCM) với key ngoài tầm với, kèm MAC chống sửa — chứ không phải XOR.<br>
+  - Logic kiểm tra điều kiện "bao nhiêu lần" như counter này nên để server-side: ở client thì người ta patch nhảy cóc qua hết.</p></div>
+</div>
+
+<div class="tip"><b>Bài học reversing:</b> binary nhỏ + stripped không đáng sợ. Công thức: strings → định vị main → đọc các khối <code>cmp</code> + <code>strcmp</code> (state machine) → tìm hàm "lạ" có vòng lặp XOR/putchar (giải mã) → mô phỏng bằng Python. Bài này toàn bộ logic gói trong ~300 dòng asm.</div>
+
+<h2 id="p6">Phần 6 — Checklist khi tự làm lại</h2>
+<div class="card">
+<ol class="steps">
+  <li><b>Đừng cố chạy binary trước</b> — đọc <code>strings</code> và disassembly tĩnh thường nhanh hơn việc dựng môi trường chạy.</li>
+  <li><b>Chuỗi reset/lỗi trong đề bài là manh mối</b> — "reset silently" = state machine; tìm các hằng số state và bảng chuyển.</li>
+  <li><b>Đếm kỹ điều kiện phụ</b> — bẫy của bài này là <code>counter</code>: lệnh <code>align</code> phải gõ 3 lần, không phải 1.</li>
+  <li><b>Mô phỏng ghi chồng (overlapping stores) đúng thứ tự</b> — đừng nối thẳng các qword; đi theo từng lệnh <code>mov</code>.</li>
+  <li><b>Key tích luỹ thì tính tổng hợp</b> — XOR gộp các hằng số, verify bằng tay một lần.</li>
+  <li><b>Luôn kiểm chứng ngược</b> — XOR flag ngược lại phải khớp byte nhúng; flag phải có nghĩa và đúng format <code>HTB{...}</code>.</li>
+  <li><b>Checklist tool</b>: <code>file</code> → <code>strings -n 4</code> → <code>objdump -d -M intel</code> → Python mô phỏng.</li>
+</ol>
+</div>
+
+<p class="muted" style="margin-top:40px">Flag đã lấy thành công nhưng <b>chưa nộp</b> — bạn tự submit ở portal HTB. Binary và file disassembly lưu tại <code>htb_intermediate/the_stabilizer/rev_stabilizer/</code> (gồm <code>stabilizer</code> và <code>disasm.txt</code>) nếu bạn muốn tự đọc lại từng dòng asm. Chúc mừng! 🎉</p>
+
+</div>
+</body>
+</html>

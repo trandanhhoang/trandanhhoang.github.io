@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hướng dẫn từng bước — The Shady Appointment (Forensics CTF)</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --border:#30363d; --fg:#e6edf3; --mut:#8b949e;
+          --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.7; }
+  .wrap { max-width:940px; margin:0 auto; padding:32px 20px 90px; }
+  header.hero { border:1px solid var(--border); border-radius:12px; background:linear-gradient(135deg,#161b22,#1a2332);
+                 padding:28px 32px; margin-bottom:28px; }
+  header.hero h1 { margin:0 0 6px; font-size:1.7rem; }
+  header.hero .sub { color:var(--mut); }
+  .flag-box { margin-top:16px; border:1px solid var(--ok); border-radius:10px; background:#12261a; padding:14px 18px; }
+  .flag-box code { color:var(--ok); font-size:.95rem; font-weight:700; word-break:break-all; }
+  h2 { color:var(--acc); border-bottom:1px solid var(--border); padding-bottom:8px; margin-top:52px; }
+  h3 { color:var(--fg); margin-top:32px; }
+  h4 { color:var(--acc); margin-top:22px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.88em;
+         background:#1c2128; border:1px solid var(--border); border-radius:5px; padding:2px 6px; color:#a5d6ff; }
+  pre { background:#0d1117; border:1px solid var(--border); border-radius:10px; padding:16px; overflow-x:auto;
+        color:#c9d1d9; line-height:1.6; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.87em; }
+  pre code { background:none; border:none; padding:0; color:inherit; }
+  .cm { color:#7ee787; }
+  .kw { color:#ff7b72; }
+  .st { color:#a5d6ff; }
+  table { border-collapse:collapse; width:100%; margin:16px 0; font-size:.92em; }
+  th,td { border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top; }
+  th { background:#1c2128; }
+  .tag { display:inline-block; font-size:.75rem; font-weight:700; border-radius:20px; padding:2px 10px; margin-right:6px; }
+  .tag.ok { background:#12261a; color:var(--ok); border:1px solid var(--ok); }
+  .tag.bad { background:#2d1214; color:var(--bad); border:1px solid var(--bad); }
+  .tag.warn { background:#2a2110; color:var(--warn); border:1px solid var(--warn); }
+  .note { border-left:4px solid var(--warn); background:#211d12; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .tip { border-left:4px solid var(--ok); background:#12261a55; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .verify { border-left:4px solid var(--acc); background:#0d1a2b; padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0; }
+  .verify b:first-child { color:var(--acc); }
+  .muted { color:var(--mut); }
+  ol.steps > li, ul.dash > li { margin-bottom:8px; }
+  .toc a { color:var(--acc); text-decoration:none; }
+  .toc a:hover { text-decoration:underline; }
+  .spring { border:1px solid #6e7681; border-radius:10px; margin:16px 0; overflow:hidden; }
+  .spring .hd { background:#12324a; padding:8px 16px; font-weight:700; font-size:.9em; color:#79c0ff; }
+  .spring .bd { padding:4px 16px 14px; background:#0d1117; }
+  .spring.bad-ex .hd { background:#3d1d22; color:#ffa198; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>🕵️ The Shady Appointment — Truy vết phishing qua SMTP capture &amp; crack NTLMv2</h1>
+  <div class="sub">Challenge Forensics · HackTheBox Event 3693 · <span class="muted">đề có 6 câu hỏi, nộp đáp án lẻ trên portal</span></div>
+  <div class="flag-box">
+    🏁 6 đáp án (đã verify từ capture, <b>chưa nộp</b> — bạn tự submit):<br>
+    <code>1. vivian.blue@corp.htb &nbsp;·&nbsp; 2. \\188.114.96.80\share\reminder.wav &nbsp;·&nbsp; 3. 2025-07-12</code><br>
+    <code>4. WORKSTATION051\hi1140 &nbsp;·&nbsp; 5. beautiful &nbsp;·&nbsp; 6. T1204.002 <span class="muted">(chưa xác minh — xem Phần 2)</span></code>
+  </div>
+  <div class="card toc" style="margin-top:16px">
+    <b>Mục lục:</b><br>
+    <a href="#p0">Phần 0 — Khái niệm nền</a> ·
+    <a href="#p1">Phần 1 — Recon</a> ·
+    <a href="#p2">Phần 2 — Dead ends &amp; đáp án chưa xác minh</a> ·
+    <a href="#p3">Phần 3 — Breakthrough</a> ·
+    <a href="#p4">Phần 4 — Kết liễu</a> ·
+    <a href="#p5">Phần 5 — Root cause (Spring Boot)</a> ·
+    <a href="#p6">Phần 6 — Checklist</a>
+  </div>
+</header>
+
+<p class="muted">Bài viết giả định bạn là lập trình viên Java Spring Boot, chưa chuyên sâu bảo mật mạng/forensics. Mình viết theo ngôi "ta", mỗi bước đều kèm ô xanh dương "Cách verify" để bạn tự kiểm chứng.</p>
+
+<!-- ================= PHẦN 0 ================= -->
+<h2 id="p0">Phần 0 — Kiến thức nền cần có trước khi bắt đầu</h2>
+
+<h3>0.1 — PCAP là gì? Tại sao đề nói "the capture"?</h3>
+<div class="card">
+<p><b>PCAP</b> (packet capture) là file ghi lại toàn bộ gói tin mạng đi qua một giao diện mạng ở một thời điểm — tương tự file access log ghi mọi request, nhưng ở tầng thấp hơn: từng gói TCP. Công cụ đọc chuẩn là <b>Wireshark</b> / <b>tshark</b> (bản CLI).</p>
+<p>"Follow the stream" là thao tác cơ bản: một phiên TCP (ví dụ một lần gửi email) gồm hàng trăm gói nhỏ; Wireshark ghép payload các gói theo thứ tự thành dòng dữ liệu liền mạch để ta đọc như đọc transcript hội thoại. Analog Spring Boot: giống như trace một request đi qua nhiều service bằng trace-id — follow the stream = gom mọi gói cùng một phiên.</p>
+<div class="verify"><b>✔ Cách verify:</b> chạy <code>tshark -r capture.pcap -q -z io,phs</code> → kỳ vọng thấy cây protocol: phần lớn là <code>smtp</code>, có 1 gói <code>imf</code> (bản thân email), và vài gói <code>nbss/smb2</code>. Nếu thấy đúng cấu trúc này thì file đã đúng và đủ đi làm tiếp.</div>
+</div>
+
+<h3>0.2 — SMTP, AUTH LOGIN và vì sao password xuất hiện dạng Base64</h3>
+<div class="card">
+<p><b>SMTP</b> là giao thức gửi email. Một phiên gửi mail gồm các lệnh text: <code>EHLO</code> (chào), <code>AUTH LOGIN</code> (đăng nhập), <code>MAIL FROM</code> / <code>RCPT TO</code> (người gửi/nhận), <code>DATA</code> (nội dung email kèm attachment). Với <code>AUTH LOGIN</code>, username và password được gửi <b>qua Base64</b> — đây KHÔNG phải mã hoá, chỉ là mã hoá ký tự (giống URL-encoding). Decode bằng tay: <code>echo "dml2aWFuLmJsdWVAY29ycC5odGI=" | base64 -d</code>.</p>
+<p>Trong capture ta sẽ thấy nhiều phiên AUTH bị từ chối (<code>535</code>) — dấu vết brute-force — và một phiên thành công (<code>235</code>).</p>
+<div class="verify"><b>✔ Cách verify:</b> base64-decode chuỗi <code>NTc0Njg2</code> từ stream đầu tiên → ra <code>574686</code>. Đây là phần kiểm chứng tay: nếu decode được thì mọi credential trong bài đều đọc được theo cách này.</div>
+</div>
+
+<h3>0.3 — UNC path, file .msg và kỹ thuật cướp hash NTLMv2</h3>
+<div class="card">
+<p><b>UNC path</b> là đường dẫn mạng Windows dạng <code>\\IP\share\file</code>. Một file <b>.msg</b> (Outlook) được tạo công phu có thể nhét một UNC path vào trong nội dung/reminder — khi nạn nhân <i>mở</i> file (thậm chí chỉ preview), Windows tự kết nối SMB tới IP attacker để lấy file, và trong quá trình đó gửi kèm <b>challenge–response NTLMv2</b> chứa bằng chứng xác thực của user.</p>
+<p>Attacker bắt được response rồi <b>crack offline</b> bằng hashcat/john với wordlist (rockyou) → ra plaintext password. Đây là lý do "password yếu" giết chết cả một hệ thống: hash NTLMv2 chỉ chống được brute-force nếu password đủ dài/mạnh.</p>
+<div class="verify"><b>✔ Cách verify:</b> trong Phần 3 ta sẽ trích hash rồi crack bằng <code>hashcat -m 5600</code>. Thành công = chuỗi attack hợp lý; không cần tin lời mình.</div>
+</div>
+
+<h3>0.4 — Công cụ: tshark, base64, hashcat</h3>
+<div class="card">
+<table>
+  <tr><th>Công cụ / cờ</th><th>Ý nghĩa</th><th>Tại sao dùng ở đây</th></tr>
+  <tr><td><code>tshark -r file.pcap</code></td><td>Đọc pcap ở chế độ offline</td><td>Phân tích không cần mở GUI Wireshark</td></tr>
+  <tr><td><code>-Y "filter"</code></td><td>Display filter (Wireshark syntax)</td><td>Lọc đúng gói cần xem, ví dụ <code>imf</code>, <code>ntlmssp</code></td></tr>
+  <tr><td><code>-q -z follow,tcp,ascii,N</code></td><td>Ghép payload stream TCP thứ N thành text</td><td>Đọc transcript SMTP, thấy lệnh + credential</td></tr>
+  <tr><td><code>-T fields -e trường</code></td><td>In trường dissect cụ thể</td><td>Trích chính xác username/hostname/hash từ NTLMSSP</td></tr>
+  <tr><td><code>base64 -d</code></td><td>Decode Base64</td><td>Đọc AUTH LOGIN credential, nội dung attachment</td></tr>
+  <tr><td><code>hashcat -m 5600</code></td><td>Crack dạng hash NetNTLMv2</td><td>Ra plaintext password của user bị cướp hash</td></tr>
+</table>
+</div>
+
+<!-- ================= PHẦN 1 ================= -->
+<h2 id="p1">Phần 1 — Recon: bản đồ giao thức trong capture</h2>
+<p class="muted">Triết lý: trước khi đọc chi tiết một phiên, hãy nhìn bức tranh tổng thể — giống nhìn dashboard trace trước khi đọc log từng service.</p>
+
+<h3>1.1 — Tải đúng attachment thật (bẫy quan trọng của bài)</h3>
+<pre><span class="cm"># Trên portal, drawer challenge có 2 nút: Download Attachment va Copy Attachment Link.</span>
+<span class="cm"># BẪY: file tai ve dau tien (zip 798KB chua 115 file evtx) KHONG phai attachment cua bai nay</span>
+<span class="cm"># — do la scenario files cua challenge Spray dung chung su kien. Attachment that chi ~17KB.</span>
+<span class="cm"># Lay link that qua API (dang nhap san trong trinh duyet):</span>
+curl -s <span class="st">'https://ctf.hackthebox.com/api/challenges/&lt;ID&gt;/download/link'</span>
+<span class="cm"># → {"url": ".../download?expires=...&signature=..."}</span>
+curl -sL -o shady.zip <span class="st">'&lt;url vua nhan&gt;'</span>
+unzip shady.zip
+<span class="cm"># → capture.pcap</span></pre>
+<div class="verify"><b>✔ Cách verify:</b> sau giải nén, <code>file capture.pcap</code> in ra <code>pcap capture file</code>, kích thước ~76KB. Nếu bạn thấy thư mục <code>Logs/*.evtx</code> thì bạn đang cầm nhầm file của bài Spray — quay lại bước này.</div>
+
+<h3>1.2 — Thống kê protocol và liệt kê stream</h3>
+<pre><span class="cm"># Cay giao thuc: biet co nhung "loai hoi thoai" nao trong capture</span>
+tshark -r capture.pcap -q -z io,phs
+<span class="cm"># Danh sach cac TCP stream (phien) co trong file</span>
+tshark -r capture.pcap -T fields -e tcp.stream | sort -un</pre>
+<p>Kết quả thật: <code>smtp: 260 frames</code>, <code>imf: 1 frame</code> (thân email), <code>nbss/smb2: 8 frames</code> — tổng 18 stream (0–17).</p>
+<div class="verify"><b>✔ Cách verify:</b> đúng 3 nhóm: SMTP chiếm đa số (brute-force + gửi mail), 1 frame IMF (email hoàn chỉnh), 8 frame SMB (phiên cướp hash). 18 stream cho ta lộ trình: đọc thử từng stream SMTP.</div>
+
+<h3>1.3 — Đọc thử các stream SMTP đầu tiên</h3>
+<pre><span class="cm"># Doc transcript stream 0</span>
+tshark -r capture.pcap -q -z follow,tcp,ascii,0</pre>
+<p>Kết quả thật (rút gọn): <code>EHLO hydra</code> → <code>AUTH LOGIN</code> → username <code>dml2aWFuLmJsdWVAY29ycC5odGI=</code> → password <code>NTc0Njg2</code> → <code>535 5.7.8 Authentication credentials invalid</code>. Các stream 1–9 tương tự với user <code>am9obi5kb2VAY29ycC5odGI=</code> (decode = john.doe@corp.htb) — dấu vết công cụ <b>hydra</b> brute-force SMTP.</p>
+<div class="verify"><b>✔ Cách verify:</b> decode tay: <code>echo dml2aWFuLmJsdWVAY29ycC5odGI= | base64 -d</code> → <code>vivian.blue@corp.htb</code>. Kết luận tạm: attacker brute-force nhiều account; cần tìm phiên <code>235</code> (thành công) và phiên có <code>MAIL FROM</code>.</div>
+
+<!-- ================= PHẦN 2 ================= -->
+<h2 id="p2">Phần 2 — Dead ends &amp; những đáp án phải đánh dấu "chưa xác minh"</h2>
+<p class="muted">Ghi trung thực cả những chỗ chưa chắc — tránh cảm giác "người viết đoán trúng ngay".</p>
+
+<h3><span class="tag bad">THẤT BẠI</span> 2.1 — Dùng bộ file evtx tải về đầu tiên</h3>
+<div class="card">
+<p><b>Thao tác:</b> giải nén file zip tải về từ nút Download, thấy 115 file <code>.evtx</code>, quét toàn bộ tìm email/UNC path/password.</p>
+<p><b>Kết quả thật:</b> không tìm thấy chuỗi email hay UNC nào; so MD5 từng file với bộ log bài Spray thì <b>trùng 100%</b> — đây là dữ liệu của challenge khác trong cùng event.</p>
+<p><b>Kết luận:</b> nút Download trên UI tải nhầm/scenario chung; phải lấy đúng link attachment qua API <code>/api/challenges/{id}/download/link</code> (bước 1.1). Bài học: luôn đối chiếu dữ liệu với đề bài — đề nói "capture" mà ta cầm 115 file log là sai ngay từ đầu vào.</p>
+</div>
+
+<h3><span class="tag bad">THẤT BẠI</span> 2.2 — 16 stream đầu đều là brute-force, không có gì để khai thác tiếp</h3>
+<div class="card">
+<p><b>Thao tác:</b> đọc lần lượt stream 0–9, kỳ vọng thấy luôn phiên gửi mail.</p>
+<p><b>Kết quả thật:</b> cả 10 stream đều kết thúc bằng <code>535</code> (sai mật khẩu), EHLO đều là <code>hydra</code>.</p>
+<p><b>Kết luận:</b> đừng đọc tuần tự mò mẫm — dùng tín hiệu mạnh để nhảy thẳng: tìm frame <code>imf</code> (thân email) và các frame <code>smb2</code> (phiên cướp hash). Đó là stream 16 và 17.</p>
+</div>
+
+<h3><span class="tag warn">CHƯA XÁC MINH</span> 2.3 — Đáp án câu 6 (MITRE Technique ID)</h3>
+<div class="card">
+<p>Bối cảnh: nạn nhân mở attachment <code>appointment.msg</code>, Windows tự resolve UNC <code>\\188.114.96.80\share\reminder.wav</code> → SMB connect → NTLMv2 leak. Có 3 ứng viên MITRE:</p>
+<ul class="dash">
+  <li><code>T1204.002</code> — User Execution: Malicious File (mở file .msg độc). <b>Đây là đáp án mình chọn</b>, vì đề hỏi "client execution was performed".</li>
+  <li><code>T1204.001</code> — Malicious Link (nếu ban tổ chức coi việc resolve UNC như mở một link).</li>
+  <li><code>T1187</code> — Forced Authentication (UNC trick tự động bắt xác thực, user không cần làm gì thêm).</li>
+</ul>
+<p>Mình <b>chưa nộp thử</b> (theo yêu cầu không nộp bài), nên chưa biết ban tổ chức chấm theo ứng viên nào. Khi bạn nộp, thử <code>T1204.002</code> trước; sai thì thử <code>T1204</code> rồi <code>T1187</code> — mỗi đáp án sai không bị trừ gì.</p>
+</div>
+
+<!-- ================= PHẦN 3 ================= -->
+<h2 id="p3">Phần 3 — Đột phá: đọc phiên gửi mail và phiên SMB cướp hash</h2>
+
+<h3>3.1 — Stream 16: đăng nhập SMTP thành công và gửi email độc</h3>
+<pre><span class="cm"># Stream 16 chua frame IMF (than email) — doc transcript</span>
+tshark -r capture.pcap -q -z follow,tcp,ascii,16</pre>
+<p>Kết quả thật (trích):</p>
+<pre>EHLO kali
+AUTH LOGIN
+334 VXNlciBOYW1lAA==
+dml2aWFuLmJsdWVAY29ycC5odGI=        <span class="cm"># = vivian.blue@corp.htb</span>
+334 UGFzc3dvcmQA
+YmVhdXRpZnVs                      <span class="cm"># = beautiful</span>
+235 2.7.0 Authentication successful   <span class="cm"># ← THANH CONG</span>
+MAIL FROM:&lt;vivian.blue@corp.htb&gt;
+RCPT TO:&lt;philip.smith@corp.htb&gt;
+DATA
+Date: Sat, 12 Jul 2025 15:18:15 -0400
+To: philip.smith@corp.htb
+From: vivian.blue@corp.htb
+Subject: Appointment reminder
+X-Mailer: swaks v20240103.0 ...
+Content-Disposition: attachment; filename="appointment.msg"</pre>
+<div class="verify"><b>✔ Cách verify (3 phép tay):</b> (1) decode <code>YmVhdXRpZnVs</code> → <code>beautiful</code>; (2) dòng <code>235</code> xác nhận auth thành công — khác hẳn 16 stream trước toàn <code>535</code>; (3) header <code>Date: Sat, 12 Jul 2025</code> → đáp án câu 3 là <code>2025-07-12</code>. Đáp án câu 1: <code>vivian.blue@corp.htb</code> (MAIL FROM + AUTH user khớp nhau).</div>
+
+<h3>3.2 — Giải mã attachment: UNC path ẩn trong file .msg</h3>
+<pre><span class="cm"># Tim frame chua IMF va base64 cua attachment</span>
+tshark -r capture.pcap -q -z follow,tcp,ascii,16 | sed -n '/BASE64/,/^$/p' | head -5
+<span class="cm"># Trong doan base64 cua appointment.msg, tim chuoi ro rang:</span>
+echo <span class="st">"XFxcaDE4OC4xMTQuOTYuODBcc2hhcmVccmVtaW5kZXIud2F2"</span> | base64 -d</pre>
+<p>Kết quả thật: <code>\\h188.114.96.80\share\reminder.wav</code> — với byte đầu <code>h</code> là ký tự rác của định dạng .msg; UNC thật: <code>\\188.114.96.80\share\reminder.wav</code>. Cùng file còn thấy <code>UmVtaW5kZXIgb2YgYXBwb2ludG1lbnQ=</code> → "Reminder of appointment".</p>
+<div class="verify"><b>✔ Cách verify:</b> lệnh base64 -d phải in ra đúng chuỗi <code>\\188.114.96.80\share\reminder.wav</code>. Đối chiếu: IP 188.114.96.80 chính là IP attacker đã brute-force SMTP ở các stream đầu (xem cột ip.src của stream 0–9) — một mạch logic duy nhất.</div>
+
+<h3>3.3 — Stream 17: phiên SMB và hash NTLMv2 của nạn nhân</h3>
+<pre><span class="cm"># Trich cac truong NTLMSSP tu session setup</span>
+tshark -r capture.pcap -Y <span class="st">"tcp.stream eq 17 && ntlmssp"</span> \
+  -T fields -e frame.number -e ip.src -e ntlmssp.messagetype \
+  -e ntlmssp.auth.username -e ntlmssp.auth.hostname \
+  -e ntlmssp.auth.lmresponse -e ntlmssp.auth.ntresponse</pre>
+<p>Kết quả thật (frame 571 — bản tin AUTH): username <code>hi1140</code>, hostname <code>WORKSTATION051</code> (NetBIOS; FQDN trong blob là <code>WIN-2K4GDKQ74OH</code>), NTResponse dài ~688 hex ký tự.</p>
+<pre><span class="cm"># Lay server challenge tu frame challenge (569)</span>
+tshark -r capture.pcap -Y <span class="st">"frame.number == 569"</span> -V | grep <span class="st">"Server Challenge"</span>
+<span class="cm"># → NTLM Server Challenge: 97c321a98da4ad39</span></pre>
+<div class="verify"><b>✔ Cách verify:</b> 3 giá trị phải khớp: (1) frame 571 có messagetype <code>0x00000003</code> (AUTH/Response); (2) username <code>hi1140</code>, hostname <code>WORKSTATION051</code> → đáp án câu 4: <code>WORKSTATION051\hi1140</code>; (3) NTResponse bắt đầu bằng <code>c09e10e6dcdf1b44...</code> — 32 ký tự đầu là NTProofStr, phần còn lại là blob.</div>
+
+<h3>3.4 — Đóng gói hash và crack bằng hashcat</h3>
+<pre><span class="cm"># Dinh dang hashcat mode 5600 (NetNTLMv2): user::domain:challenge:proof:blob</span>
+python3 -c <span class="st">"
+ntresp = 'c09e10e6...'  # toan bo NTResponse tu buoc 3.3
+proof, blob = ntresp[:32], ntresp[32:]
+open('hash.txt','w').write(f'hi1140::WORKSTATION051:97c321a98da4ad39:{proof}:{blob}\n')
+"</span>
+<span class="cm"># Giai nen rockyou va crack</span>
+tar xzf rockyou.txt.tar.gz
+hashcat -m 5600 hash.txt rockyou.txt --force -O
+hashcat -m 5600 hash.txt --show</pre>
+<p>Kết quả thật: <code>...:beautiful</code> — password plaintext: <code>beautiful</code> (trùng với password email ở 3.1 — attacker brute-force SMTP ra được rồi dùng nốt cho SMB, vì user dùng chung password).</p>
+<div class="verify"><b>✔ Cách verify:</b> <code>hashcat -m 5600 hash.txt --show</code> in hash kèm <code>:beautiful</code> ở cuối. Crack nhanh (&lt;1 phút với rockyou) chứng tỏ password yếu — đúng kịch bản đề bài. Đáp án câu 5: <code>beautiful</code>.</div>
+
+<!-- ================= PHẦN 4 ================= -->
+<h2 id="p4">Phần 4 — Kết liễu: tổng hợp 6 đáp án</h2>
+<div class="card">
+<table>
+  <tr><th>#</th><th>Câu hỏi</th><th>Đáp án</th><th>Dựa vào</th></tr>
+  <tr><td>1</td><td>Email bị compromise</td><td><code>vivian.blue@corp.htb</code></td><td>Stream 16: AUTH + MAIL FROM</td></tr>
+  <tr><td>2</td><td>UNC path độc</td><td><code>\\188.114.96.80\share\reminder.wav</code></td><td>Base64 trong appointment.msg</td></tr>
+  <tr><td>3</td><td>Ngày gửi email</td><td><code>2025-07-12</code></td><td>Header Date của email</td></tr>
+  <tr><td>4</td><td>Hostname\username workstation</td><td><code>WORKSTATION051\hi1140</code></td><td>NTLMSSP AUTH frame 571</td></tr>
+  <tr><td>5</td><td>Plaintext password</td><td><code>beautiful</code></td><td>hashcat crack NTLMv2</td></tr>
+  <tr><td>6</td><td>MITRE Technique ID</td><td><code>T1204.002</code> <span class="tag warn">chưa xác minh</span></td><td>User Execution: Malicious File — thử T1204 / T1187 nếu sai</td></tr>
+</table>
+</div>
+<div class="verify"><b>✔ Cách verify tổng thể:</b> câu chuyện phải khớp một mạch duy nhất: brute-force SMTP (16 stream 535) → auth thành công (235) → gửi mail kèm .msg chứa UNC → workstation mở file → SMB session → NTLMv2 → crack ra password trùng password email. Nếu một mắt xích nào không khớp (ví dụ IP UNC khác IP attacker), phải quay lại kiểm tra.</div>
+
+<h3>Bảng tổng kết chuỗi tấn công</h3>
+<table>
+  <tr><th>#</th><th>Hành động</th><th>Dựa vào đâu</th><th>Verify bằng</th></tr>
+  <tr><td>1</td><td>Phân biệt scenario files vs attachment thật</td><td>Đối chiếu đề ("capture")</td><td><code>file capture.pcap</code></td></tr>
+  <tr><td>2</td><td>Thống kê protocol, đếm stream</td><td>1.2</td><td>io,phs: smtp + imf + smb2</td></tr>
+  <tr><td>3</td><td>Đọc stream 16, lấy email/date/UNC</td><td>3.1, 3.2</td><td>235 + Date header + base64 decode</td></tr>
+  <tr><td>4</td><td>Trích NTLMv2, crack password</td><td>3.3, 3.4</td><td>hashcat --show → beautiful</td></tr>
+  <tr><td>5</td><td>Nộp 6 đáp án (bạn tự nộp)</td><td>Bảng trên</td><td>Portal hiển thị 6/6</td></tr>
+</table>
+
+<!-- ================= PHẦN 5 ================= -->
+<h2 id="p5">Phần 5 — Root cause qua góc nhìn Spring Boot</h2>
+<p>Gốc rễ không nằm ở một lỗ hổng phần mềm, mà ở <b>3 thực hành tồi</b>: dùng chung password giữa các dịch vụ, password yếu, và client tự động xử lý nội dung không tin cậy. Cả 3 đều có song song trong thế giới web.</p>
+
+<div class="spring bad-ex">
+  <div class="hd">❌ Sai: một password dùng chung mọi nơi + không giới hạn đăng nhập sai</div>
+  <div class="bd"><pre><span class="kw">public class</span> User {
+    String email;               <span class="cm">// dang nhap SMTP</span>
+    String smbPassword;         <span class="cm">// ❌ trung voi email password = "beautiful"</span>
+}
+<span class="cm">// ❌ Khong co rate-limit → brute-force 16 lan khong bi chan (nhu 16 stream 535)</span>
+<span class="cm">// ❌ Password nam trong top rockyou → hash NTLMv2 crack &lt; 1 phut</span></pre></div>
+</div>
+
+<div class="spring">
+  <div class="hd">✅ Sửa: rate-limit + password mạnh + tách credential theo dịch vụ</div>
+  <div class="bd"><pre>@PostMapping(<span class="st">"/smtp-auth"</span>)
+@RateLimiter(name = <span class="st">"smtpPerIp"</span>, limitForPeriod = 3)   <span class="cm">// chan brute-force nhu hydra</span>
+<span class="kw">public</span> AuthResult auth(...) {
+    <span class="cm">// ✅ password policy: dai, khong trong wordlist, canary qua haveibeenpwned</span>
+    <span class="cm">// ✅ credential moi dich vu 1 bo rieng (SMTP ≠ SMB ≠ app)</span>
+    <span class="cm">// ✅ alert khi 1 IP fail auth N lan → phat hien spraying dung nhu de bai mo ta</span>
+}</pre></div>
+</div>
+
+<p>Phía client (Windows), bài học tương ứng:</p>
+<div class="card">
+<ul class="dash">
+  <li><b>Chặn outbound SMB từ workstation</b> (firewall rule egress 445) — UNC trick chết ngay dù user mở file độc.</li>
+  <li><b>Extended Protection for Authentication / SMB signing</b> — hạ thấp giá trị hash bị cướp.</li>
+  <li><b>Train user + strip attachment độc ở mail gateway</b> — file .msg chứa UNC nên bị chặn trước khi tới inbox.</li>
+</ul>
+</div>
+
+<!-- ================= PHẦN 6 ================= -->
+<h2 id="p6">Phần 6 — Bài học &amp; checklist khi tự làm lại</h2>
+<div class="card">
+<ol class="steps">
+  <li><b>Đối chiếu dữ liệu với đề trước khi phân tích.</b> Đề nói "capture" thì phải thấy file .pcap; cầm 115 file .evtx là sai từ đầu vào (Dead end 2.1).</li>
+  <li><b>Thống kê protocol trước, đọc stream sau.</b> io,phs cho biết có SMTP + IMF + SMB2 → biết ngay cần tìm gì ở đâu.</li>
+  <li><b>Base64 trong SMTP AUTH không phải mã hoá.</b> Decode tay được mọi credential — đừng bỏ qua vì "trông như mật mã".</li>
+  <li><b>NTLMv2 leak là hệ quả của password yếu.</b> Hash bắt được chỉ an toàn khi password không nằm trong wordlist; "beautiful" crack trong &lt;1 phút.</li>
+  <li><b>IP là mắt xích liên kết câu chuyện.</b> IP trong UNC (188.114.96.80) = IP brute-force SMTP → xác nhận một attacker duy nhất.</li>
+  <li><b>Ghi trung thực phần chưa xác minh.</b> Câu 6 (MITRE ID) mình đánh dấu "chưa xác minh" thay vì bịa — thử nộp T1204.002 trước, fallback T1204 / T1187.</li>
+  <li><b>Checklist tự làm lại:</b> ① lấy đúng attachment qua API ② io,phs + đếm stream ③ đọc stream có IMF ④ decode base64 tìm UNC ⑤ trích NTLMv2 (user/host/challenge/response) ⑥ hashcat -m 5600 + rockyou ⑦ nộp 6 đáp án.</li>
+</ol>
+</div>
+
+<p class="muted" style="margin-top:40px">6 đáp án đã trích xong và tự khớp thành một chuỗi tấn công duy nhất, nhưng <b>chưa nộp</b> — bạn tự submit ở portal. Câu 6 (MITRE ID) là phỏng đoán có lý, thử và điều chỉnh khi nộp. Chúc mừng!</p>
+
+</div>
+</body>
+</html>

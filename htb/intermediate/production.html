@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hướng dẫn từng bước — Production (Crypto CTF)</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --border:#30363d; --fg:#e6edf3; --mut:#8b949e;
+          --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.7; }
+  .wrap { max-width:940px; margin:0 auto; padding:32px 20px 90px; }
+  header.hero { border:1px solid var(--border); border-radius:12px; background:linear-gradient(135deg,#161b22,#1a2332);
+                 padding:28px 32px; margin-bottom:28px; }
+  header.hero h1 { margin:0 0 6px; font-size:1.7rem; }
+  header.hero .sub { color:var(--mut); }
+  .flag-box { margin-top:16px; border:1px solid var(--ok); border-radius:10px; background:#12261a; padding:14px 18px; }
+  .flag-box code { color:var(--ok); font-size:1.05rem; font-weight:700; word-break:break-all; }
+  h2 { color:var(--acc); border-bottom:1px solid var(--border); padding-bottom:8px; margin-top:52px; }
+  h3 { color:var(--fg); margin-top:32px; }
+  h4 { color:var(--acc); margin-top:22px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.88em;
+         background:#1c2128; border:1px solid var(--border); border-radius:5px; padding:2px 6px; color:#a5d6ff; }
+  pre { background:#0d1117; border:1px solid var(--border); border-radius:10px; padding:16px; overflow-x:auto;
+        color:#c9d1d9; line-height:1.6; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.87em; }
+  pre code { background:none; border:none; padding:0; color:inherit; }
+  .cm { color:#7ee787; }
+  .kw { color:#ff7b72; }
+  .st { color:#a5d6ff; }
+  .fn { color:#d2a8ff; }
+  table { border-collapse:collapse; width:100%; margin:16px 0; font-size:.92em; }
+  th,td { border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top; }
+  th { background:#1c2128; }
+  .tag { display:inline-block; font-size:.75rem; font-weight:700; border-radius:20px; padding:2px 10px; margin-right:6px; }
+  .tag.ok { background:#12261a; color:var(--ok); border:1px solid var(--ok); }
+  .tag.bad { background:#2d1214; color:var(--bad); border:1px solid var(--bad); }
+  .tag.warn { background:#2a2110; color:var(--warn); border:1px solid var(--warn); }
+  .note { border-left:4px solid var(--warn); background:#211d12; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .tip { border-left:4px solid var(--ok); background:#12261a55; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .verify { border-left:4px solid var(--acc); background:#0d1a2b; padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0; }
+  .verify b:first-child { color:var(--acc); }
+  .muted { color:var(--mut); }
+  ol.steps > li, ul.dash > li { margin-bottom:8px; }
+  .toc a { color:var(--acc); text-decoration:none; }
+  .toc a:hover { text-decoration:underline; }
+  .spring { border:1px solid #6e7681; border-radius:10px; margin:16px 0; overflow:hidden; }
+  .spring .hd { background:#12324a; padding:8px 16px; font-weight:700; font-size:.9em; color:#79c0ff; }
+  .spring .bd { padding:4px 16px 14px; background:#0d1117; }
+  .spring.bad-ex .hd { background:#3d1d22; color:#ffa198; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>🔐 Production — Dự đoán khóa RSA nhờ PRNG tự seed bằng timestamp</h1>
+  <div class="sub">Challenge Crypto · HackTheBox Event 3692 (Intermediate — NAB Internal CTF) · <span class="muted">target: <code>154.57.164.77:44121</code> (đổi mỗi lần spawn)</span></div>
+  <div class="flag-box">
+    🏁 Flag (đã lấy được, <b>chưa nộp</b> — bạn tự submit):<br>
+    <code>HTB{do_not_initialize_PRNGs_with_timestamp_and_known_data_5a70c3621ab6222736d455a409cb95bd}</code>
+  </div>
+  <div class="card toc" style="margin-top:16px">
+    <b>Mục lục:</b><br>
+    <a href="#p0">Phần 0 — Khái niệm nền</a> ·
+    <a href="#p1">Phần 1 — Recon</a> ·
+    <a href="#p2">Phần 2 — Dead ends</a> ·
+    <a href="#p3">Phần 3 — Breakthrough</a> ·
+    <a href="#p4">Phần 4 — Kết liễu</a> ·
+    <a href="#p5">Phần 5 — Root cause (Java Spring Boot)</a> ·
+    <a href="#p6">Phần 6 — Checklist</a>
+  </div>
+</header>
+
+<p class="muted">Bài viết giả định bạn là lập trình viên Java Spring Boot, chưa chuyên sâu về crypto. Mọi khái niệm lạ (PRNG, seed, JWT, RSA textbook) đều được giải thích ở Phần 0 trước khi dùng.</p>
+
+<h2 id="p0">Phần 0 — Kiến thức nền cần có trước khi bắt đầu</h2>
+
+<h3>0.1 — PRNG, seed và entropy: vì sao "random" trong máy tính không ngẫu nhiên</h3>
+<div class="card">
+  <p><b>PRNG</b> (Pseudo-Random Number Generator — bộ sinh số ngẫu nhiên giả) là thuật toán nhận vào một giá trị khởi đầu gọi là <b>seed</b>, rồi sinh ra một chuỗi số "trông ngẫu nhiên". Điểm mấu chốt: <b>cùng một seed → cùng một chuỗi số</b>, kể cả trên hai máy khác nhau, kể cả cách nhau 10 năm.</p>
+  <p><b>Entropy</b> là lượng "thật sự không đoán được" trong seed. Seed càng ít entropy, kẻ tấn công càng có thể <b>duyệt hết mọi khả năng</b> (brute-force) để tìm đúng seed. Nếu seed chỉ có 256 khả năng, duyệt hết là chuyện tầm vài phút.</p>
+  <p>Với bảo mật, ngưới ta dùng <b>CSPRNG</b> (Cryptographically Secure PRNG) — ví dụ <code>java.security.SecureRandom</code> trong Java hay <code>secrets</code>/<code>os.urandom</code> trong Python — thứ lấy entropy từ hệ điều hành và <b>không thể</b> dự đoán được, kể cả khi bạn biết toàn bộ output trước đó.</p>
+  <div class="spring">
+    <div class="hd">Tương đồng Java — cùng một cạm bẫy với java.util.Random</div>
+    <div class="bd"><pre><code><span class="cm">// ❌ Sai kinh điển: Random dùng seed 48-bit, khởi tạo mặc định bằng System.currentTimeMillis()</span>
+<span class="kw">var</span> random = <span class="kw">new</span> Random();            <span class="cm">// seed = thờI điểm khởi tạo (ms)</span>
+<span class="kw">var</span> token = random.nextInt(1_000_000);  <span class="cm">// ai biết giờ server start là đoán được token</span>
+
+<span class="cm">// ✅ Đúng: SecureRandom lấy entropy từ OS</span>
+<span class="kw">var</span> secure = <span class="kw">new</span> SecureRandom();
+<span class="kw">var</span> token = secure.nextInt(1_000_000);  <span class="cm">// không dự đoán được</span></code></pre></div>
+  </div>
+  <div class="verify"><b>✔ Cách verify:</b> chạy <code>jshell</code> và gõ <code>new Random(42).nextInt()</code> hai lần trên hai phiên khác nhau — kết quả giống hệt nhau. Đó chính là tính chất "cùng seed → cùng chuỗi" ta sẽ lợi dụng.</div>
+</div>
+
+<h3>0.2 — Sinh khóa RSA: p và q phải là số nguyên tố thật sự ngẫu nhiên</h3>
+<div class="card">
+  <p>RSA cần hai số nguyên tố lớn <code>p</code>, <code>q</code> (ở đây 512 bit mỗi số). Khóa bí mật dựa trên <code>phi = (p-1)(q-1)</code>. Nếu kẻ tấn công <b>tính lại được p và q</b> (vì dự đoán được PRNG sinh ra chúng), coi như khóa bị lộ hoàn toàn — ký được mọi thứ.</p>
+  <p>Trong bài này, server sinh p và q bằng <code>random.randint()</code> của Python sau khi <b>tự gọi <code>random.seed(...)</code></b> bằng một giá trị dự đoán được. Toàn bộ bài toán bảo mật của RSA sụp đổ vì nền móng "p, q không ai tính lại được" không còn đúng.</p>
+</div>
+
+<h3>0.3 — JWT và chữ ký RSA "textbook" (không padding)</h3>
+<div class="card">
+  <p><b>JWT</b> (JSON Web Token) là chuỗi 3 phần nối bằng dấu chấm: <code>header.payload.signature</code>. Header và payload chỉ là JSON <b>base64</b> — ai cũng đọc/ghi được, không mật gì cả. Sức mạnh của JWT nằm ở phần 3: <b>chữ ký</b>.</p>
+  <p>Server ký bằng khóa <b>riêng</b> (private key), ai có khóa <b>công khai</b> (public key) thì verify được. Ý tưởng của bài: nếu ta <b>khôi phục được khóa riêng của admin</b>, ta tự ký một JWT với payload <code>{"username": "HTBAdministrator1337"}</code> và server sẽ tin.</p>
+  <p>Đáng chú ý, bài dùng kiểu ký <b>RSA textbook</b>: <code>sig = pow(sha512(msg), d, n)</code> — nghĩa là lấy hash của message, trực tiếp nâng lên lũy thừa d. Thực tế production phải dùng padding <b>RSA-PSS</b>. Textbook RSA không padding có nhiều lỗ hổng toán học, nhưng bài này ta không cần dùng tới — lỗ hổng chính là PRNG yếu.</p>
+  <div class="spring">
+    <div class="hd">Tương đồng Java — cách ký JWT đúng trong Spring Boot</div>
+    <div class="bd"><pre><code><span class="cm">// Với jjwt + java.security.KeyPair RSA thật:</span>
+String jws = Jwts.builder()
+    .subject(<span class="st">"HTBAdministrator1337"</span>)
+    .signWith(privateKey, Jwts.SIG.RS256)  <span class="cm">// RS256 = RSA với padding PKCS#1 v1.5 chuẩn</span>
+    .compact();
+<span class="cm">// Không ai tự implement pow(hash, d, n) bằng tay — luôn dùng thư viện chuẩn.</span></code></pre></div>
+  </div>
+</div>
+
+<h3>0.4 — Các cờ công cụ dùng xuyên suốt bài</h3>
+<div class="card">
+<table>
+  <tr><th>Cờ / hàm</th><th>Ý nghĩa</th><th>Tại sao dùng ở đây</th></tr>
+  <tr><td><code>curl -s</code></td><td>Silent — bỏ progress bar, chỉ in body</td><td>response JSON dễ đọc, dễ pipe vào <code>jq</code></td></tr>
+  <tr><td><code>curl -i</code></td><td>Include header của response</td><td>cần biết status code (401 vs 403) để phân biệt lỗi</td></tr>
+  <tr><td><code>curl -X POST -d</code></td><td>đặt method POST và body</td><td>đăng ký user, gọi dashboard</td></tr>
+  <tr><td><code>random.seed(int)</code></td><td>seed PRNG của Python</td><td>reproduce chính xác quá trình sinh khóa của server</td></tr>
+  <tr><td><code>pow(h, d, n)</code></td><td>lũy thừa modulo (h^d mod n)</td><td>thực hiện phép ký RSA textbook giống server</td></tr>
+  <tr><td><code>multiprocessing.Pool</code></td><td>chia tác vụ CPU ra nhiều core</td><td>sinh khóa RSA là CPU-bound, 8 core nhanh gấp ~8 lần</td></tr>
+  <tr><td><code>aiohttp</code></td><td>HTTP client bất đồng bộ</td><td>bắn hàng trăm request verify song song, không chờ từng cái</td></tr>
+</table>
+</div>
+
+<h2 id="p1">Phần 1 — Recon: đọc source là hiểu luôn lỗ hổng</h2>
+<p class="muted">Đây là bài crypto có source đi kèm — recon chính là đọc kỹ từng dòng code sinh khóa và ký token trước khi động vào server.</p>
+
+<h3>1.1 — Xác định bề mặt tấn công: hai endpoint</h3>
+<pre><code><span class="cm"># đăng ký user → nhận JWT; username 10-20 ký tự, không được bắt đầu bằng "HTBAdministrator"</span>
+curl -s -X POST http://154.57.164.77:44121/register \
+  -H 'Content-Type: application/json' \
+  -d '{"username": "user1792735961"}'</code></pre>
+<pre><code><span class="cm"># response 200:</span>
+{
+  <span class="st">"message"</span>: <span class="st">"The user was registered successfully!"</span>,
+  <span class="st">"token"</span>: <span class="st">"eyJhbGciOiAiUlNBMWsyNCIsICJ0eXAiOiAiSldUIn0.eyJ1c2VybmFtZSI6ICJ1c2VyMTc5MjczNTk2MSJ9...."</span>
+}</code></pre>
+<div class="verify"><b>✔ Cách verify:</b> status 200, body JSON có trường <code>token</code> gồm 2 dấu chấm (đúng cấu trúc JWT). Giải base64 phần payload (giữa hai dấu chấm) bằng <code>echo eyJ1c2Vy... | base64 -d</code> → thấy <code>{"username": "user1792735961"}</code>.</div>
+
+<h3>1.2 — Đọc code sinh khóa: đây là "trái tim" của bài</h3>
+<p>File <code>crypto/rsa.py</code>:</p>
+<pre><code><span class="kw">def</span> <span class="fn">create_key</span>(username):
+    tm = int(time.time())
+    random.seed(int(hashlib.sha384(
+        <span class="st">f'{os.urandom(1).hex()}{tm}{username}'</span>   <span class="cm"># ⚠️ chỉ 1 byte ngẫu nhiên + timestamp + username</span>
+    ).hexdigest(), 16))
+    p = gen_prime(512)   <span class="cm"># ← tất cả "ngẫu nhiên" từ đây trở đi đều do seed này quyết định</span>
+    q = gen_prime(512)
+    ...</code></pre>
+<p>Phân tích entropy của seed — server tự hủy an toàn của chính mình bằng 3 thành phần:</p>
+<table>
+  <tr><th>Thành phần trong seed</th><th>Kẻ tấn công biết không?</th><th>Số khả năng</th></tr>
+  <tr><td><code>os.urandom(1)</code> — 1 byte ngẫu nhiên</td><td><b>không</b> — đây là phần duy nhất phải đoán</td><td>256</td></tr>
+  <tr><td><code>tm</code> — timestamp giây lúc sinh khóa</td><td><b>gần như biết</b> — chênh lệch vài giây/phút so với giờ ta gọi API</td><td>~hàng trăm giây cần duyệt</td></tr>
+  <tr><td><code>username</code></td><td><b>biết</b> — chính ta chọn</td><td>1</td></tr>
+</table>
+<div class="note">Entropy thật sự chỉ là <b>1 byte = 256 giá trị</b>! Mọi thứ còn lại đều suy ra được. Không gian tìm kiếm = 256 × (số giây cần duyệt) — ví dụ duyệt 300 giây quanh thờI điểm ta đăng ký = 76.800 khả năng, sinh khóa mỗi cái ~0.04s.</div>
+<div class="verify"><b>✔ Cách verify (phân tích tĩnh):</b> ghi nhớ công thức seed <code>sha384(byte_hex + tm + username)</code>. Đây là giá trị ta sẽ brute-force ở Phần 3 — với user của mình thì <code>tm</code> lấy từ thờI điểm gọi <code>/register</code>, với admin thì <code>tm</code> là lúc app khởi động.</div>
+
+<h3>1.3 — Đọc code ký/verify token và kiểm tra admin</h3>
+<p>File <code>crypto/jwt.py</code> (rút gọn):</p>
+<pre><code><span class="kw">def</span> <span class="fn">sign</span>(self, user, msg):
+    n, _, _, _, d, _ = user.key
+    h = bytes_to_long(sha512(msg).digest())
+    sig = pow(h, d, n)                 <span class="cm"># ký textbook, không padding</span>
+    ...
+
+<span class="kw">def</span> <span class="fn">verify_token</span>(self, user, token):
+    ...
+    <span class="kw">return</span> h == pow(s, e, n)        <span class="cm"># verify bằng khóa CÔNG KHAI của user trong DB</span>
+
+<span class="kw">def</span> <span class="fn">check_admin</span>(self, token):
+    username = payload_json['username']
+    <span class="kw">return</span> username == <span class="st">'HTBAdministrator1337'</span></code></pre>
+<p>File <code>views.py</code> — endpoint <code>/dashboard</code>:</p>
+<pre><code>token = headers['Authorization'].split(': ')[1]
+username = json.loads(b64decode(token.split('.')[1]))['username']
+user = database.fetch_user_by_username(username)     <span class="cm"># payload nói ai, verify bằng khóa NGƯỜI ĐÓ</span>
+is_verified = jwt.verify_token(user, token)
+<span class="kw">if</span> <span class="kw">not</span> is_verified: <span class="kw">return</span> ... 401
+<span class="kw">if</span> <span class="kw">not</span> jwt.check_admin(token): <span class="kw">return</span> ... 403
+<span class="kw">return</span> jsonify({'message': f"Welcome admin! {open('/flag.txt').read()}"}), 200</code></pre>
+<div class="tip"><b>Chuỗi suy luận then chốt:</b> dashboard verify token bằng khóa của <b>username trong payload</b>. Nếu ta gửi payload <code>{"username": "HTBAdministrator1337"}</code> kèm chữ ký hợp lệ theo <b>khóa riêng của admin</b> → verify qua → check_admin qua → flag về. Toàn bộ bài toán quy về: <b>tìm khóa riêng của admin</b> = brute-force seed của admin.</div>
+<div class="verify"><b>✔ Cách verify (phân tích tĩnh):</b> trong <code>database.py</code>, dòng <code>database = DB()</code> chạy ngay khi module load — tức admin <code>HTBAdministrator1337</code> được tạo <b>ngay lúc app (re)start</b>. Ghi nhớ: seed admin = <code>sha384(byte + tm_khởi_động_app + "HTBAdministrator1337")</code>.</div>
+
+<h2 id="p2">Phần 2 — Các hướng tấn công trực diện (thất bại, và cách verify)</h2>
+<p class="muted">Phải chứng minh đường tắt không đi được trước khi đi đường vòng — mỗi thất bại đều siết lại không gian phải brute-force.</p>
+
+<h3><span class="tag bad">THẤT BẠI</span> 2.1 — Đăng ký trực tiếp tài khoản admin</h3>
+<pre><code><span class="cm"># thử đăng ký luôn tên admin</span>
+curl -s -i -X POST http://154.57.164.77:44121/register \
+  -H 'Content-Type: application/json' \
+  -d '{"username": "HTBAdministrator1337"}'</code></pre>
+<pre><code>HTTP/1.1 403 FORBIDDEN
+{<span class="st">"error"</span>: <span class="st">"You are not allowed to register an admin user."</span>}</code></pre>
+<p>Kết luận: server chặn cứng ở controller (<code>username.startswith("HTBAdministrator")</code>). Không thể tự tạo user admin → phải <b>giả mạo chữ ký</b> của admin có sẵn trong DB.</p>
+<div class="verify"><b>✔ Cách verify:</b> status 403 và chuỗi <code>not allowed to register</code> xuất hiện — không phải lỗi 400 về độ dài, chứng tỏ bị chặn riêng vì tiền tố admin.</div>
+
+<h3><span class="tag bad">THẤT BẠI</span> 2.2 — Sửa payload JWT của user mình rồi đổi username thành admin</h3>
+<pre><code><span class="cm"># lấy token user thường, decode payload, sửa username → admin, encode lại, giữ nguyên signature</span>
+TOKEN=<span class="st">"&lt;token từ bước 1.1&gt;"</span>
+PAYLOAD=$(echo $TOKEN | cut -d. -f2)
+echo $PAYLOAD | base64 -d   <span class="cm"># {"username": "user1792735961"}</span>
+FORGED=$(echo -n '{"username": "HTBAdministrator1337"}' | base64)
+curl -s -i -X POST http://154.57.164.77:44121/dashboard \
+  -H "Authorization: x: $(echo $TOKEN | cut -d. -f1).$FORGED.$(echo $TOKEN | cut -d. -f3)"</code></pre>
+<pre><code>HTTP/1.1 401 UNAUTHORIZED
+{<span class="st">"error"</span>: <span class="st">"Your token could not be verified!"</span>}</code></pre>
+<p>Kết luận: chữ ký phải khớp với <b>khóa riêng của admin</b> (vì payload giờ claim là admin), mà ta không có. Xác nhận không thể "chỉnh sửa JWT" kiểu client-side. Phải đi đường vòng: khôi phục khóa riêng admin từ PRNG yếu.</p>
+<div class="verify"><b>✔ Cách verify:</b> status 401 với chuỗi <code>could not be verified</code> — khác với 403 "Only admins" của bước sau, chứng tỏ hệ thống verify chữ ký trước, check role sau.</div>
+
+<h3><span class="tag bad">THẤT BẠI</span> 2.3 — Kiến trúc brute-force "mỗi worker tự sinh khóa + tự gọi HTTP"</h3>
+<p>Bản đầu tiên của script brute-force để mỗi worker (trong Pool 8 tiến trình) làm cả hai việc: sinh khóa candidate (~0.037s, CPU) rồi tự gọi HTTP verify (~0.7s, I/O) — tuần tự trong cùng worker. Kết quả đo thực tế: chỉ ~12 candidates/giây cho dù có 8 core.</p>
+<pre><code><span class="cm"># sau 290s chạy, file tiến độ chỉ ghi nhận:</span>
+done tm=...951 at ...643   <span class="cm"># mỗi giây (tm) = 256 candidates mất ~22 giây → ~12/s</span></code></pre>
+<p>Kết luận: CPU và I/O bị khoá chéo nhau — worker ngồi chờ HTTP thì core CPU bị bỏ phí. Tách riêng: một nhóm chỉ sinh khóa (CPU-bound, multiprocessing), một nhóm chỉ bắn HTTP (I/O-bound, aiohttp 128 luồng) → tăng lên ~55-60/s.</p>
+<div class="verify"><b>✔ Cách verify:</b> đo latency một request: <code>time curl -s -X POST .../dashboard -H "Authorization: x: &lt;token_bất_kỳ&gt;"</code> → ~0.7s; đo keygen: vòng lặp 10 lần <code>create_key()</code> → 0.037s/lần. 0.037 + 0.7 tuần tự ≈ 0.74s/candidate → 8 worker ÷ 0.74 ≈ 11/s, khớp số đo. Khi tách hai pha, pha keygen cho 8 core đạt ~215 candidates/s, pha HTTP với 128 kết nối giữ ~55-60/s ổn định.</div>
+
+<h2 id="p3">Phần 3 — Đột phá: brute-force seed của admin theo hai pha</h2>
+
+<h3>3.1 — Xác định cửa sổ thờI gian cần duyệt</h3>
+<p>Admin được tạo khi app khởi động. App khởi động trong container ngay sau khi instance được spawn — mà ta biết chính xác thờI điểm <b>mình</b> đăng ký user (gọi <code>/register</code> và ghi lại <code>time.time()</code> ngay trước request). Khoảng cách "spawn → lúc ta register" đo được bằng đồng hồ bấm giây trong phiên: khoảng 3-4 phút.</p>
+<div class="verify"><b>✔ Cách verify:</b> ghi <code>tm_user = int(time.time())</code> ngay trước khi gọi <code>/register</code>. Lần chạy thật: <code>tm_user = 1792735962</code>. Cửa sổ duyệt chọn <code>[tm_user - 300, tm_user]</code> = 300 giây × 256 byte = tối đa 76.800 candidates. Flag nằm ở <code>tm_admin = 1792735767</code>, tức tm_user − 195 — trong cửa sổ dự kiến.</div>
+
+<h3>3.2 — Tự xác nhận mô hình bằng user của chính mình (offline)</h3>
+<p>Trước khi brute-force admin (không có chữ ký thật để đối chiếu), ta chứng minh mô hình seed đúng bằng user đã đăng ký: duyệt 256 byte với <code>tm_user</code> vừa ghi, sinh khóa candidate, và so sánh trực tiếp với chữ ký thật có trong token:</p>
+<pre><code><span class="cm"># h = sha512(header + "." + payload); server ký: sig = pow(h, d, n)</span>
+<span class="cm"># với candidate (tm, byte): seed = int(sha384(f'{byte:02x}{tm}{username}'), 16)</span>
+<span class="cm"># → random.seed(seed) → sinh p, q → n, d → kiểm tra pow(sig, e, n) == h ?</span>
+<span class="cm"># Kết quả thật: tm=1792735961, byte=164 (0xa4) khớp → mô hình seed đúng 100%</span></code></pre>
+<div class="verify"><b>✔ Cách verify:</b> lấy <code>signature</code> (phần sau dấu chấm thứ hai) từ token thật của user, decode base64 → số nguyên <code>s</code>. Tính <code>h</code> từ header.payload. Với candidate tìm được: <code>pow(s, 0x10001, n_candidate) == h</code> phải đúng — đây là phép kiểm chứng offline, không cần server.</div>
+
+<h3>3.3 — Script brute-force admin theo kiến trúc hai pha</h3>
+<p>Đây là script thật đã chạy (rút gọn). Pha 1: 8 tiến trình sinh token cho từng candidate <code>(tm, byte)</code>. Pha 2: aiohttp bắn 128 request <code>/dashboard</code> song song, tìm chuỗi <code>HTB{</code> trong response.</p>
+<pre><code><span class="cm"># brute_admin2.py — chạy: python3 brute_admin2.py &lt;tm_bắt_đầu&gt; &lt;tm_kết_thúc&gt;</span>
+<span class="kw">def</span> <span class="fn">build_token</span>(username, tm, bytehex):
+    random.seed(int(hashlib.sha384(<span class="st">f'{bytehex}{tm}{username}'</span>.encode()).hexdigest(), 16))
+    p = gen_prime(512); q = gen_prime(512)     <span class="cm"># giống hệt server</span>
+    n = p*q; d = pow(0x10001, -1, (p-1)*(q-1))
+    header = b64encode(json.dumps({'alg': <span class="st">'RSA1k24'</span>, <span class="st">'typ'</span>: <span class="st">'JWT'</span>}).encode()).rstrip(b'=')
+    payload = b64encode(json.dumps({<span class="st">'username'</span>: username}).encode())  <span class="cm"># KHÔNG rstrip dấu "=" ở payload</span>
+    h = bytes_to_long(sha512(header + b'.' + payload).digest())
+    sig = b64encode(long_to_bytes(pow(h, d, n)))
+    <span class="kw">return</span> b'.'.join([header, payload, sig]).decode()
+
+<span class="kw">def</span> <span class="fn">gen_task</span>(args):                        <span class="cm"># ← chạy trong Pool(8)</span>
+    tm, byteint = args
+    <span class="kw">try</span>:
+        <span class="kw">return</span> (tm, byteint, build_token(ADMIN, tm, <span class="st">f'{byteint:02x}'</span>))
+    <span class="kw">except</span> Exception:                  <span class="cm"># một số seed cho phi không nghịch đảo</span>
+        <span class="kw">return</span> (tm, byteint, <span class="kw">None</span>)
+
+<span class="kw">async def</span> <span class="fn">check_all</span>(tasks):                 <span class="cm"># ← aiohttp, semaphore 128</span>
+    <span class="kw">async with</span> sem:
+        <span class="kw">async with</span> s.post(HOST+<span class="st">'/dashboard'</span>, data=b'',
+              headers={<span class="st">'Authorization'</span>: <span class="st">'x: '</span>+token}) <span class="kw">as</span> r:
+            body = <span class="kw">await</span> r.text()
+        <span class="kw">if</span> <span class="st">'HTB{'</span> <span class="kw">in</span> body: found.append(...)   <span class="cm"># ← dấu hiệu trúng</span></code></pre>
+<div class="note">Lưu ý khi reproduce JWT thủ công: trong source, <b>header được rstrip dấu <code>=</code></b> còn <b>payload thì không</b>. Sai một ký tự ở đây thì <code>sha512(header.payload)</code> khác hẳn, chữ ký sẽ không bao giờ verify được dù seed đúng.</div>
+<div class="verify"><b>✔ Cách verify khi chạy:</b> script in tiến độ mỗi chunk 1024 candidates. Kỳ vọng: <code>29184 candidates, tm 1792735773 -&gt; 1792735660</code> rồi <code>1024/29184 elapsed 16s rate 61/s</code>. Nếu rate dưới 15/s, kiến trúc đang sai — quay lại mục 2.3.</div>
+
+<h3>3.4 — Kết quả brute-force thật</h3>
+<pre><code>1024/29184 elapsed 16s rate 61/s
+FOUND tm=1792735767 byte=13
+{<span class="st">"message"</span>: <span class="st">"Welcome admin! HTB{do_not_initialize_PRNGs_with_timestamp_and_known_data_..."}</span>}</code></pre>
+<p>Admin key được sinh tại <code>tm_admin = 1792735767</code> với byte ngẫu nhiên <code>13</code> (hex <code>0d</code>) — cách thờI điểm ta đăng ký user đúng 195 giây, khớp giả định "app khởi động ngay sau khi spawn". Tổng số candidate đã duyệt trước khi trúng: khoảng <b>28.600</b>, trong ~9 phút chạy thật.</p>
+<div class="verify"><b>✔ Cách verify:</b> với <code>tm=1792735767, byte=0d, username='HTBAdministrator1337'</code>, script đã tự kiểm chứng — response trả về 200 kèm <code>Welcome admin!</code> và flag. Muốn kiểm chứng lại offline: lưu token tìm được, decode payload → <code>{"username": "HTBAdministrator1337"}</code>, và gọi lại <code>/dashboard</code> với cùng token → vẫn 200.</div>
+
+<h2 id="p4">Phần 4 — Kết liễu: gọi /dashboard với token admin giả mạo</h2>
+<p>Thực ra bước 3.4 đã kết liễu luôn (script tự POST khi tìm thấy candidate). Để làm tay từ token đã lưu:</p>
+<pre><code><span class="cm"># /tmp/brute_result.json chứa token đã tìm được</span>
+TOKEN=$(python3 -c "import json;print(json.load(open('/tmp/brute_result.json'))['token'])")
+curl -s -i -X POST http://154.57.164.77:44121/dashboard \
+  -H "Authorization: x: $TOKEN"</code></pre>
+<pre><code>HTTP/1.1 200 OK
+{<span class="st">"message"</span>: <span class="st">"Welcome admin! HTB{do_not_initialize_PRNGs_with_timestamp_and_known_data_5a70c3621ab6222736d455a409cb95bd}"</span>}</code></pre>
+<div class="verify"><b>✔ Cách verify:</b> status 200 (không phải 401/403), chuỗi <code>Welcome admin!</code> xuất hiện, flag bắt đầu bằng <code>HTB{</code> — cả ba điều kiện cùng thỏa.</div>
+
+<h3>Bảng tổng kết chuỗi tấn công</h3>
+<table>
+  <tr><th>#</th><th>Hành động</th><th>Dựa vào đâu</th><th>Verify bằng</th></tr>
+  <tr><td>1</td><td>Đọc source <code>rsa.py</code>, thấy seed = 1 byte + timestamp + username</td><td>source đi kèm challenge</td><td>đếm entropy: 256 giá trị byte duy nhất</td></tr>
+  <tr><td>2</td><td>Đăng ký user, ghi lại <code>tm_user</code></td><td>endpoint <code>/register</code></td><td>token trả về decode ra đúng username</td></tr>
+  <tr><td>3</td><td>Brute-force seed của user, kiểm chứng offline với signature thật</td><td>công thức seed ở bước 1</td><td><code>pow(sig, e, n_candidate) == sha512(msg)</code></td></tr>
+  <tr><td>4</td><td>Brute-force seed admin trong <code>[tm_user-300, tm_user]</code></td><td>admin tạo lúc app start; byte duy nhất phải đoán</td><td>HTTP oracle: response có <code>HTB{</code></td></tr>
+  <tr><td>5</td><td>POST <code>/dashboard</code> với JWT tự ký payload admin</td><td>verify dùng khóa theo username trong payload</td><td>200 + <code>Welcome admin!</code> + flag</td></tr>
+</table>
+
+<h2 id="p5">Phần 5 — Root cause qua góc nhìn Java Spring Boot</h2>
+<p>Bài này là crypto chứ không phải web framework, nên ta dịch lỗi sang nguyên tắc thiết kế tương đương trong hệ Java mà bạn quen thuộc.</p>
+
+<div class="spring bad-ex">
+  <div class="hd">❌ Code sai (bản chất tương đương trong Java — dùng Random + seed tự chế)</div>
+  <div class="bd"><pre><code><span class="cm">// "Bản Java" của create_key() trong bài: seed tự chế từ dữ liệu bán công khai</span>
+<span class="kw">public</span> KeyPair generateKeyPair(String username) {
+    <span class="kw">long</span> tm = System.currentTimeMillis() / 1000;          <span class="cm">// ← kẻ tấn công đoán được</span>
+    <span class="kw">int</span> randomByte = <span class="kw">new</span> Random().nextInt(256);       <span class="cm">// ← chỉ 256 giá trị</span>
+    String seedMaterial = randomByte + <span class="st">":"</span> + tm + <span class="st">":"</span> + username;  <span class="cm">// ← username công khai</span>
+    <span class="kw">byte</span>[] seed = MessageDigest.getInstance(<span class="st">"SHA-384"</span>)
+                        .digest(seedMaterial.getBytes());       <span class="cm">// ← hash KHÔNG tạo entropy!</span>
+    SecureRandom prng = <span class="kw">new</span> SecureRandom(seed);        <span class="cm">// ← seed thủ công: dù SecureRandom cũng vô nghĩa</span>
+    KeyPairGenerator kpg = KeyPairGenerator.getInstance(<span class="st">"RSA"</span>);
+    kpg.initialize(1024, prng);                                  <span class="cm">// ← 1024-bit với PRNG dự đoán được</span>
+    <span class="kw">return</span> kpg.generateKeyPair();
+}</code></pre></div>
+</div>
+<div class="spring">
+  <div class="hd">✅ Code sửa — entropy phải lấy từ OS, không tự chế seed</div>
+  <div class="bd"><pre><code><span class="cm">// Nguyên tắc: KHÔNG BAO GIỜ tự gọi setSeed với dữ liệu mình sinh ra.</span>
+<span class="cm">// SecureRandom mặc định đã tự lấy entropy từ /dev/urandom — đừng động vào.</span>
+<span class="kw">public</span> KeyPair generateKeyPair() {
+    SecureRandom secureRandom = <span class="kw">new</span> SecureRandom();  <span class="cm">// entropy thật từ OS</span>
+    KeyPairGenerator kpg = KeyPairGenerator.getInstance(<span class="st">"RSA"</span>);
+    kpg.initialize(2048, secureRandom);                     <span class="cm">// độ dài hợp lệ cho production</span>
+    <span class="kw">return</span> kpg.generateKeyPair();
+}
+
+<span class="cm">// Ký JWT: dùng thuật toán chuẩn có padding, không tự implement textbook RSA</span>
+String jws = Jwts.builder()
+    .subject(username)
+    .signWith(privateKey, Jwts.SIG.RS256)
+    .compact();</code></pre></div>
+</div>
+<p><b>Bốn vi phạm nguyên tắc trong một hàm <code>create_key</code>:</b></p>
+<ul class="dash">
+  <li><b>Entropy giả:</b> <code>sha384(byte + tm + username)</code> trông dài 384 bit nhưng không gian thật chỉ 256 giá trị. <b>Bài học: độ dài của hash không tạo ra entropy.</b> Giống hệt việc hash một mật khẩu 4 số bằng SHA-512 — vẫn chỉ có 10.000 khả năng.</li>
+  <li><b>Tự seed PRNG:</b> dù sau đó dùng <code>random.randint</code> có vẻ "ngẫu nhiên", toàn bộ chuỗi số đã bị định sẵn bởi seed. Giống <code>new SecureRandom(mydeterministicSeed)</code> trong Java.</li>
+  <li><b>Dữ liệu bán công khai trong seed:</b> timestamp (đoán được trong phút) và username (kẻ tấn công tự chọn). Mọi thành phần "bí mật" của seed phải thật sự bí mật.</li>
+  <li><b>RSA 1024-bit ký textbook không padding:</b> dù PRNG tốt, <code>pow(sha512(msg), d, n)</code> thủ công vẫn sai chuẩn — phải dùng RSA-PSS / RS256 qua thư viện.</li>
+</ul>
+
+<h2 id="p6">Phần 6 — Bài học &amp; checklist khi tự làm lại</h2>
+<div class="card">
+<ol class="steps">
+  <li><b>Entropy là thứ duy nhất quan trọng khi sinh khóa.</b> Hãy đếm: "kẻ tấn công phải đoán bao nhiêu giá trị?" — nếu trả lờI là 256, bài đã xong một nửa.</li>
+  <li><b>Hash không tạo entropy.</b> <code>sha384(ít_entropy)</code> vẫn là ít entropy. Đừng bị độ dài output đánh lừa.</li>
+  <li><b>Timestamp gần như luôn bị coi là "biết".</b> Bất kỳ secret nào pha timestamp đều giảm xuống brute-force trong cửa sổ thờI gian.</li>
+  <li><b>Kiểm chứng mô hình với dữ liệu của chính mình trước.</b> Brute-force seed user (có signature thật để check offline) trước khi brute-force admin — tránh mất 10 phút cho một giả định sai.</li>
+  <li><b>Tách CPU-bound khỏi I/O-bound.</b> Sinh khóa RSA (CPU) và bắn HTTP verify (I/O) trong hai pha riêng: 12/s → 60/s, gấp 5 lần chỉ bằng cách đổi kiến trúc.</li>
+  <li><b>Reproduce JWT đúng từng ký tự.</b> rstrip <code>=</code> ở header mà không rstrip ở payload — sai một dấu bằng là chữ ký vô giá trị.</li>
+  <li><b>Container bị restart = mọi giả định về tm_admin vô hiệu.</b> Nếu quét hết cửa sổ mà không thấy, hãy nghĩ đến khả năng instance restart và admin được tạo lại với seed mới.</li>
+</ol>
+</div>
+<div class="tip"><b>Checklist tự làm lại:</b> đọc source sinh khóa → đếm entropy seed → đăng ký user + ghi timestamp → brute-force seed user kiểm chứng offline → mở rộng cửa sổ brute-force sang admin → hai pha CPU/I/O → tự ký JWT payload <code>HTBAdministrator1337</code> → POST <code>/dashboard</code> → kiểm tra 200 + <code>Welcome admin!</code>.</div>
+
+<p class="muted" style="margin-top:40px">Flag đã lấy thành công nhưng <b>chưa nộp</b> — bạn tự submit ở portal HTB. Challenge crypto "medium" nhưng lỗi gốc chỉ là một dòng seed sai. Chúc mừng!</p>
+
+</div>
+</body>
+</html>

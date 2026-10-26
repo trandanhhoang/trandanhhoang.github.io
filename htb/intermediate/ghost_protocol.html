@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hướng dẫn từng bước — GhostProtocol (Mobile/RE CTF)</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --border:#30363d; --fg:#e6edf3; --mut:#8b949e;
+          --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.7; }
+  .wrap { max-width:940px; margin:0 auto; padding:32px 20px 90px; }
+  header.hero { border:1px solid var(--border); border-radius:12px; background:linear-gradient(135deg,#161b22,#1a2332);
+                 padding:28px 32px; margin-bottom:28px; }
+  header.hero h1 { margin:0 0 6px; font-size:1.7rem; }
+  header.hero .sub { color:var(--mut); }
+  .flag-box { margin-top:16px; border:1px solid var(--ok); border-radius:10px; background:#12261a; padding:14px 18px; }
+  .flag-box code { color:var(--ok); font-size:1.15rem; font-weight:700; }
+  h2 { color:var(--acc); border-bottom:1px solid var(--border); padding-bottom:8px; margin-top:52px; }
+  h3 { color:var(--fg); margin-top:32px; }
+  h4 { color:var(--acc); margin-top:22px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.88em;
+         background:#1c2128; border:1px solid var(--border); border-radius:5px; padding:2px 6px; color:#a5d6ff; }
+  pre { background:#0d1117; border:1px solid var(--border); border-radius:10px; padding:16px; overflow-x:auto;
+        color:#c9d1d9; line-height:1.6; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.87em; }
+  pre code { background:none; border:none; padding:0; color:inherit; }
+  .cm { color:#7ee787; }
+  .kw { color:#ff7b72; }
+  .st { color:#a5d6ff; }
+  .fn { color:#d2a8ff; }
+  table { border-collapse:collapse; width:100%; margin:16px 0; font-size:.92em; }
+  th,td { border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top; }
+  th { background:#1c2128; }
+  .tag { display:inline-block; font-size:.75rem; font-weight:700; border-radius:20px; padding:2px 10px; margin-right:6px; }
+  .tag.ok { background:#12261a; color:var(--ok); border:1px solid var(--ok); }
+  .tag.bad { background:#2d1214; color:var(--bad); border:1px solid var(--bad); }
+  .tag.warn { background:#2a2110; color:var(--warn); border:1px solid var(--warn); }
+  .note { border-left:4px solid var(--warn); background:#211d12; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .tip { border-left:4px solid var(--ok); background:#12261a55; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .verify { border-left:4px solid var(--acc); background:#0d1a2b; padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0; }
+  .verify b:first-child { color:var(--acc); }
+  .muted { color:var(--mut); }
+  ol.steps > li, ul.dash > li { margin-bottom:8px; }
+  .toc a { color:var(--acc); text-decoration:none; }
+  .toc a:hover { text-decoration:underline; }
+  .spring { border:1px solid #6e7681; border-radius:10px; margin:16px 0; overflow:hidden; }
+  .spring .hd { background:#12324a; padding:8px 16px; font-weight:700; font-size:.9em; color:#79c0ff; }
+  .spring .bd { padding:4px 16px 14px; background:#0d1117; }
+  .spring.bad-ex .hd { background:#3d1d22; color:#ffa198; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>👻 GhostProtocol — Mã hóa native cũng chỉ là "giấu trong bóng tối"</h1>
+  <div class="sub">Challenge Mobile / Reverse Engineering · HTB Intermediate — NAB Internal CTF · <span class="muted">target: file <code>ghost_protocol.apk</code> (phân tích offline, không cần server)</span></div>
+  <div class="flag-box">
+    🏁 Flag (đã lấy được, <b>chưa nộp — bạn tự submit</b> ờ portal):<br>
+    <code>HTB{Str1ngs_4r3_n0t_S3cr3ts_Ag3nt}</code>
+  </div>
+  <div class="card toc" style="margin-top:16px">
+    <b>Mục lục:</b><br>
+    <a href="#p0">Phần 0 — Khái niệm nền</a> ·
+    <a href="#p1">Phần 1 — Recon</a> ·
+    <a href="#p2">Phần 2 — Dead ends</a> ·
+    <a href="#p3">Phần 3 — Đột phá</a> ·
+    <a href="#p4">Phần 4 — Kết liễu</a> ·
+    <a href="#p5">Phần 5 — Root cause (Spring Boot)</a> ·
+    <a href="#p6">Phần 6 — Checklist</a>
+  </div>
+</header>
+
+<p class="muted">Bài viết giả định bạn là lập trình viên Java/Spring Boot, chưa từng reverse-engineering app Android. Mọi khái niệm lạ (APK, JNI, disassembly, LCG...) đều được giải thích ngay khi gặp, và mỗi bước đều có ô "Cách verify" để bạn tự kiểm chứng trước khi đi tiếp.</p>
+
+<!-- ================= PHẦN 0 ================= -->
+<h2 id="p0">Phần 0 — Kiến thức nền cần có trước khi bắt đầu</h2>
+
+<h3>0.1 — APK là gì, và vì sao "mã nguồn" của nó gần như luôn bị lộ</h3>
+<div class="card">
+<p><b>APK</b> (Android Package) thực chất chỉ là một file <b>ZIP</b> đổi tên. Bên trong gồm:</p>
+<table>
+  <tr><th>Thành phần</th><th>Vai trò</th><th>Tương đồng với một app Spring Boot</th></tr>
+  <tr><td><code>classes.dex</code></td><td>Mã bytecode Java/Kotlin đã compile. Đọc ngược (decompile) được gần như hoàn chỉnh về Java.</td><td>JAR/WAR của bạn — nếu bạn ship JAR cho khách hàng thì khách decompile được toàn bộ service.</td></tr>
+  <tr><td><code>resources.arsc</code> + <code>res/</code></td><td>Bảng chuỗi, màu sắc, layout — kể cả chuỗi "bí mật" như API key, token mẫu.</td><td><code>application.properties</code> đóng gói chung JAR: ai có JAR là đọc được hết.</td></tr>
+  <tr><td><code>lib/&lt;abi&gt;/*.so</code></td><td>Thư viện <b>native</b> (C/C++ compile ra machine code) — đây là nơi dev Android thường "giấu" thuật toán nhạy cảm, vì machine code khó đọc hơn bytecode.</td><td Một native module gọi qua JNI — tương tự chỗ bạn gọi một thư viện C bằng JNI/JNA vì "Java chậm" hay "giấu thuật toán".</td></tr>
+  <tr><td><code>AndroidManifest.xml</code></td><td>Khai báo activity, permission, cờ bảo mật (<code>debuggable</code>, <code>exported</code>...).</td><td>Class config + security config của Spring.</td></tr>
+</table>
+<p><b>Bài học xuyên suốt bài này:</b> đưa secret vào client (APK hay bất kỳ artifact nào chạy trên máy người dùng) thì secret đó <b>không còn là secret</b>. Khác biệt duy nhất giữa giấu trong <code>classes.dex</code>, trong <code>resources.arsc</code> hay trong <code>.so</code> là <b>thứ tự bạn mất bao lâu để đọc được nó</b> — chứ không phải đọc được hay không.</p>
+</div>
+<div class="verify"><b>✔ Cách verify:</b> đây là phân tích tĩnh. Tự kiểm chứng ngay: chạy <code>unzip -l ghost_protocol.apk</code> (bước 1.1) — nếu danh sách file bên trong giống bảng trên, mô hình APK = ZIP đã đúng.</div>
+
+<h3>0.2 — JNI: cầu nối Java ↔ native, và vì sao nó làm bề mặt tấn công "to hơn" chứ không nhỏ hơn</h3>
+<div class="card">
+<p><b>JNI</b> (Java Native Interface) cho phép code Java gọi hàm viết bằng C/C++ compile trong <code>.so</code>. Trong Java, hàm native khai báo với từ khóa <code>native</code> và <b>không có thân hàm</b>:</p>
+<pre><code><span class="kw">public class</span> <span class="fn">SecurityUtils</span> {
+    <span class="kw">static</span> { System.loadLibrary(<span class="st">"ghost_crypto"</span>); }  <span class="cm">// nạp libghost_crypto.so</span>
+    <span class="kw">public static native</span> String <span class="fn">nativeDecrypt</span>(<span class="kw">byte</span>[] data);  <span class="cm">// thân hàm nằm trong .so</span>
+}</code></pre>
+<p>Tên hàm trong <code>.so</code> phải theo quy ước <code>Java_&lt;package&gt;_&lt;class&gt;_&lt;method&gt;</code>, ví dụ <code>Java_com_phantom_ghostprotocol_SecurityUtils_nativeDecrypt</code>. Quy ước này là <b>mỏ neo để ta đi ngược</b>: đọc Java thấy gọi hàm nào → sang <code>.so</code> tìm đúng symbol đó.</p>
+<div class="spring">
+  <div class="hd">Tương đồng Spring Boot</div>
+  <div class="bd"><p>Giống như bạn tách một service Spring thành 2 phần: <code>@RestController</code> (lớp mỏng, nhận request) + một module C gọi qua JNI (lớp "bí mật"). Việc đó không bảo vệ gì cả — controller vẫn leak ra ngoài giống hệt APK, và module C vẫn nằm chung trong artifact người dùng cài đặt. Bạn chỉ thêm <b> một lớp gọi hàm</b> cho attacker phải đọc thêm, không thêm lớp <b>bảo vệ</b> nào.</p></div>
+</div>
+</div>
+<div class="verify"><b>✔ Cách verify:</b> phân tích tĩnh. Ghi nhớ quy tắc đặt tên JNI này — bước 1.5 sẽ dùng nó để đối chiếu symbol trong <code>.so</code> với hàm Java.</div>
+
+<h3>0.3 — Decompile (đọc bytecode → Java) và Disassemble (đọc machine code → assembly)</h3>
+<div class="card">
+<table>
+  <tr><th>Kỹ thuật</th><th>Input → Output</th><th>Dùng khi nào trong bài này</th></tr>
+  <tr><td><b>Decompile</b></td><td><code>classes.dex</code> → mã Java gần như nguyên bản</td><td>Bước 1.3 — đọc luồng: màn login kiểm tra PIN thế nào, màn chat lấy Handler ID từ đâu.</td></tr>
+  <tr><td><b>Disassemble</b></td><td><code>.so</code> → assembly từng lệnh CPU (không còn tên biến, chỉ còn thanh ghi)</td><td>Bước 3.2 — đọc thuật toán giải mã trong <code>libghost_crypto.so</code> và viết lại bằng Python.</td></tr>
+</table>
+<p>Disassembly đọc chậm hơn nhiều, nhưng với hàm nhỏ (vài chục lệnh) thì hoàn toàn làm tay được — và đây là kỹ năng cốt lõi của bài này.</p>
+</div>
+<div class="verify"><b>✔ Cách verify:</b> phân tích tĩnh. Bạn sẽ thấy cả hai kỹ thuật cùng xuất hiện trong Phần 1 và Phần 3; mỗi lần gặp sẽ ghi rõ đang dùng cái nào.</div>
+
+<h3>0.4 — LCG và keystream: sinh chuỗi "khó đoán" từ một con số</h3>
+<div class="card">
+<p><b>LCG</b> (Linear Congruential Generator) là dãy số giả ngẫu nhiên kiểu:</p>
+<pre><code>x<sub>n+1</sub> = (a * x<sub>n</sub> + c) mod m        <span class="cm"># hằng số a, c, m cố định</span></code></pre>
+<p>Hằng số <code>a = 0x41C64E6D, c = 0x3039, m = 2<sup>31</sup></code> là bộ thông số của <code>rand()</code> trên glibc (Linux). Một dãy LCG có thể "trông ngẫu nhiên" nhưng hoàn toàn xác định: biết seed là tái tạo được toàn bộ dãy. Trong bài này, tác giả dùng LCG + vài phép xoay bit để sinh <b>keystream</b> (chuỗi byte trộn), rồi trộn từng byte dữ liệu với từng byte keystream. Đây là mật mã dòng tự chế — vỡ ngay khi attacker biết thuật toán, vì key không bí mật nữa.</p>
+</div>
+<div class="verify"><b>✔ Cách verify:</b> phân tích tĩnh. Đến bước 4.2 bạn sẽ tự tính tay: cùng seed <code>0xD6BE2847</code>, cùng công thức → cùng keystream. Nếu hai lần chạy ra hai kết quả khác nhau thì bạn đang dùng nguồn entropy thật (như <code>SecureRandom</code>), không phải LCG.</div>
+
+<h3>0.5 — Công cụ và các cờ dùng xuyên suốt bài</h3>
+<div class="card">
+<table>
+  <tr><th>Lệnh / cờ</th><th>Ý nghĩa</th><th>Tại sao dùng ờ đây</th></tr>
+  <tr><td><code>unzip -l &lt;apk&gt;</code></td><td>Liệt kê nội dung file ZIP mà không giải nén</td><td>Nhìn nhanh "giải phẫu" APK trước khi đụng vào.</td></tr>
+  <tr><td><code>strings &lt;file&gt;</code></td><td>Trích mọi chuỗi in được trong file nhị phân</td><td>Quét nhanh <code>.so</code> và <code>resources.arsc</code> tìm chuỗi đáng ngờ (PIN, URL, key...).</td></tr>
+  <tr><td><code>objdump -d --start-address=A --stop-address=B &lt;.so&gt;</code></td><td><code>-d</code>: disassemble; hai cờ địa chỉ: chỉ in đoạn lệnh trong dải [A, B)</td><td><code>.so</code> nhỏ, ta disassemble từng hàm một thay vì cả file (hàng nghìn dòng).</td></tr>
+  <tr><td><code>androguard</code> (Python)</td><td>Thư viện parse APK: manifest, <code>resources.arsc</code>, decompile <code>classes.dex</code></td><td>Thay jadx/Apktool trên máy không cài Java; chạy script là ra mã Java.</td></tr>
+  <tr><td><code>unicorn</code> (Python)</td><td>CPU emulator: chạy machine code x86-64 trong bộ nhớ ảo</td><td>Kiểm chứng thuật toán đọc từ assembly mà <b>không cần máy Android</b>.</td></tr>
+</table>
+</div>
+
+<!-- ================= PHẦN 1 ================= -->
+<h2 id="p1">Phần 1 — Recon: đọc hết những gì "không cần đụng code" trước</h2>
+<p class="muted">Nguyên tắc: file APK nằm trọn trên tay ta — mọi thứ tác giả giấu đều nằm trong đó. Ta lấy dữ kiện từ lớp dễ đọc nhất trước (metadata, chuỗi), rồi mới đi sâu vào code.</p>
+
+<h3>Bước 1.1 — Giải phẫu APK</h3>
+<pre><code><span class="cm"># APK chỉ là ZIP — liệt kê xem bên trong có gì</span>
+unzip -l ghost_protocol.apk</code></pre>
+<pre><code>...
+  1146712  resources.arsc
+                    ...
+  lib/arm64-v8a/libghost_crypto.so
+  lib/armeabi-v7a/libghost_crypto.so
+  lib/x86/libghost_crypto.so
+  lib/x86_64/libghost_crypto.so
+  classes.dex
+  AndroidManifest.xml</code></pre>
+<p>Quan sát: có thư viện native <code>libghost_crypto.so</code> với <b>4 kiến trúc CPU</b> (giống hệt nhau, chỉ khả năng chạy). Ta sẽ dùng bản <code>x86_64</code> để disassemble cho quen thuộc. Giải nén thư mục làm việc:</p>
+<pre><code><span class="cm"># Giải nén apk ra thư mục apk/ để làm việc</span>
+mkdir -p apk &amp;&amp; unzip -o -q ghost_protocol.apk -d apk</code></pre>
+<div class="verify"><b>✔ Cách verify:</b> <code>ls apk/lib/x86_64/</code> phải thấy <code>libghost_crypto.so</code>; <code>file apk/lib/x86_64/libghost_crypto.so</code> phải in <code>ELF 64-bit ... x86-64</code>.</div>
+
+<h3>Bước 1.2 — Đọc AndroidManifest: cờ debuggable và backdoor theo cốt truyện</h3>
+<pre><code><span class="cm"># Đọc manifest bằng androguard (binary XML, không đọc bằng cat được)</span>
+python3 - &lt;&lt;'EOF'
+from androguard.core.apk import APK
+a = APK('ghost_protocol.apk')
+print(a.get_android_manifest_axml().get_xml().toprettyxml()[:3000])
+EOF</code></pre>
+<p>Trong thẻ <code>&lt;application&gt;</code> thấy ngay:</p>
+<pre><code>android:debuggable=<span class="st">"true"</span>
+android:allowBackup=<span class="st">"true"</span></code></pre>
+<p>Hai cờ này mờ đường cho <code>run-as</code> / <code>adb backup</code> trên thiết bị thật — đây chính là "backdoor mà developer quên xoá" theo mô tả đề bài. Trong phạm vi giải offline ta không cần dùng tới, nhưng ghi nhận: nếu có máy Android/emulator, ta có thể chạy app, bật debug và dump bộ nhớ mà không cần biết PIN.</p>
+<div class="verify"><b>✔ Cách verify:</b> chuỗi <code>debuggable='true'</code> phải xuất hiện trong output ờ thẻ <code>application</code>. Ngoài ra <code>MainActivity</code> có <code>exported='true'</code> còn <code>ChatActivity</code> (màn chứa flag) là <code>exported='false'</code> — tức không thể mờ thẳng màn chat bằng intent từ app ngoài.</div>
+
+<h3>Bước 1.3 — Decompile classes.dex: tìm luồng đăng nhập và chỗ phát sinh Handler ID</h3>
+<pre><code><span class="cm"># Decompile bằng androguard, in các hàm trọng tâm</span>
+python3 - &lt;&lt;'EOF'
+from androguard.misc import AnalyzeAPK
+a, ds, dx = AnalyzeAPK('ghost_protocol.apk')
+from androguard.decompiler.decompiler import DecompilerDAD
+decomp = DecompilerDAD(ds[0], dx)
+for d in ds: d.set_decompiler(decomp)
+for cls in dx.get_classes():
+    if 'ChatActivity' in cls.name:
+        for m in cls.get_methods():
+            if 'getArchivedMessages' in m.name:
+                print(m.get_method().get_source())
+EOF</code></pre>
+<p>Phần cuối của <code>getArchivedMessages()</code> — tin nhắn cuối cùng trong chat:</p>
+<pre><code>v0_1.add(<span class="kw">new</span> <span class="fn">Message</span>(<span class="st">"SYSTEM"</span>,
+    <span class="kw">new</span> <span class="fn">StringBuilder</span>().append(<span class="st">"Handler ID: "</span>)
+        .append(<span class="fn">SecurityUtils.decryptHandlerData</span>(
+            <span class="kw">this</span>.getString(<span class="fn">R$string.handler_id_encrypted</span>)))
+        .toString(),
+    <span class="st">"23:59:59"</span>, 0));</code></pre>
+<p>Và <code>SecurityUtils.decryptHandlerData</code>:</p>
+<pre><code><span class="kw">public static</span> String <span class="fn">decryptHandlerData</span>(String p2) {
+    <span class="kw">try</span> {
+        <span class="kw">return</span> <span class="fn">SecurityUtils.nativeDecrypt</span>(android.util.Base64.decode(p2, 0));
+    } <span class="kw">catch</span> (Exception v0) {
+        <span class="kw">return</span> <span class="st">"ERROR: DECRYPTION_FAILED"</span>;
+    }
+}</code></pre>
+<p><b>Chuỗi tấn công đã rõ:</b></p>
+<ul class="dash">
+  <li>Handler ID (flag) = kết quả của <code>nativeDecrypt(Base64.decode(&lt;chuỗi resource handler_id_encrypted&gt;))</code>.</li>
+  <li><code>nativeDecrypt</code> là hàm JNI → nằm trong <code>libghost_crypto.so</code>, tên symbol <code>Java_com_phantom_ghostprotocol_SecurityUtils_nativeDecrypt</code>.</li>
+  <li>Cần 2 giá trị: (a) chuỗi <code>handler_id_encrypted</code> trong <code>resources.arsc</code>; (b) thuật toán trong <code>.so</code>.</li>
+</ul>
+<div class="verify"><b>✔ Cách verify:</b> phân tích tĩnh — ghi nhớ 2 mục tiêu vừa rút ra. Kiểm chứng chéo ờ bước 1.5: symbol <code>..._SecurityUtils_nativeDecrypt</code> phải tồn tại trong <code>.so</code>, đúng quy tắc đặt tên JNI ờ mục 0.2.</div>
+
+<h3>Bước 1.4 — Trích chuỗi mã hoá từ resources.arsc</h3>
+<p>APK này không giữ <code>res/values/strings.xml</code> rời (đã compile hết vào <code>resources.arsc</code>), nên ta đọc qua <code>ARSCParser</code>:</p>
+<pre><code><span class="cm"># resources.arsc là binary — dùng androguard lấy giá trị chuỗi theo tên</span>
+python3 - &lt;&lt;'EOF'
+from androguard.core.axml import ARSCParser
+import zipfile
+z = zipfile.ZipFile('ghost_protocol.apk')
+arsc = ARSCParser(z.read('resources.arsc'))
+print(arsc.get_string('com.phantom.ghostprotocol', 'handler_id_encrypted'))
+EOF</code></pre>
+<pre><code>['handler_id_encrypted', 'SCA2D9MICkEaGw/bVApPJx5MACcjRxcCSwQXIyUHQxIMAQ==']</code></pre>
+<p>Chuỗi <code>SCA2D9MI...==</code> là Base64. Decode thử:</p>
+<pre><code>python3 -c <span class="st">"import base64; d=base64.b64decode('SCA2D9MICkEaGw/bVApPJx5MACcjRxcCSwQXIyUHQxIMAQ=='); print(len(d), d.hex())"</span>
+<span class="cm"># 34 4820360fd3080a411a1b0fdb540a4f271e4c0027234717024b041723250743120c01</span></code></pre>
+<p>34 byte nhị phân — chắc chắn không phải văn bản, đúng kiểu dữ liệu đã encrypt.</p>
+<div class="verify"><b>✔ Cách verify:</b> decode phải ra đúng 34 byte, bắt đầu bằng <code>48 20 36 0f</code>. Lưu giá trị này — bước 4.2 dùng lại.</div>
+
+<h3>Bước 1.5 — Quét .so: liệt kê symbol và strings</h3>
+<pre><code><span class="cm"># Liệt kê symbol: xem JNI nào được export</span>
+objdump -d apk/lib/x86_64/libghost_crypto.so | grep -E '^[0-9a-f]+ &lt;' | head</code></pre>
+<pre><code>0000000000000ba0 &lt;Java_com_phantom_ghostprotocol_SecurityUtils_getRecoveryPin&gt;:
+0000000000000c70 &lt;Java_com_phantom_ghostprotocol_SecurityUtils_nativeDecrypt&gt;:</code></pre>
+<pre><code><span class="cm"># Quét chuỗi trong .so — kỹ thuật "báo cũ nhưng vẫn ăn"</span>
+strings apk/lib/x86_64/libghost_crypto.so | grep -iE 'pin|key|ghost|handler'</code></pre>
+<pre><code>...
+Android
+12077973
+...</code></pre>
+<p>Thấy <code>12077973</code> — trông như một mã số. Đây là dữ kiện cần kiểm chứng ngay ờ Phần 2 (spoiler: nó <b>không</b> phải PIN).</p>
+<div class="verify"><b>✔ Cách verify:</b> phải thấy đúng 2 symbol JNI trên (khớp với 2 hàm <code>native</code> trong <code>SecurityUtils</code>). Ghi nhớ chuỗi <code>12077973</code> — sẽ đối chiếu ờ bước 2.1.</div>
+
+<!-- ================= PHẦN 2 ================= -->
+<h2 id="p2">Phần 2 — Các hướng tấn công trực diện (thất bại, và cách verify)</h2>
+<p class="muted">Ghi lại để bạn khỏi mất thời gian đi lại đi lại các đường tắt này: mỗi hướng đều có vẻ hợp lý khi mới nhìn, và mỗi hướng đều chết với bằng chứng rõ ràng.</p>
+
+<h3><span class="tag bad">THẤT BẠI</span> 2.1 — Dùng <code>12077973</code> (chuỗi thấy trong .so) làm PIN đăng nhập</h3>
+<p><b>Thao tác:</b> thử nhập <code>12077973</code> vào màn login PIN (hoặc đọc hàm <code>authenticateUser</code> trong Java để xem PIN được so với giá trị nào).</p>
+<p><b>Kết quả thật:</b> decompile <code>MainActivity.authenticateUser</code> cho thấy PIN so sánh với <code>SecurityUtils.getRecoveryPin()</code> — cũng là hàm native. Disassemble hàm đó cho thấy PIN được dựng trực tiếp trong code, từng byte:</p>
+<pre><code>objdump -d --start-address=0xc00 --stop-address=0xc40 apk/lib/x86_64/libghost_crypto.so
+<span class="cm"># movb $0x37, (%rax)   → '7'</span>
+<span class="cm"># movb $0x33, 0x1(%rax) → '3'</span>
+<span class="cm"># movb $0x34, 0x2(%rax) → '4'</span>
+<span class="cm"># movb $0x38, 0x3(%rax) → '8'</span></code></pre>
+<p>PIN thật là <code>7348</code>. Chuỗi <code>12077973</code> chỉ là dữ liệu vô tình nằm cạnh chuỗi "Android" trong bảng string của <code>.so</code> — không liên quan.</p>
+<p><b>Kết luận:</b> <code>strings</code> là công cụ <b>gợi ý</b>, không phải bằng chứng. Mọi chuỗi đáng ngờ phải đối chiếu với code thật trước khi tin. (PIN <code>7348</code> này chỉ cần thiết nếu bạn muốn mờ app trên emulator xem chat — để lấy flag thì không cần.)</p>
+<div class="verify"><b>✔ Cách verify:</b> <code>0x37 0x33 0x34 0x38</code> đối chiếu bảng ASCII = <code>7 3 4 8</code>. Đây là phép kiểm chứng tay.</div>
+
+<h3><span class="tag bad">THẤT BẠI</span> 2.2 — Port thuật toán từ assembly lần đầu: đọc nhầm <code>andl $-1</code>, ra kết quả rác</h3>
+<p><b>Thao tác:</b> sau khi disassemble <code>nativeDecrypt</code> (Phần 3), viết lại thuật toán bằng Python và chạy.</p>
+<p><b>Kết quả thật:</b> lần port đầu tiên in ra chuỗi rác: <code>ð\F��|v5^w��r;_j0x[_?o~7xk�Ec7rhu</code> — không phải flag.</p>
+<p><b>Nguyên nhân tìm ra sau:</b> trong hàm dẫn xuất seed có lệnh</p>
+<pre><code>f8b: 83 e0 ff   andl $-0x1, %eax</code></pre>
+<p>Ta đọc vội thành "AND với <code>-1</code> = xoá bit thấp nhất" (mask <code>~1</code>) và viết Python <code>(b + 0x6C*i) &amp; ~1</code>. Sai. Trong encoding imm8 của x86, <code>0xff</code> được <b>sign-extend</b> thành <code>0xFFFFFFFF</code>, nên <code>andl $-1</code> là phép AND với <code>0xFFFFFFFF</code> — <b>không làm gì cả</b> (no-op). Đây là một "bẫy đọc assembly" kinh điển.</p>
+<p><b>Kết luận:</b> port từ assembly bằng mắt thường dễ sai ờ chi tiết nhỏ. Cần một cách kiểm chứng độc lập — mờ đường cho kỹ thuật ờ Phần 4 (emulate bằng Unicorn).</p>
+<div class="verify"><b>✔ Cách verify:</b> sửa <code>&amp; ~1</code> thành bỏ mask hẳn (vì <code>andl $-1</code> là no-op), chạy lại — seed phải đổi từ <code>0xC6DEEB41</code> (sai) sang <code>0xD6BE2847</code> (đúng, khớp với kết quả emulate).</div>
+
+<!-- ================= PHẦN 3 ================= -->
+<h2 id="p3">Phần 3 — Đột phá: đọc ngược thuật toán giải mã trong libghost_crypto.so</h2>
+
+<h3>Bước 3.1 — Đọc khung tổng thể của nativeDecrypt</h3>
+<pre><code><span class="cm"># Disassemble toàn bộ hàm nativeDecrypt (0xc70 → 0xe50)</span>
+objdump -d --start-address=0xc70 --stop-address=0xe50 apk/lib/x86_64/libghost_crypto.so</code></pre>
+<p>Bỏ qua phần prologue/stack-protector, ta đọc được <b>khung chương trình</b> — giống đọc pseudo-code của một service:</p>
+<pre><code>GetArrayLength(arr)              <span class="cm">// len</span>
+buf1 = <span class="kw">new</span> <span class="kw">byte</span>[len]; buf2 = <span class="kw">new</span> <span class="kw">byte</span>[len]
+memcpy(buf1, arr, len)           <span class="cm">// copy dữ liệu vào buf1</span>
+build_key(keybuf)                <span class="cm">// @0xec0 — dựng key</span>
+seed = derive_seed(keybuf, 0xf)  <span class="cm">// @0xf50 — 0xf = 15 = độ dài key</span>
+gen_keystream(buf2, len, seed)   <span class="cm">// @0xfc0</span>
+apply(buf1, len, buf2)           <span class="cm">// @0x1070 — trộn buf1 với keystream</span>
+<span class="kw">return</span> NewStringUTF(buf1)      <span class="cm">// kết quả giải mã</span></code></pre>
+<p>Bốn hàm phụ <code>0xec0 / 0xf50 / 0xfc0 / 0x1070</code> đều <b>thuần tính toán, không gọi JNI</b> — đây là tin tốt: ta có thể emulate chúng mà không cần giả lập cả máy ảo Android (Phần 4).</p>
+<div class="verify"><b>✔ Cách verify:</b> phân tích tĩnh. Mẹo đọc nhanh assembly: cứ gặp <code>callq ...@plt</code> (như <code>NewStringUTF@plt</code>) là đang gọi thư viện ngoài; còn <code>callq 0xec0</code> (địa chỉ nội bộ) là gọi hàm phụ — đó là các mốc ta cần đọc tiếp.</div>
+
+<h3>Bước 3.2 — Đọc từng hàm phụ</h3>
+
+<h4>(a) build_key @0xec0 — key "khóa bí mật" nằm lộ thiên</h4>
+<pre><code>movb $0x46, (%rax)    <span class="cm"># 'F'</span>
+movb $0x43, 0x1(%rax) <span class="cm"># 'C'</span>
+movb $0x4f, 0x2(%rax) <span class="cm"># 'O'</span>
+movb $0x5f, 0x3(%rax) <span class="cm"># '_'</span>
+... <span class="cm">(15 byte + NUL)</span></code></pre>
+<p>15 byte: <code>46 43 4F 5F 53 45 43 55 52 45 5F 32 30 32 34</code> = <b><code>FCO_SECURE_2024</code></b>. Đây là key dùng xuyên suốt. Khái niệm "đưa crypto vào native để giấu key" vỡ ngay ờ đây: key nằm nguyên xi dưới dạng từng lệnh <code>movb</code>.</p>
+
+<h4>(b) derive_seed @0xf50 — chuỗi băm key thành một số 32-bit</h4>
+<pre><code>s = 0x9E3779B9                                  <span class="cm"># hằng số khời tạo (quen thuộc từ TEA/xorshift)</span>
+<span class="kw">for</span> i <span class="kw">in</span> 0..14:                               <span class="cm"># 15 = độ dài key</span>
+    s = rotl32(s ^ (key[i] + 0x6C * i), 13)     <span class="cm"># rotl13: xoay trái 32 bit</span>
+                                                <span class="cm"># ⚠ andl $-1 ờ giữa là NO-OP (xem dead-end 2.2)</span></code></pre>
+
+<h4>(c) gen_keystream @0xfc0 — LCG glibc + xorshift tự chế</h4>
+<pre><code>a = seed
+b = seed ^ 0xDEADBEEF
+c = seed ^ 0xCAFEBABE
+<span class="kw">for</span> i <span class="kw">in</span> 0..len-1:
+    a = (a * 0x41C64E6D + 0x3039) &amp; 0x7FFFFFFF  <span class="cm"># LCG của glibc rand()</span>
+    b = rotl32(b, 13) ^ a
+    c = ((c &gt;&gt; 7) ^ (c &lt;&lt; 11)) + b              <span class="cm"># xorshift kiểu g(x)=(x&gt;&gt;7)^(x&lt;&lt;11)</span>
+    ks[i] = ((a ^ b ^ c) &gt;&gt; 16) &amp; 0xFF           <span class="cm"># lấy byte cao làm keystream</span></code></pre>
+
+<h4>(d) apply @0x1070 — biến đổi từng byte cipher text</h4>
+<pre><code><span class="kw">for</span> i <span class="kw">in</span> 0..len-1:
+    x = buf[i]
+    x = ((x ^ ks[i]) + 3) ^ 0x7F    <span class="cm"># hàm p() @0x11a0</span>
+    x = (x ^ 3) + 0x7F              <span class="cm"># thêm một lớp ờ @0x1070</span>
+    x = x ^ ks[i]                   <span class="cm"># hàm q() @0x11d0</span>
+    buf[i] = x ^ 0x82</code></pre>
+<p>Hai hàm nhỏ cuối, <code>p()</code> và <code>q()</code>, nằm ờ <code>0x11a0</code> và <code>0x11d0</code> — mỗi hàm chỉ ~10 lệnh, đọc trực tiếp từ objdump (giống bước 3.1, đã đối chiếu kỹ trong quá trình giải).</p>
+<div class="verify"><b>✔ Cách verify:</b> phân tích tĩnh — đây là bước then chốt, kiểm chứng bằng hai tín hiệu: (1) key phải đọc được thành chuỗi ASCII in được <code>FCO_SECURE_2024</code>; (2) khi chạy lại ờ bước 4.2, seed phải ra <code>0xD6BE2847</code>. Sai một dòng assembly → seed lệch ngay.</div>
+
+<h3>Bước 3.3 — Viết lại toàn bộ bằng Python</h3>
+<p>File <code>solve_decrypt.py</code> (đã lưu kèm bài này) — bản port trực tiếp từ assembly, có comment chỉ đúng offset từng khối:</p>
+<pre><code>#!/usr/bin/env python3
+<span class="kw">import</span> base64
+
+M32 = 0xFFFFFFFF
+
+<span class="kw">def</span> <span class="fn">rotl32</span>(x, r):
+    x &amp;= M32
+    <span class="kw">return</span> ((x &lt;&lt; r) | (x &gt;&gt; (32 - r))) &amp; M32
+
+<span class="kw">def</span> <span class="fn">derive_seed</span>(key: <span class="kw">bytes</span>) -&gt; <span class="kw">int</span>:
+    s = 0x9E3779B9
+    <span class="kw">for</span> i, b <span class="kw">in</span> <span class="fn">enumerate</span>(key):
+        v = b + 0x6C * i                <span class="cm"># andl $-1 == AND 0xFFFFFFFF: NO-OP</span>
+        s = <span class="fn">rotl32</span>(s ^ (v &amp; M32), 13)
+    <span class="kw">return</span> s
+
+<span class="kw">def</span> <span class="fn">gen_keystream</span>(seed: <span class="kw">int</span>, n: <span class="kw">int</span>) -&gt; <span class="kw">bytes</span>:
+    a = seed &amp; M32
+    b = (seed ^ 0xDEADBEEF) &amp; M32
+    c = (seed ^ 0xCAFEBABE) &amp; M32
+    ks = <span class="fn">bytearray</span>()
+    <span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(n):
+        a = (a * 0x41C64E6D + 0x3039) &amp; 0x7FFFFFFF
+        b = (<span class="fn">rotl32</span>(b, 13) ^ a) &amp; M32
+        c = ((((c &gt;&gt; 7) ^ ((c &lt;&lt; 11) &amp; M32)) &amp; M32) + b) &amp; M32
+        ks.append(((a ^ b ^ c) &gt;&gt; 16) &amp; 0xFF)
+    <span class="kw">return</span> <span class="fn">bytes</span>(ks)
+
+<span class="kw">def</span> <span class="fn">decrypt</span>(data: <span class="kw">bytes</span>, ks: <span class="kw">bytes</span>) -&gt; <span class="kw">bytes</span>:
+    out = <span class="fn">bytearray</span>()
+    <span class="kw">for</span> x, k <span class="kw">in</span> <span class="fn">zip</span>(data, ks):
+        x = (((x ^ k) + 3) &amp; 0xFF) ^ 0x7F
+        x = ((x ^ 3) + 0x7F) &amp; 0xFF
+        x = (x ^ k) &amp; 0xFF
+        out.append(x ^ 0x82)
+    <span class="kw">return</span> <span class="fn">bytes</span>(out)
+
+<span class="kw">if</span> __name__ == <span class="st">"__main__"</span>:
+    key = <span class="st">b"FCO_SECURE_2024"</span>
+    blob = base64.b64decode(<span class="st">"SCA2D9MICkEaGw/bVApPJx5MACcjRxcCSwQXIyUHQxIMAQ=="</span>)
+    seed = <span class="fn">derive_seed</span>(key)
+    ks = <span class="fn">gen_keystream</span>(seed, <span class="fn">len</span>(blob))
+    <span class="fn">print</span>(<span class="st">"seed = 0x%08X"</span> % seed)
+    <span class="fn">print</span>(<span class="st">"plaintext ="</span>, <span class="fn">decrypt</span>(blob, ks).decode())</code></pre>
+
+<!-- ================= PHẦN 4 ================= -->
+<h2 id="p4">Phần 4 — Kết liễu: chạy script, kiểm chứng chéo bằng CPU emulator</h2>
+
+<h3>Bước 4.1 — Kiểm chứng độc lập bằng Unicorn (dù sai port mắt vẫn bắt được)</h3>
+<p>Vì 4 hàm phụ không gọi JNI, ta có thể nạp thẳng machine code của <code>.so</code> vào CPU emulator Unicorn và chạy — kết quả là <b>mặt đất thật</b> để đối chiếu với bản port Python:</p>
+<pre><code>pip install unicorn</code></pre>
+<pre><code><span class="kw">from</span> unicorn <span class="kw">import</span> Uc, UC_ARCH_X86, UC_MODE_64
+<span class="kw">from</span> unicorn.x86_const <span class="kw">import</span> UC_X86_REG_RSP, UC_X86_REG_RAX, UC_X86_REG_RDI, UC_X86_REG_RSI, UC_X86_REG_RDX
+<span class="kw">import</span> base64
+
+BASE, STACK = 0x10000000, 0x20000000
+mu = <span class="fn">Uc</span>(UC_ARCH_X86, UC_MODE_64)
+mu.<span class="fn">mem_map</span>(BASE, 0x100000)
+mu.<span class="fn">mem_write</span>(BASE, <span class="fn">open</span>(<span class="st">'apk/lib/x86_64/libghost_crypto.so'</span>,<span class="st">'rb'</span>).<span class="fn">read</span>())
+mu.<span class="fn">mem_map</span>(STACK, 0x100000)
+mu.<span class="fn">reg_write</span>(UC_X86_REG_RSP, STACK + 0x80000)
+
+<span class="kw">def</span> <span class="fn">call_until</span>(fn, ret, *args):
+    regs = [UC_X86_REG_RDI, UC_X86_REG_RSI, UC_X86_REG_RDX]
+    <span class="kw">for</span> r, v <span class="kw">in</span> <span class="fn">zip</span>(regs, args): mu.<span class="fn">reg_write</span>(r, v)
+    mu.<span class="fn">emu_start</span>(BASE + fn, BASE + ret)
+    <span class="kw">return</span> mu.<span class="fn">reg_read</span>(UC_X86_REG_RAX)
+
+keybuf = BASE + 0x40000
+<span class="fn">call_until</span>(0xec0, 0xf48, keybuf)            <span class="cm"># build_key</span>
+seed = <span class="fn">call_until</span>(0xf50, 0xfb5, keybuf, 15) &amp; 0xFFFFFFFF   <span class="cm"># derive_seed</span>
+ct = base64.b64decode(<span class="st">"SCA2D9MICkEaGw/bVApPJx5MACcjRxcCSwQXIyUHQxIMAQ=="</span>)
+ksbuf, buf = BASE + 0x40100, BASE + 0x40200
+<span class="fn">call_until</span>(0xfc0, 0x106c, ksbuf, <span class="fn">len</span>(ct), seed)              <span class="cm"># gen_keystream</span>
+mu.<span class="fn">mem_write</span>(buf, ct)
+<span class="fn">call_until</span>(0x1070, 0x1118, buf, <span class="fn">len</span>(ct), ksbuf)             <span class="cm"># apply</span>
+<span class="fn">print</span>(<span class="fn">bytes</span>(mu.<span class="fn">mem_read</span>(buf, <span class="fn">len</span>(ct))))</code></pre>
+<pre><code>b'HTB{Str1ngs_4r3_n0t_S3cr3ts_Ag3nt}'</code></pre>
+<div class="verify"><b>✔ Cách verify:</b> output phải in đúng chuỗi <code>HTB{...}</code> ờ trên. Quan trọng hơn: phải khớp byte-by-byte với kết quả của script Python ờ bước 4.2. Hai kênh độc lập (đọc assembly + chạy machine code thật) cùng ra một kết quả → thuật toán port đã đúng.</div>
+
+<h3>Bước 4.2 — Chạy bản port Python và đối chiếu</h3>
+<pre><code>python3 solve_decrypt.py</code></pre>
+<pre><code>seed     = 0xD6BE2847
+cipher   = 4820360fd3080a411a1b0fdb540a4f271e4c0027234717024b041723250743120c01
+keystream= 7665971a2d0490271b3f2ba61bb1ef8cb820a18c55028225d9c2ba5f2c49a5666e81
+plaintext= HTB{Str1ngs_4r3_n0t_S3cr3ts_Ag3nt}</code></pre>
+<p>Khớp hoàn toàn với emulation ờ bước 4.1: cùng seed <code>0xD6BE2847</code>, cùng keystream đầu <code>7665971a...</code>, cùng plaintext.</p>
+<div class="tip"><b>🎯 Flag:</b> <code>HTB{Str1ngs_4r3_n0t_S3cr3ts_Ag3nt}</code> — cái tên flag tự nói luôn bài học: "strings không phải bí mật". Đây cũng là lý do dead-end 2.1 (tin chuỗi <code>12077973</code>) và bẫy <code>andl $-1</code> tồn tại — tác giả cố tình dựng bẫy cho người đọc vội.</div>
+
+<h3>Bước 4.3 — (Tuỳ chọn) Đi theo đường "người dùng thật": mờ app bằng PIN 7348</h3>
+<p>Nếu muốn thấy flag hiển thị đúng như một agent điệp viên trong app: cài APK lên emulator Android, nhập PIN <code>7348</code> (lấy từ bước 2.1), mờ màn chat — tin nhắn cuối cùng của SYSTEM sẽ là <code>Handler ID: HTB{Str1ngs_4r3_n0t_S3cr3ts_Ag3nt}</code>.</p>
+<div class="verify"><b>✔ Cách verify:</b> sau khi nhập PIN, màn ChatActivity hiện đúng 11 tin nhắn; tin cuối cùng bắt đầu bằng <code>Handler ID:</code>. (Con đường offline ờ bước 4.2 đã cho cùng giá trị, nên bước này chỉ là minh hoạ.)</div>
+
+<h3>Bảng tổng kết chuỗi tấn công</h3>
+<table>
+  <tr><th>#</th><th>Hành động</th><th>Dựa vào đâu</th><th>Verify bằng</th></tr>
+  <tr><td>1</td><td>Giải nén APK, xác định thành phần (<code>.so</code>, <code>resources.arsc</code>)</td><td>APK = ZIP</td><td><code>unzip -l</code> thấy đủ 4 file <code>.so</code></td></tr>
+  <tr><td>2</td><td>Decompile: tìm luồng sinh Handler ID</td><td><code>getArchivedMessages</code> gọi <code>decryptHandlerData(R$string.handler_id_encrypted)</code></td><td>Mã Java decompile ra khớp mô tả</td></tr>
+  <tr><td>3</td><td>Trích chuỗi <code>handler_id_encrypted</code> từ <code>resources.arsc</code></td><td>ARSCParser của androguard</td><td>Base64 decode ra đúng 34 byte</td></tr>
+  <tr><td>4</td><td>Disassemble <code>nativeDecrypt</code> + 4 hàm phụ</td><td>Symbol JNI theo quy ước đặt tên</td><td>Key đọc thành ASCII <code>FCO_SECURE_2024</code></td></tr>
+  <tr><td>5</td><td>Port Python + kiểm chứng Unicorn</td><td>Assembly ờ bước 4</td><td>Hai kênh cùng ra seed <code>0xD6BE2847</code>, cùng plaintext</td></tr>
+  <tr><td>6</td><td>Nhận flag</td><td>—</td><td><code>HTB{Str1ngs_4r3_n0t_S3cr3ts_Ag3nt}</code></td></tr>
+</table>
+
+<!-- ================= PHẦN 5 ================= -->
+<h2 id="p5">Phần 5 — Root cause qua góc nhìn Spring Boot</h2>
+<p>Challenge này không phải web, nên ta dịch các lỗi thiết kế sang ngôn ngữ của một hệ thống Spring Boot — vì bản chất giống hệt: <b>giấu secret trong artifact phát hành</b>.</p>
+
+<h3>Lỗi 1 — Hardcode khóa mã hoá trong code (dù có "giấu" trong native)</h3>
+<div class="spring bad-ex">
+  <div class="hd">❌ Code sai — key nằm trong artifact phát hành</div>
+  <div class="bd"><pre><code><span class="cm">// Java side</span>
+<span class="kw">public class</span> <span class="fn">SecurityUtils</span> {
+    <span class="kw">static</span> { System.loadLibrary(<span class="st">"ghost_crypto"</span>); }
+    <span class="kw">public static native</span> <span class="kw">byte</span>[] <span class="fn">nativeDecrypt</span>(<span class="kw">byte</span>[] data); <span class="cm">// key giấu bên trong .so</span>
+}
+<span class="cm">// C side (libghost_crypto.so) — key dựng bằng từng lệnh movb:</span>
+<span class="cm">//   'F','C','O','_','S','E','C','U','R','E','_','2','0','2','4'</span></code></pre></div>
+</div>
+<div class="spring">
+  <div class="hd">✅ Cách làm đúng — server-side decryption, client không bao giờ có key</div>
+  <div class="bd"><pre><code><span class="cm">// Secret chỉ tồn tại phía server, inject qua biến môi trường / Vault</span>
+<span class="kw">private final</span> StringHandlerKey key;  <span class="cm">// bind từ env HOOK_KEY, không nằm trong git/JAR</span>
+
+<span class="cm">// Client gọi API, server giải mã — attacker reverse app client</span>
+<span class="cm">// chỉ thấy endpoint, không thấy key lẫn thuật toán nhạy cảm</span></code></pre></div>
+</div>
+<p>Nguyên tắc: <b>bất kỳ dữ liệu nào client sờ hữu đều coi như công khai</b>. Đưa crypto vào native chỉ tăng chi phí reverse của attacker từ 5 phút lên 2 tiếng — không đổi được kết cục.</p>
+
+<h3>Lỗi 2 — Tự chế mật mã dòng bằng LCG + xorshift</h3>
+<div class="spring bad-ex">
+  <div class="hd">❌ Code sai — thuật toán tự chế "trông ngẫu nhiên"</div>
+  <div class="bd"><pre><code><span class="cm">// LCG glibc + xorshift tự pha chế — không qua phân tích mật mã nào</span>
+a = (a * 0x41C64E6D + 0x3039) &amp; 0x7FFFFFFF;
+b = rotl13(b) ^ a;
+c = ((c &gt;&gt; 7) ^ (c &lt;&lt; 11)) + b;
+ks[i] = ((a ^ b ^ c) &gt;&gt; 16) &amp; 0xFF;</code></pre></div>
+</div>
+<div class="spring">
+  <div class="hd">✅ Cách làm đúng — dùng thuật toán đã được phân tích công khai</div>
+  <div class="bd"><pre><code><span class="cm">// Spring/JCA: AES-GCM với IV ngẫu nhiên mỗi lần mã hoá</span>
+Cipher c = Cipher.<span class="fn">getInstance</span>(<span class="st">"AES/GCM/NoPadding"</span>);
+c.<span class="fn">init</span>(Cipher.ENCRYPT_MODE, keySpec, <span class="kw">new</span> <span class="fn">GCMParameterSpec</span>(128, iv));
+<span class="cm">// Nguyên tắc: không bao giờ tự phát minh lại crypto —</span>
+<span class="cm">// attacker đọc được thuật toán là bẻ được, dù key có khá hơn.</span></code></pre></div>
+</div>
+<p>LCG đã bị bẻ từ thập niên 90 — dãy hoàn toàn xác định từ seed. Khi thuật toán lộ (mà với client-side thì luôn lộ), toàn bộ "độ phức tạp" biến mất, chỉ còn một phép cộng nhân.</p>
+
+<h3>Lỗi 3 — <code>android:debuggable="true"</code> + <code>allowBackup="true"</code> trên bản phát hành</h3>
+<div class="spring bad-ex">
+  <div class="hd">❌ Cấu hình sai</div>
+  <div class="bd"><pre><code><span class="cm">&lt;!-- AndroidManifest.xml --&gt;</span>
+&lt;application
+    android:debuggable=<span class="st">"true"</span>     <span class="cm">&lt;!-- cho phép adb/debugger attach vào app --&gt;</span>
+    android:allowBackup=<span class="st">"true"</span>&gt;  <span class="cm">&lt;!-- cho phép adb backup dump dữ liệu app --&gt;</span></code></pre></div>
+</div>
+<div class="spring">
+  <div class="hd">✅ Cấu hình đúng</div>
+  <div class="bd"><pre><code><span class="cm">// Tương đương Spring: tắt dev-only feature khi đóng gói production</span>
+<span class="cm">// build.gradle (release): debuggable = false</span>
+<span class="cm">// spring: không ship actuator / h2-console / debug endpoint khi prod</span>
+buildTypes {
+    release { debuggable <span class="kw">false</span> }
+}</code></pre></div>
+</div>
+<p>Với <code>debuggable=true</code>, attacker có thiết bị trong tay sẽ attach debugger và đọc bộ nhớ app đang chạy — lấy flag mà không cần đọc một dòng assembly. Đây là "cửa hậu" theo đúng nghĩa đen.</p>
+
+<!-- ================= PHẦN 6 ================= -->
+<h2 id="p6">Phần 6 — Bài học &amp; checklist khi tự làm lại</h2>
+<div class="card">
+<ol class="steps">
+  <li><b>APK là ZIP.</b> Luôn bắt đầu bằng <code>unzip -l</code> — 30 giây nhìn được bản đồ toàn bộ artifact.</li>
+  <li><b>Đọc Java trước, assembly sau.</b> Decompile cho bạn luồng nghiệp vụ (đâu là flag, đi qua hàm nào); chỉ disassemble đúng hàm cần thiết thay vì cả file.</li>
+  <li><b>Quy tắc đặt tên JNI là mỏ neo.</b> <code>Java_&lt;pkg&gt;_&lt;class&gt;_&lt;method&gt;</code> giúp nhảy thẳng từ Java sang symbol trong <code>.so</code>.</li>
+  <li><b><code>strings</code> chỉ để gợi ý, không phải bằng chứng.</b> Chuỗi <code>12077973</code> trong .so là mồi — phải đối chiếu với code thật (dead-end 2.1).</li>
+  <li><b>Đọc assembly chậm ờ lệnh lạ.</b> <code>andl $-1</code> là no-op vì imm8 sign-extend thành 0xFFFFFFFF (dead-end 2.2). Khi port xong mà kết quả rác, nghi ngờ bản thân trước, assembly sau.</li>
+  <li><b>Kiểm chứng chéo bằng emulation.</b> Unicorn chạy được các hàm native thuần tính toán mà không cần máy Android — hai kênh độc lập cùng kết quả mới tin.</li>
+  <li><b>Secret trên client = secret công khai.</b> Muốn bảo vệ dữ liệu thì giải mã phía server; native code chỉ làm khó attacker thêm vài phút.</li>
+  <li><b>Không tự chế crypto.</b> LCG + xorshift "trông ngẫu nhiên" nhưng là dãy xác định — bẻ được ngay khi thuật toán lộ.</li>
+</ol>
+</div>
+<div class="card">
+<b>Checklist thực hành:</b>
+<ul class="dash">
+  <li>☐ <code>unzip -l</code> + xác định được <code>.so</code>, <code>resources.arsc</code>, <code>classes.dex</code></li>
+  <li>☐ Decompile được <code>getArchivedMessages</code> và trỏ được flag nằm ờ tin nhắn cuối</li>
+  <li>☐ Trích được chuỗi <code>handler_id_encrypted</code> và base64-decode ra 34 byte</li>
+  <li>☐ Disassemble <code>nativeDecrypt</code>, đọc ra key <code>FCO_SECURE_2024</code> và 4 khối thuật toán</li>
+  <li>☐ Port Python cho ra seed <code>0xD6BE2847</code> và flag</li>
+  <li>☐ Emulate bằng Unicorn, kết quả khớp byte-by-byte với Python</li>
+  <li>☐ Giải thích được vì sao <code>andl $-1</code> là bẫy và <code>12077973</code> là mồi</li>
+  <li>☐ Tự submit flag lên portal</li>
+</ul>
+</div>
+
+<p class="muted" style="margin-top:40px">Flag đã lấy thành công nhưng <b>chưa nộp</b> — bạn tự submit ờ portal HTB. Toàn bộ script (<code>solve_decrypt.py</code>) và APK nằm cùng thư mục với file hướng dẫn này. Chúc mừng, Agent!</p>
+
+</div>
+</body>
+</html>

